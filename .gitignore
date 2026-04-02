@@ -66,3 +66,8 @@ Thumbs.db
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
+
+# Python (AI API)
+__pycache__/
+*.pyc
+.venv/
