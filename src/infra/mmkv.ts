@@ -36,9 +36,9 @@ function shouldUseMemoryStorage(): boolean {
 function createNativeMMKVStorage(): StorageLike {
   try {
     const { MMKV } = require("react-native-mmkv");
-    const encryptionKey = "ironlog-secure-key-2026";
+    const encryptionKey = "coreirontrack-secure-key-2026";
     const mmkvInstance = new MMKV({
-      id: "ironlog-storage",
+      id: "coreirontrack-storage",
       encryptionKey: encryptionKey,
     });
     return mmkvInstance;

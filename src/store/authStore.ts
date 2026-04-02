@@ -227,7 +227,7 @@ export const useAuthStore = create<AuthStoreState>()(
       }
     }),
     {
-      name: "ironlog-auth-store",
+      name: "coreirontrack-auth-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,

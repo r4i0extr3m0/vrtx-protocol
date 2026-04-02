@@ -55,7 +55,7 @@ export const useSyncStore = create<SyncStoreState>()(
       },
     }),
     {
-      name: "ironlog-sync-store",
+      name: "coreirontrack-sync-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       partialize: (state) => ({
         queue: state.queue,

@@ -122,7 +122,7 @@ export const useGamificationStore = create<GamificationState>()(
       setHydrated: (value) => set({ hydrated: value }),
     }),
     {
-      name: "ironlog-gamification-store",
+      name: "coreirontrack-gamification-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

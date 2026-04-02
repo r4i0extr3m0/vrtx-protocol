@@ -5,7 +5,7 @@ import { createClient, type Session, type SupabaseClient, type User } from "@sup
 import { env, hasSupabaseEnv } from "@/src/constants/env";
 import { storage } from "@/src/infra/mmkv";
 
-const AUTH_TOKEN_KEY = "ironlog.supabase.auth.token";
+const AUTH_TOKEN_KEY = "coreirontrack.supabase.auth.token";
 
 const storageAdapter = {
   getItem: (key: string): string | null => storage.getString(key) ?? null,
@@ -28,7 +28,7 @@ function createFallbackClient(): SupabaseClient {
     },
     global: {
       headers: {
-        "x-ironlog-mode": "offline-fallback",
+        "x-coreirontrack-mode": "offline-fallback",
       },
     },
   });

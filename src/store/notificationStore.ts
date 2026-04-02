@@ -36,7 +36,7 @@ export const useNotificationStore = create<NotificationStoreState>()(
         })),
     }),
     {
-      name: "ironlog-notification-store",
+      name: "coreirontrack-notification-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
     }
   )

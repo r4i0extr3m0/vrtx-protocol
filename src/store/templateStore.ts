@@ -65,7 +65,7 @@ export const useTemplateStore = create<TemplateStoreState>()(
       },
     }),
     {
-      name: "ironlog-template-store",
+      name: "coreirontrack-template-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

@@ -45,7 +45,7 @@ export const useDashboardStore = create<DashboardState>()(
       }),
     }),
     {
-      name: "ironlog-dashboard-store",
+      name: "coreirontrack-dashboard-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
     },
   ),

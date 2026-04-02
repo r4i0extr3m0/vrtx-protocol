@@ -197,7 +197,7 @@ export const useDietStore = create<DietStoreState>()(
       }
     }),
     {
-      name: "ironlog-diet-store",
+      name: "coreirontrack-diet-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

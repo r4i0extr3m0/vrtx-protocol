@@ -67,7 +67,7 @@ export const useExerciseStore = create<ExerciseStoreState>()(
       },
     }),
     {
-      name: "ironlog-exercise-store",
+      name: "coreirontrack-exercise-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
