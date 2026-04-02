@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
 
@@ -16,14 +17,79 @@ import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
 import { HapticFeedback } from "@/src/services/haptics";
+import { useDietStore } from "@/src/store/dietStore";
+import { fetchAIRecommendations } from "@/src/services/AIInsights";
+import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
 
 export function HomeScreen() {
   const { colors } = useTheme();
   const { workouts, createWorkout } = useWorkout();
-  const { widgets, reorderWidgets } = useDashboardStore();
+  const { widgets } = useDashboardStore();
+  const meals = useDietStore((s) => s.meals);
   
   const latestWorkout = workouts[0] ?? null;
   const summary = latestWorkout ? summarizeWorkout(latestWorkout) : null;
+
+  const [objective] = useState<FitnessObjective>("hypertrophy");
+  const [level] = useState<TrainingLevel>("intermediate");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiData, setAiData] = useState<AIAnalyzeResponse | null>(null);
+
+  const last7Summary = useMemo(() => {
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+    const lastWorkouts = workouts.filter((w) => {
+      const ts = Date.parse(w.startedAt || w.date);
+      return Number.isFinite(ts) && ts >= sevenDaysAgo;
+    });
+
+    const totalVolumeKg = lastWorkouts.reduce((acc, w) => {
+      const workoutVolume = w.exercises.reduce((wAcc, ex) => {
+        const exVol = ex.sets.reduce((sAcc, set) => sAcc + set.reps * set.weightKg, 0);
+        return wAcc + exVol;
+      }, 0);
+      return acc + workoutVolume;
+    }, 0);
+
+    const lastMeals = meals.filter((m) => Date.parse(m.createdAt) >= sevenDaysAgo);
+    const caloriesAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalCalories, 0) / 7);
+    const proteinGAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalProtein, 0) / 7);
+
+    return {
+      workoutCount: lastWorkouts.length,
+      totalVolumeKg,
+      caloriesAvg: Number.isFinite(caloriesAvg) ? caloriesAvg : undefined,
+      proteinGAvg: Number.isFinite(proteinGAvg) ? proteinGAvg : undefined,
+    };
+  }, [meals, workouts]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      // só tenta buscar quando há pelo menos algum dado
+      if (workouts.length === 0 && meals.length === 0) return;
+      setAiLoading(true);
+      setAiError(null);
+      try {
+        const res = await fetchAIRecommendations({
+          objective,
+          level,
+          last7Days: last7Summary,
+        });
+        if (!cancelled) setAiData(res);
+      } catch (e) {
+        if (!cancelled) setAiError("Sem conexão com o AI (verifique EXPO_PUBLIC_AI_API_URL).");
+      } finally {
+        if (!cancelled) setAiLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [level, meals.length, objective, workouts.length, last7Summary]);
 
   const handleNewWorkout = () => {
     const draft = createWorkout("Treino rápido");
@@ -150,6 +216,7 @@ export function HomeScreen() {
                   { label: "Templates", icon: "ClipboardList" as IconName, path: "/templates" },
                   { label: "Dieta", icon: "Apple" as IconName, path: "/diet" },
                   { label: "Progresso", icon: "TrendingUp" as IconName, path: "/gamification" },
+                  { label: "AI Coach", icon: "psychology" as IconName, path: "/ai-coach" },
                   { label: "Perfil", icon: "User" as IconName, path: "/profile" },
                 ].map((item, i) => (
                   <Animated.View key={item.label} entering={FadeInDown.delay(700 + i * 100)}>
@@ -169,15 +236,32 @@ export function HomeScreen() {
 
           {/* Recent Activity / Insights */}
           <View style={styles.span2}>
-            <SectionCard title="Insights da Semana" subtitle="Análise automática do seu desempenho.">
-              <View style={styles.insightRow}>
-                <View style={[styles.insightIcon, { backgroundColor: colors.success + '15' }]}>
-                  <AppIcon name="TrendingUp" size={20} color={colors.success} />
+            <SectionCard title="Insights por IA" subtitle="Preditivo (beta) — baseado nos seus últimos 7 dias.">
+              {aiLoading ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                  <ActivityIndicator />
+                  <Text style={[styles.insightText, { color: colors.muted }]}>Gerando recomendações...</Text>
                 </View>
-                <Text style={[styles.insightText, { color: colors.foreground }]}>
-                  Seu volume de treino aumentou <Text style={{ color: colors.success, fontWeight: '800' }}>15%</Text> em relação à semana passada!
+              ) : aiError ? (
+                <Text style={[styles.insightText, { color: colors.muted }]}>{aiError}</Text>
+              ) : aiData ? (
+                <View style={{ gap: spacing.sm }}>
+                  <Text style={[styles.insightText, { color: colors.foreground }]}>{aiData.summary}</Text>
+                  {aiData.nextBestActions?.slice(0, 2).map((a) => (
+                    <View key={a} style={styles.insightRow}>
+                      <View style={[styles.insightIcon, { backgroundColor: colors.primary + "15" }]}>
+                        <AppIcon name="psychology" size={20} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.insightText, { color: colors.foreground }]}>{a}</Text>
+                    </View>
+                  ))}
+                  <AppButton label="Abrir AI Coach" onPress={() => router.push("/ai-coach" as never)} />
+                </View>
+              ) : (
+                <Text style={[styles.insightText, { color: colors.muted }]}>
+                  Registre treinos e refeições para desbloquear insights personalizados.
                 </Text>
-              </View>
+              )}
             </SectionCard>
           </View>
         </View>

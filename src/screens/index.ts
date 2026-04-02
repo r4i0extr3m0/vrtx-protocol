@@ -23,3 +23,4 @@ export * from "./PremiumScreen";
 export * from "./ForgotPasswordScreen";
 export * from "./DeleteAccountScreen";
 export * from "./TermsAndPrivacyScreen";
+export * from "./AICoachScreen";
