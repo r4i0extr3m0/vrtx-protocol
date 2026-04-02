@@ -1,0 +1,31 @@
+# Project TODO
+
+- [x] Definir arquitetura de design mobile e fluxos principais do IronLog
+- [x] Configurar dependências e base do projeto para arquitetura offline-first
+- [x] Estruturar diretórios e módulos principais em src/
+- [x] Implementar tokens de tema e sistema de cores sem uso direto de hex em componentes
+- [x] Implementar entidades e regras de negócio para treino, exercícios, VTT e 1RM
+- [x] Implementar persistência local com MMKV
+- [x] Implementar stores Zustand com persistência e hidratação inicial
+- [x] Implementar fila de sincronização FIFO com retry exponencial e conectividade
+- [x] Implementar cliente de API com respostas padronizadas e tratamento de falhas
+- [x] Implementar autenticação com guarda de navegação e logout em sessão inválida
+- [x] Implementar navegação principal com fluxo autenticado e não autenticado
+- [x] Construir tela de login
+- [x] Construir tela inicial com resumo operacional e status de sincronização
+- [x] Construir tela de registro de treino
+- [x] Construir tela de histórico de treinos
+- [x] Construir tela de detalhes do treino
+- [x] Construir tela de estatísticas
+- [x] Construir folha/modal de status de sincronização
+- [x] Gerar identidade visual e ícones do app
+- [x] Configurar branding em app.config.ts
+- [x] Escrever testes unitários para domínio, stores e fila de sincronização
+- [x] Escrever README com instruções de instalação, execução e arquitetura
+- [x] Criar exemplo de configuração do Supabase e migrations SQL
+- [x] Validar estado do projeto e corrigir erros de compilação
+- [ ] Criar checkpoint final e preparar entrega
+- [x] Corrigir acesso em modo local para não redirecionar o usuário de volta ao login
+- [x] Remover criação de treino durante renderização da tela de treino e exibir estado vazio controlado
+- [x] Corrigir erro de execução web/SSR "window is not defined" na camada de sincronização e infraestrutura offline-first
+- [x] Corrigir travamento em "Carregando IronLog..." causado pela hidratação inicial, pelo gate de autenticação ou pelas stores no fluxo web
