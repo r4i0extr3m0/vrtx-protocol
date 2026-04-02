@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import { router } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -7,14 +17,23 @@ import { AppButton } from "@/src/components/AppButton";
 import { AppInput } from "@/src/components/AppInput";
 import { useDietStore } from "@/src/store/dietStore";
 import { useWorkout, useTheme } from "@/src/hooks";
-import { storage } from "@/src/infra/mmkv";
 import { spacing, radius, typography } from "@/src/theme";
 import { sendAIChatMessage } from "@/src/services/AIInsights";
 import type { AIChatMessage, FitnessObjective, TrainingLevel } from "@/src/types/ai";
+import { secureStorage } from "@/src/infra/secureStorage";
 
-const CHAT_KEY = "coreirontrack.ai.chat.history";
+const CHAT_KEY = "coreirontrack.ai.chat.history.v1";
+const DAILY_LIMIT = 30;
 
-function safeParseHistory(raw: string | undefined): AIChatMessage[] {
+function todayId(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dailyCountKey(dateId: string): string {
+  return `coreirontrack.ai.chat.daily.count.${dateId}`;
+}
+
+function safeParseHistory(raw: string | null): AIChatMessage[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -44,10 +63,29 @@ export function AICoachScreen() {
 
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const [messages, setMessages] = useState<AIChatMessage[]>(() => safeParseHistory(storage.getString(CHAT_KEY)));
+  const [messages, setMessages] = useState<AIChatMessage[]>([]);
+  const [dailyCount, setDailyCount] = useState(0);
 
   useEffect(() => {
-    storage.set(CHAT_KEY, JSON.stringify(messages.slice(-60)));
+    void (async () => {
+      const historyRaw = await secureStorage.getString(CHAT_KEY);
+      setMessages(safeParseHistory(historyRaw));
+
+      const key = dailyCountKey(todayId());
+      const countRaw = await secureStorage.getString(key);
+      const count = countRaw ? Number(countRaw) : 0;
+      setDailyCount(Number.isFinite(count) ? count : 0);
+    })();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await secureStorage.setString(CHAT_KEY, JSON.stringify(messages.slice(-60)));
+      } catch {
+        // ignore
+      }
+    })();
   }, [messages]);
 
   const last7Summary = useMemo(() => {
@@ -83,6 +121,18 @@ export function AICoachScreen() {
     const trimmed = message.trim();
     if (!trimmed || sending) return;
 
+    if (dailyCount >= DAILY_LIMIT) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Limite diário atingido (${DAILY_LIMIT} mensagens). Volte amanhã ou ajuste seu plano para reduzir chamadas.`,
+          createdAt: Date.now(),
+        },
+      ]);
+      return;
+    }
+
     setMessage("");
     const nextMessages: AIChatMessage[] = [
       ...messages,
@@ -92,6 +142,10 @@ export function AICoachScreen() {
     setSending(true);
 
     try {
+      const newCount = dailyCount + 1;
+      setDailyCount(newCount);
+      void secureStorage.setString(dailyCountKey(todayId()), String(newCount));
+
       const res = await sendAIChatMessage({
         objective,
         level,
@@ -114,6 +168,13 @@ export function AICoachScreen() {
     }
   };
 
+  const suggestions = [
+    "Como melhorar meu supino?",
+    "O que comer pós-treino?",
+    "Como montar um deload?",
+    "Quanto de proteína por dia?",
+  ];
+
   return (
     <ScreenContainer className="px-5 py-4">
       <View style={styles.header}>
@@ -126,10 +187,39 @@ export function AICoachScreen() {
         <AppButton label="Voltar" variant="ghost" onPress={() => router.back()} />
       </View>
 
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestions}>
+        {suggestions.map((s) => (
+          <Pressable
+            key={s}
+            onPress={() => {
+              if (!sending) setMessage(s);
+            }}
+            style={[styles.suggestionChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>{s}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
       <FlatList
         data={messages}
         keyExtractor={(item) => `${item.role}-${item.createdAt}`}
         contentContainerStyle={styles.list}
+        ListFooterComponent={
+          sending ? (
+            <View
+              style={[
+                styles.bubble,
+                { alignSelf: "flex-start", backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <ActivityIndicator />
+                <Text style={{ color: colors.muted, fontWeight: "700" }}>Digitando...</Text>
+              </View>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => {
           const isUser = item.role === "user";
           return (
@@ -162,8 +252,15 @@ export function AICoachScreen() {
               accessibilityHint="Digite uma pergunta para o AI Coach"
             />
           </View>
-          <AppButton label={sending ? "Enviando..." : "Enviar"} onPress={() => void handleSend()} disabled={sending} />
+          <AppButton
+            label={sending ? "Enviando..." : "Enviar"}
+            onPress={() => void handleSend()}
+            disabled={sending}
+          />
         </View>
+        <Text style={[styles.limitText, { color: colors.muted }]}>
+          {dailyCount}/{DAILY_LIMIT} mensagens hoje
+        </Text>
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
@@ -199,5 +296,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingBottom: spacing.md,
   },
+  suggestions: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  suggestionChip: {
+    borderWidth: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+  },
+  limitText: {
+    fontSize: 12,
+    fontWeight: "700",
+    paddingBottom: spacing.md,
+  },
 });
-

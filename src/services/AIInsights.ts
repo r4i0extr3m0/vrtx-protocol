@@ -1,8 +1,28 @@
 import { env } from "@/src/constants/env";
-import type { AIAnalyzeRequest, AIAnalyzeResponse, AIChatRequest, AIChatResponse } from "@/src/types/ai";
+import type {
+  AIAnalyzeRequest,
+  AIAnalyzeResponse,
+  AIChatRequest,
+  AIChatResponse,
+  AIFeedbackRequest,
+} from "@/src/types/ai";
 
 function getBaseUrl(): string {
   return env.aiApiUrl.replace(/\/+$/, "");
+}
+
+async function fetchJsonWithTimeout<T>(url: string, init: RequestInit, timeoutMs = 12000): Promise<T> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return (await response.json()) as T;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 function toApiAnalyzeRequest(req: AIAnalyzeRequest) {
@@ -44,42 +64,67 @@ function fromApiAnalyzeResponse(json: unknown): AIAnalyzeResponse {
   const asStringArray = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 
+  const metaRaw = (obj.meta ?? {}) as Record<string, unknown>;
+  const meta = {
+    mode: typeof metaRaw.mode === "string" ? metaRaw.mode : undefined,
+    provider: typeof metaRaw.provider === "string" ? metaRaw.provider : undefined,
+    cacheKey:
+      typeof metaRaw.cache_key === "string"
+        ? metaRaw.cache_key
+        : typeof metaRaw.cacheKey === "string"
+          ? metaRaw.cacheKey
+          : undefined,
+  };
+
   return {
     summary: typeof obj.summary === "string" ? obj.summary : "",
     trainingRecommendations: asStringArray(obj.trainingRecommendations ?? obj.training_recommendations),
     nutritionRecommendations: asStringArray(obj.nutritionRecommendations ?? obj.nutrition_recommendations),
     warnings: asStringArray(obj.warnings),
     nextBestActions: asStringArray(obj.nextBestActions ?? obj.next_best_actions),
+    meta,
   };
 }
 
 export async function fetchAIRecommendations(req: AIAnalyzeRequest): Promise<AIAnalyzeResponse> {
   const url = `${getBaseUrl()}/analyze`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(toApiAnalyzeRequest(req)),
-  });
+  const json = await fetchJsonWithTimeout<unknown>(
+    url,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(toApiAnalyzeRequest(req)),
+    },
+    15000
+  );
 
-  if (!response.ok) {
-    throw new Error(`Falha ao consultar AI API (${response.status})`);
-  }
-
-  const json = (await response.json()) as unknown;
   return fromApiAnalyzeResponse(json);
 }
 
 export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatResponse> {
   const url = `${getBaseUrl()}/chat`;
-  const response = await fetch(url, {
+  return await fetchJsonWithTimeout<AIChatResponse>(
+    url,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(toApiChatRequest(req)),
+    },
+    20000
+  );
+}
+
+export async function sendAIFeedback(req: AIFeedbackRequest): Promise<{ ok: boolean; stored?: boolean }> {
+  const url = `${getBaseUrl()}/feedback`;
+  return await fetchJsonWithTimeout<{ ok: boolean; stored?: boolean }>(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(toApiChatRequest(req)),
+    body: JSON.stringify({
+      kind: req.kind,
+      rating: req.rating,
+      user_id: req.userId,
+      cache_key: req.cacheKey,
+      comment: req.comment,
+    }),
   });
-
-  if (!response.ok) {
-    throw new Error(`Falha ao consultar AI Chat (${response.status})`);
-  }
-
-  return (await response.json()) as AIChatResponse;
 }

@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
 import { HapticFeedback } from "@/src/services/haptics";
 import { useDietStore } from "@/src/store/dietStore";
-import { fetchAIRecommendations } from "@/src/services/AIInsights";
+import { fetchAIRecommendations, sendAIFeedback } from "@/src/services/AIInsights";
 import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
 
 export function HomeScreen() {
@@ -35,6 +35,7 @@ export function HomeScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiData, setAiData] = useState<AIAnalyzeResponse | null>(null);
+  const [aiFeedback, setAiFeedback] = useState<-1 | 0 | 1>(0);
 
   const last7Summary = useMemo(() => {
     const now = Date.now();
@@ -80,7 +81,15 @@ export function HomeScreen() {
         });
         if (!cancelled) setAiData(res);
       } catch (e) {
-        if (!cancelled) setAiError("Sem conexão com o AI (verifique EXPO_PUBLIC_AI_API_URL).");
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : "";
+        if (/aborted/i.test(msg)) {
+          setAiError("A IA demorou para responder. Tente novamente em instantes.");
+        } else if (/HTTP 429/.test(msg)) {
+          setAiError("IA ocupada no momento (limite atingido). Tente mais tarde.");
+        } else {
+          setAiError("Sem conexão com o AI (verifique EXPO_PUBLIC_AI_API_URL).");
+        }
       } finally {
         if (!cancelled) setAiLoading(false);
       }
@@ -255,6 +264,50 @@ export function HomeScreen() {
                       <Text style={[styles.insightText, { color: colors.foreground }]}>{a}</Text>
                     </View>
                   ))}
+                  <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+                    <Pressable
+                      onPress={() => {
+                        HapticFeedback.selection();
+                        setAiFeedback(1);
+                        void sendAIFeedback({
+                          kind: "analyze",
+                          rating: 1,
+                          cacheKey: aiData.meta?.cacheKey,
+                        }).catch(() => undefined);
+                      }}
+                      style={[
+                        styles.feedbackBtn,
+                        {
+                          backgroundColor: aiFeedback === 1 ? colors.success + "20" : colors.surface,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <AppIcon name="thumb-up" size={18} color={aiFeedback === 1 ? colors.success : colors.muted} />
+                      <Text style={{ color: colors.muted, fontWeight: "800" }}>Útil</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        HapticFeedback.selection();
+                        setAiFeedback(-1);
+                        void sendAIFeedback({
+                          kind: "analyze",
+                          rating: -1,
+                          cacheKey: aiData.meta?.cacheKey,
+                        }).catch(() => undefined);
+                      }}
+                      style={[
+                        styles.feedbackBtn,
+                        {
+                          backgroundColor: aiFeedback === -1 ? colors.error + "18" : colors.surface,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <AppIcon name="thumb-down" size={18} color={aiFeedback === -1 ? colors.error : colors.muted} />
+                      <Text style={{ color: colors.muted, fontWeight: "800" }}>Ruim</Text>
+                    </Pressable>
+                  </View>
                   <AppButton label="Abrir AI Coach" onPress={() => router.push("/ai-coach" as never)} />
                 </View>
               ) : (
@@ -298,6 +351,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
+  },
+  feedbackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
   },
   widgetsContainer: {
     flexDirection: 'row',

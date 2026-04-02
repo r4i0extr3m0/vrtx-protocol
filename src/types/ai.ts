@@ -23,6 +23,11 @@ export interface AIAnalyzeResponse {
   nutritionRecommendations: string[];
   warnings?: string[];
   nextBestActions?: string[];
+  meta?: {
+    mode?: "llm" | "cache" | "fallback" | string;
+    provider?: string;
+    cacheKey?: string;
+  };
 }
 
 export type AIChatRole = "user" | "assistant";
@@ -44,3 +49,10 @@ export interface AIChatResponse {
   reply: string;
 }
 
+export interface AIFeedbackRequest {
+  kind: "analyze" | "chat";
+  rating: -1 | 1;
+  userId?: string;
+  cacheKey?: string;
+  comment?: string;
+}

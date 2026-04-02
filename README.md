@@ -30,6 +30,9 @@
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
+# AI (API local/servidor)
+EXPO_PUBLIC_AI_API_URL=http://localhost:8000
+
 # Analytics & Monitoramento
 EXPO_PUBLIC_SENTRY_DSN=https://your-sentry-dsn
 EXPO_PUBLIC_POSTHOG_API_KEY=phc_your_key
@@ -49,6 +52,18 @@ EXPO_PUBLIC_POSTHOG_API_KEY=phc_your_key
 - **Performance**: @shopify/flash-list, react-native-mmkv.
 - **Backend**: Supabase (Auth, DB, RLS).
 - **Monitoramento**: Sentry, Firebase Analytics, PostHog.
+
+---
+
+## 🧠 IA Preditiva (FastAPI)
+
+O projeto inclui uma API em `ai-api/` para gerar recomendações e chat (MVP).
+
+```bash
+cd ai-api
+pip install -r requirements.txt --break-system-packages
+uvicorn main:app --reload --port 8000
+```
 
 ---
 
