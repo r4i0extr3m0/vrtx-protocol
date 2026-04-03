@@ -33,6 +33,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 # AI (API local/servidor)
 EXPO_PUBLIC_AI_API_URL=http://localhost:8000
 
+# RevenueCat (assinatura)
+EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=your_revenuecat_android_key
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=your_revenuecat_ios_key
+EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=pro
+
 # Analytics & Monitoramento
 EXPO_PUBLIC_SENTRY_DSN=https://your-sentry-dsn
 EXPO_PUBLIC_POSTHOG_API_KEY=phc_your_key

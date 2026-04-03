@@ -4,10 +4,12 @@ import os
 import re
 import time
 import asyncio
+from datetime import datetime, timezone, timedelta
+from urllib.parse import quote
 from typing import Literal, Optional, List, Dict, Any, Tuple
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 
@@ -62,6 +64,207 @@ class ChatResponse(BaseModel):
 @app.get("/health")
 async def health() -> dict:
     return {"ok": True}
+
+
+# ----------------------------
+# Config (monetização / limites)
+# ----------------------------
+
+FREE_ANALYZE_LIMIT = int(os.environ.get("FREE_ANALYZE_LIMIT", "5"))
+FREE_CHAT_LIMIT = int(os.environ.get("FREE_CHAT_LIMIT", "0"))
+PREMIUM_ANALYZE_LIMIT = int(os.environ.get("PREMIUM_ANALYZE_LIMIT", "100"))
+PREMIUM_CHAT_LIMIT = int(os.environ.get("PREMIUM_CHAT_LIMIT", "200"))
+
+PREMIUM_CACHE_TTL_SECONDS = int(os.environ.get("PREMIUM_CACHE_TTL_SECONDS", "600"))  # 10 min
+
+UPSTASH_REDIS_REST_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+UPSTASH_REDIS_REST_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+
+# Fallback local para dev (quando Redis não está configurado).
+# Em produção, use Upstash/Redis para suportar múltiplas instâncias.
+_LOCAL_RATE: Dict[str, Tuple[float, int]] = {}
+
+
+def _local_incr_with_ttl(key: str, ttl_seconds: int) -> int:
+    now = time.time()
+    expires_at, used = _LOCAL_RATE.get(key, (0.0, 0))
+    if expires_at <= now:
+        expires_at = now + ttl_seconds
+        used = 0
+    used += 1
+    _LOCAL_RATE[key] = (expires_at, used)
+    return used
+
+
+def _utc_day_id(ts: Optional[datetime] = None) -> str:
+    now = ts or datetime.now(timezone.utc)
+    return now.strftime("%Y-%m-%d")
+
+
+def _seconds_until_utc_midnight(ts: Optional[datetime] = None) -> int:
+    now = ts or datetime.now(timezone.utc)
+    tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(60, int((tomorrow - now).total_seconds()))
+
+
+async def _upstash_command(parts: List[str]) -> Any:
+    if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
+        raise RuntimeError("Upstash Redis não configurado (UPSTASH_REDIS_REST_URL/TOKEN)")
+
+    # Upstash REST: {base}/{COMMAND}/{arg1}/{arg2}...
+    # Cada parte precisa ser URL-encoded (ex.: userId pode conter hífens).
+    url = f"{UPSTASH_REDIS_REST_URL}/" + "/".join([quote(p, safe="") for p in parts])
+    headers = {"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(url, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+        return data.get("result")
+
+
+async def _upstash_get(key: str) -> Optional[str]:
+    result = await _upstash_command(["get", key])
+    if result is None:
+        return None
+    if isinstance(result, str):
+        return result
+    return str(result)
+
+
+async def _upstash_setex(key: str, ttl_seconds: int, value: str) -> None:
+    await _upstash_command(["setex", key, str(ttl_seconds), value])
+
+
+async def _upstash_incr_with_ttl(key: str, ttl_seconds: int) -> int:
+    result = await _upstash_command(["incr", key])
+    value = int(result or 0)
+    if value == 1:
+        # define TTL apenas na criação
+        await _upstash_command(["expire", key, str(ttl_seconds)])
+    return value
+
+
+def _extract_user_id(req: Request, body_user_id: Optional[str]) -> Optional[str]:
+    header_user_id = req.headers.get("x-user-id") or req.headers.get("X-User-Id")
+    return header_user_id or body_user_id
+
+
+async def _fetch_profile_premium(user_id: str) -> Tuple[bool, Optional[str]]:
+    """
+    Lê status premium a partir do Supabase (tabela profiles).
+    Requer SUPABASE_SERVICE_ROLE_KEY (server-side).
+    """
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return False, None
+
+    url = f"{SUPABASE_URL}/rest/v1/profiles"
+    params = {
+        "select": "is_premium,premium_until",
+        "id": f"eq.{user_id}",
+        "limit": "1",
+    }
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "accept": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(url, params=params, headers=headers)
+        if r.status_code >= 400:
+            return False, None
+        data = r.json()
+        if not isinstance(data, list) or not data:
+            return False, None
+        row = data[0] if isinstance(data[0], dict) else {}
+        is_premium = bool(row.get("is_premium"))
+        premium_until = row.get("premium_until")
+        if isinstance(premium_until, str):
+            # premium_until pode ser null
+            return is_premium, premium_until
+        return is_premium, None
+
+
+async def _is_user_premium(user_id: str) -> bool:
+    """
+    Cacheia premium no Redis por alguns minutos.
+    """
+    cache_key = f"premium:{user_id}"
+    try:
+        cached = await _upstash_get(cache_key)
+        if cached in ("1", "0"):
+            return cached == "1"
+    except Exception:
+        # sem redis -> segue para consulta direta
+        pass
+
+    is_premium, premium_until = await _fetch_profile_premium(user_id)
+    if premium_until:
+        try:
+            until_dt = datetime.fromisoformat(premium_until.replace("Z", "+00:00"))
+            if until_dt <= datetime.now(timezone.utc):
+                is_premium = False
+        except Exception:
+            # se parse falhar, mantemos is_premium como veio do DB
+            pass
+
+    try:
+        await _upstash_setex(cache_key, PREMIUM_CACHE_TTL_SECONDS, "1" if is_premium else "0")
+    except Exception:
+        pass
+
+    return is_premium
+
+
+async def _enforce_rate_limit(user_id: str, kind: Literal["analyze", "chat"]) -> Dict[str, Any]:
+    """
+    Aplica rate limiting diário por usuário.
+    Usa Upstash Redis via REST (necessário em produção).
+    """
+    is_premium = await _is_user_premium(user_id)
+    limit = (
+        PREMIUM_ANALYZE_LIMIT
+        if (is_premium and kind == "analyze")
+        else PREMIUM_CHAT_LIMIT
+        if (is_premium and kind == "chat")
+        else FREE_ANALYZE_LIMIT
+        if kind == "analyze"
+        else FREE_CHAT_LIMIT
+    )
+
+    day_id = _utc_day_id()
+    ttl = _seconds_until_utc_midnight()
+    key = f"rate:{user_id}:{day_id}:{kind}"
+
+    try:
+        if UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN:
+            used = await _upstash_incr_with_ttl(key, ttl)
+        else:
+            used = _local_incr_with_ttl(key, ttl)
+    except Exception:
+        # Fallback local se Redis estiver instável
+        used = _local_incr_with_ttl(key, ttl)
+
+    remaining = max(0, limit - used)
+    reset_at = (datetime.now(timezone.utc) + timedelta(seconds=ttl)).isoformat()
+
+    if used > limit:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "daily_limit",
+                "message": "Limite diário atingido. Assine o Premium para continuar.",
+                "kind": kind,
+                "is_premium": is_premium,
+                "limit": limit,
+                "reset_at": reset_at,
+            },
+        )
+
+    return {"is_premium": is_premium, "limit": limit, "used": used, "remaining": remaining, "reset_at": reset_at}
 
 
 class _TTLCache:
@@ -292,14 +495,74 @@ async def _call_llm(prompt: str) -> str:
             continue
 
 
+@app.get("/usage")
+async def usage(request: Request, user_id: Optional[str] = None) -> dict:
+    # Aceita query param e/ou header X-User-Id
+    uid = _extract_user_id(request, user_id)
+    if not uid:
+        raise HTTPException(status_code=400, detail={"error": "missing_user", "message": "user_id é obrigatório."})
+
+    is_premium = await _is_user_premium(uid)
+    day_id = _utc_day_id()
+    ttl = _seconds_until_utc_midnight()
+    reset_at = (datetime.now(timezone.utc) + timedelta(seconds=ttl)).isoformat()
+
+    analyze_key = f"rate:{uid}:{day_id}:analyze"
+    chat_key = f"rate:{uid}:{day_id}:chat"
+
+    def parse_int(value: Optional[str]) -> int:
+        try:
+            return int(value or 0)
+        except Exception:
+            return 0
+
+    try:
+        if UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN:
+            analyze_used = parse_int(await _upstash_get(analyze_key))
+            chat_used = parse_int(await _upstash_get(chat_key))
+        else:
+            now_ts = time.time()
+            analyze_exp, analyze_used = _LOCAL_RATE.get(analyze_key, (0.0, 0))
+            chat_exp, chat_used = _LOCAL_RATE.get(chat_key, (0.0, 0))
+            if analyze_exp <= now_ts:
+                analyze_used = 0
+            if chat_exp <= now_ts:
+                chat_used = 0
+    except Exception:
+        analyze_used = 0
+        chat_used = 0
+
+    analyze_limit = PREMIUM_ANALYZE_LIMIT if is_premium else FREE_ANALYZE_LIMIT
+    chat_limit = PREMIUM_CHAT_LIMIT if is_premium else FREE_CHAT_LIMIT
+
+    return {
+        "user_id": uid,
+        "is_premium": is_premium,
+        "analyze": {"limit": analyze_limit, "used": analyze_used, "remaining": max(0, analyze_limit - analyze_used)},
+        "chat": {"limit": chat_limit, "used": chat_used, "remaining": max(0, chat_limit - chat_used)},
+        "reset_at": reset_at,
+    }
+
+
 @app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
+async def analyze(req: AnalyzeRequest, request: Request) -> AnalyzeResponse:
+    uid = _extract_user_id(request, req.user_id)
+    if not uid:
+        raise HTTPException(status_code=400, detail={"error": "missing_user", "message": "user_id é obrigatório."})
+
+    usage_info = await _enforce_rate_limit(uid, "analyze")
+
     cache_key = _analyze_cache_key(req)
     cached = ANALYZE_CACHE.get(cache_key)
     if cached:
         try:
             model = AnalyzeResponse.model_validate_json(cached)
-            model.meta = {**(model.meta or {}), "mode": "cache", "cache_key": cache_key}
+            model.meta = {
+                **(model.meta or {}),
+                "mode": "cache",
+                "cache_key": cache_key,
+                "is_premium": usage_info.get("is_premium"),
+            }
             return model
         except Exception:
             # cache corrupta: ignora
@@ -313,19 +576,35 @@ async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
             raise RuntimeError("LLM retornou vazio")
         json_text = _extract_json_object(raw)
         model = AnalyzeResponse.model_validate_json(json_text)
-        model.meta = {**(model.meta or {}), "mode": "llm", "provider": os.environ.get("LLM_PROVIDER", "gemini"), "cache_key": cache_key}
+        model.meta = {
+            **(model.meta or {}),
+            "mode": "llm",
+            "provider": os.environ.get("LLM_PROVIDER", "gemini"),
+            "cache_key": cache_key,
+            "is_premium": usage_info.get("is_premium"),
+        }
         ANALYZE_CACHE.set(cache_key, model.model_dump_json())
         return model
     except Exception:
-        # MVP: fallback determinístico para dev/offline
+        # fallback determinístico para dev/offline
         model = _fallback_analyze(req)
-        model.meta = {**(model.meta or {}), "mode": "fallback", "cache_key": cache_key}
+        model.meta = {
+            **(model.meta or {}),
+            "mode": "fallback",
+            "cache_key": cache_key,
+            "is_premium": usage_info.get("is_premium"),
+        }
         ANALYZE_CACHE.set(cache_key, model.model_dump_json())
         return model
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
+async def chat(req: ChatRequest, request: Request, user_id: Optional[str] = None) -> ChatResponse:
+    uid = _extract_user_id(request, user_id)
+    if not uid:
+        raise HTTPException(status_code=400, detail={"error": "missing_user", "message": "user_id é obrigatório."})
+
+    await _enforce_rate_limit(uid, "chat")
     # Chat MVP: transforma histórico em um único prompt.
     history = "\n".join([f"{m.role.upper()}: {m.content}" for m in req.messages[-16:]])
     ctx = req.context

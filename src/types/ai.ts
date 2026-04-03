@@ -39,6 +39,7 @@ export interface AIChatMessage {
 }
 
 export interface AIChatRequest {
+  userId?: string;
   objective?: FitnessObjective;
   level?: TrainingLevel;
   context?: Last7DaysSummary;

@@ -18,9 +18,11 @@ import { AppInput } from "@/src/components/AppInput";
 import { useDietStore } from "@/src/store/dietStore";
 import { useWorkout, useTheme } from "@/src/hooks";
 import { spacing, radius, typography } from "@/src/theme";
-import { sendAIChatMessage } from "@/src/services/AIInsights";
+import { AIApiError, sendAIChatMessage } from "@/src/services/AIInsights";
 import type { AIChatMessage, FitnessObjective, TrainingLevel } from "@/src/types/ai";
 import { secureStorage } from "@/src/infra/secureStorage";
+import { useAuthStore } from "@/src/store/authStore";
+import { usePremiumStore } from "@/src/store/premiumStore";
 
 const CHAT_KEY = "coreirontrack.ai.chat.history.v1";
 const DAILY_LIMIT = 30;
@@ -57,6 +59,10 @@ export function AICoachScreen() {
   const { colors } = useTheme();
   const { workouts } = useWorkout();
   const meals = useDietStore((s) => s.meals);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const aiUsage = usePremiumStore((s) => s.aiUsage);
+  const refreshAIUsage = usePremiumStore((s) => s.refreshAIUsage);
 
   const [objective] = useState<FitnessObjective>("hypertrophy");
   const [level] = useState<TrainingLevel>("intermediate");
@@ -77,6 +83,11 @@ export function AICoachScreen() {
       setDailyCount(Number.isFinite(count) ? count : 0);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+    void refreshAIUsage(userId);
+  }, [isAuthenticated, userId]);
 
   useEffect(() => {
     void (async () => {
@@ -121,15 +132,28 @@ export function AICoachScreen() {
     const trimmed = message.trim();
     if (!trimmed || sending) return;
 
-    if (dailyCount >= DAILY_LIMIT) {
+    if (!isAuthenticated || !userId) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Faça login para usar o AI Coach.", createdAt: Date.now() },
+      ]);
+      return;
+    }
+
+    // Gate proativo com base no /usage
+    const latestUsage = usePremiumStore.getState().aiUsage;
+    const remaining = latestUsage?.chat?.remaining ?? 0;
+    const isPremium = latestUsage?.is_premium ?? false;
+    if (!isPremium && remaining <= 0) {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Limite diário atingido (${DAILY_LIMIT} mensagens). Volte amanhã ou ajuste seu plano para reduzir chamadas.`,
+          content: "O AI Coach está disponível no Premium. Assine para desbloquear o chat.",
           createdAt: Date.now(),
         },
       ]);
+      router.push("/premium" as never);
       return;
     }
 
@@ -147,13 +171,28 @@ export function AICoachScreen() {
       void secureStorage.setString(dailyCountKey(todayId()), String(newCount));
 
       const res = await sendAIChatMessage({
+        userId,
         objective,
         level,
         context: last7Summary,
         messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
       });
       setMessages((prev) => [...prev, { role: "assistant", content: res.reply, createdAt: Date.now() }]);
+
+      void refreshAIUsage(userId);
     } catch (e) {
+      if (e instanceof AIApiError && e.status === 403 && e.code === "daily_limit") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Limite diário atingido. Assine o Premium para continuar.",
+            createdAt: Date.now(),
+          },
+        ]);
+        router.push("/premium" as never);
+        return;
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -259,7 +298,7 @@ export function AICoachScreen() {
           />
         </View>
         <Text style={[styles.limitText, { color: colors.muted }]}>
-          {dailyCount}/{DAILY_LIMIT} mensagens hoje
+          {aiUsage ? `${aiUsage.chat.used}/${aiUsage.chat.limit} mensagens (reset: ${aiUsage.reset_at.slice(0, 10)})` : `${dailyCount}/${DAILY_LIMIT} mensagens hoje`}
         </Text>
       </KeyboardAvoidingView>
     </ScreenContainer>

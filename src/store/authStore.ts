@@ -5,6 +5,7 @@ import { getCurrentSession, getCurrentUser, getSupabaseClient } from "@/src/api/
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { mmkvJsonStorage } from "@/src/infra/mmkv";
 import type { AuthSession, UserProfile } from "@/src/types";
+import { usePremiumStore } from "@/src/store/premiumStore";
 
 interface AuthStoreState {
   isAuthenticated: boolean;
@@ -110,6 +111,11 @@ export const useAuthStore = create<AuthStoreState>()(
             user: mapUser(user),
             status: session && user ? "authenticated" : "idle",
           });
+
+          const mapped = mapUser(user);
+          if (mapped?.id) {
+            void usePremiumStore.getState().refreshAIUsage(mapped.id);
+          }
         } catch (error) {
           console.error("[authStore.hydrateAuth]", error);
           set({ isAuthenticated: false, user: null, session: null, status: "idle" });
@@ -144,6 +150,11 @@ export const useAuthStore = create<AuthStoreState>()(
             status: result.data.session && result.data.user ? "authenticated" : "idle",
           });
 
+          const mapped = mapUser(result.data.user);
+          if (mapped?.id) {
+            void usePremiumStore.getState().refreshAIUsage(mapped.id);
+          }
+
           return { success: true };
         } catch (error) {
           console.error("[authStore.signIn]", error);
@@ -162,6 +173,7 @@ export const useAuthStore = create<AuthStoreState>()(
         }
 
         set({ isAuthenticated: false, user: null, session: null, status: "guest" });
+        usePremiumStore.getState().resetPremium();
       },
       updateProfile: async (updates: Partial<UserProfile>) => {
         const { user } = get();

@@ -11,13 +11,43 @@ function getBaseUrl(): string {
   return env.aiApiUrl.replace(/\/+$/, "");
 }
 
+export class AIApiError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function withUserHeader(headers: HeadersInit | undefined, userId?: string): HeadersInit {
+  if (!userId) return headers ?? {};
+  return { ...(headers ?? {}), "X-User-Id": userId };
+}
+
 async function fetchJsonWithTimeout<T>(url: string, init: RequestInit, timeoutMs = 12000): Promise<T> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { ...init, signal: controller.signal });
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      let message = `HTTP ${response.status}`;
+      let code: string | undefined;
+      try {
+        const errJson = (await response.json()) as any;
+        code = typeof errJson?.error === "string" ? errJson.error : typeof errJson?.detail?.error === "string" ? errJson.detail.error : undefined;
+        message =
+          typeof errJson?.message === "string"
+            ? errJson.message
+            : typeof errJson?.detail?.message === "string"
+              ? errJson.detail.message
+              : message;
+      } catch {
+        // ignore
+      }
+      throw new AIApiError(message, response.status, code);
     }
     return (await response.json()) as T;
   } finally {
@@ -92,7 +122,7 @@ export async function fetchAIRecommendations(req: AIAnalyzeRequest): Promise<AIA
     url,
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: withUserHeader({ "content-type": "application/json" }, req.userId),
       body: JSON.stringify(toApiAnalyzeRequest(req)),
     },
     15000
@@ -107,7 +137,7 @@ export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatRespo
     url,
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: withUserHeader({ "content-type": "application/json" }, req.userId),
       body: JSON.stringify(toApiChatRequest(req)),
     },
     20000
@@ -118,7 +148,7 @@ export async function sendAIFeedback(req: AIFeedbackRequest): Promise<{ ok: bool
   const url = `${getBaseUrl()}/feedback`;
   return await fetchJsonWithTimeout<{ ok: boolean; stored?: boolean }>(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: withUserHeader({ "content-type": "application/json" }, req.userId),
     body: JSON.stringify({
       kind: req.kind,
       rating: req.rating,
@@ -127,4 +157,24 @@ export async function sendAIFeedback(req: AIFeedbackRequest): Promise<{ ok: bool
       comment: req.comment,
     }),
   });
+}
+
+export interface AIUsageResponse {
+  user_id: string;
+  is_premium: boolean;
+  analyze: { limit: number; used: number; remaining: number };
+  chat: { limit: number; used: number; remaining: number };
+  reset_at: string;
+}
+
+export async function fetchAIUsage(userId: string): Promise<AIUsageResponse> {
+  const url = `${getBaseUrl()}/usage?user_id=${encodeURIComponent(userId)}`;
+  return await fetchJsonWithTimeout<AIUsageResponse>(
+    url,
+    {
+      method: "GET",
+      headers: withUserHeader({}, userId),
+    },
+    8000
+  );
 }

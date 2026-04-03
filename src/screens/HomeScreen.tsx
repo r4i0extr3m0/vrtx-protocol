@@ -18,14 +18,20 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
 import { HapticFeedback } from "@/src/services/haptics";
 import { useDietStore } from "@/src/store/dietStore";
-import { fetchAIRecommendations, sendAIFeedback } from "@/src/services/AIInsights";
+import { fetchAIRecommendations, sendAIFeedback, AIApiError } from "@/src/services/AIInsights";
 import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
+import { useAuthStore } from "@/src/store/authStore";
+import { usePremiumStore } from "@/src/store/premiumStore";
 
 export function HomeScreen() {
   const { colors } = useTheme();
   const { workouts, createWorkout } = useWorkout();
   const { widgets } = useDashboardStore();
   const meals = useDietStore((s) => s.meals);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const aiUsage = usePremiumStore((s) => s.aiUsage);
+  const refreshAIUsage = usePremiumStore((s) => s.refreshAIUsage);
   
   const latestWorkout = workouts[0] ?? null;
   const summary = latestWorkout ? summarizeWorkout(latestWorkout) : null;
@@ -71,10 +77,23 @@ export function HomeScreen() {
     const run = async () => {
       // só tenta buscar quando há pelo menos algum dado
       if (workouts.length === 0 && meals.length === 0) return;
+      if (!isAuthenticated || !userId) return;
+
+      // Atualiza uso (server-side) e faz gate antes de chamar /analyze
+      await refreshAIUsage(userId);
+      const latestUsage = usePremiumStore.getState().aiUsage;
+      const remaining = latestUsage?.analyze?.remaining ?? null;
+      const isPremium = latestUsage?.is_premium ?? false;
+      if (!isPremium && remaining !== null && remaining <= 0) {
+        setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
+        return;
+      }
+
       setAiLoading(true);
       setAiError(null);
       try {
         const res = await fetchAIRecommendations({
+          userId,
           objective,
           level,
           last7Days: last7Summary,
@@ -82,6 +101,10 @@ export function HomeScreen() {
         if (!cancelled) setAiData(res);
       } catch (e) {
         if (cancelled) return;
+        if (e instanceof AIApiError && e.status === 403 && e.code === "daily_limit") {
+          setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
+          return;
+        }
         const msg = e instanceof Error ? e.message : "";
         if (/aborted/i.test(msg)) {
           setAiError("A IA demorou para responder. Tente novamente em instantes.");
@@ -98,7 +121,7 @@ export function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [level, meals.length, objective, workouts.length, last7Summary]);
+  }, [level, meals.length, objective, workouts.length, last7Summary, isAuthenticated, userId]);
 
   const handleNewWorkout = () => {
     const draft = createWorkout("Treino rápido");
@@ -252,7 +275,12 @@ export function HomeScreen() {
                   <Text style={[styles.insightText, { color: colors.muted }]}>Gerando recomendações...</Text>
                 </View>
               ) : aiError ? (
-                <Text style={[styles.insightText, { color: colors.muted }]}>{aiError}</Text>
+                <View style={{ gap: spacing.sm }}>
+                  <Text style={[styles.insightText, { color: colors.muted }]}>{aiError}</Text>
+                  {aiError.includes("Assine") ? (
+                    <AppButton label="Ver Premium" onPress={() => router.push("/premium" as never)} />
+                  ) : null}
+                </View>
               ) : aiData ? (
                 <View style={{ gap: spacing.sm }}>
                   <Text style={[styles.insightText, { color: colors.foreground }]}>{aiData.summary}</Text>
@@ -272,6 +300,7 @@ export function HomeScreen() {
                         void sendAIFeedback({
                           kind: "analyze",
                           rating: 1,
+                          userId: userId ?? undefined,
                           cacheKey: aiData.meta?.cacheKey,
                         }).catch(() => undefined);
                       }}
@@ -293,6 +322,7 @@ export function HomeScreen() {
                         void sendAIFeedback({
                           kind: "analyze",
                           rating: -1,
+                          userId: userId ?? undefined,
                           cacheKey: aiData.meta?.cacheKey,
                         }).catch(() => undefined);
                       }}

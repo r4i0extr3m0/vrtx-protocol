@@ -9,10 +9,15 @@ import { AppButton } from '@/src/components/AppButton';
 import { usePremiumStore } from '@/src/store/premiumStore';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Purchases from 'react-native-purchases';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import { env } from '@/src/constants/env';
+import { useAuthStore } from '@/src/store/authStore';
 
 export function PremiumScreen() {
   const { colors } = useTheme();
-  const { isPremium, setPremium } = usePremiumStore();
+  const { isPremium, refreshAIUsage } = usePremiumStore();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   const features = [
     { icon: 'analytics', title: 'Relatórios Avançados', desc: 'Gráficos detalhados de volume e progresso.' },
@@ -21,23 +26,36 @@ export function PremiumScreen() {
     { icon: 'star', title: 'Sem Anúncios', desc: 'Foco total no seu treino, sem interrupções.' },
   ];
 
-  const handlePurchase = (plan: 'monthly' | 'yearly' | 'lifetime') => {
-    Alert.alert(
-      'Confirmar Compra',
-      `Deseja assinar o plano ${plan === 'monthly' ? 'Mensal' : plan === 'yearly' ? 'Anual' : 'Vitalício'}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Confirmar', 
-          onPress: () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setPremium(true, plan);
-            Alert.alert('Sucesso!', 'Você agora é um membro Premium do CoreIronTrack!');
-            router.back();
-          } 
+  const handlePurchase = async () => {
+    try {
+      const result = await RevenueCatUI.presentPaywallIfNeeded({
+        requiredEntitlementIdentifier: env.revenueCatEntitlementId,
+      });
+
+      if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (userId) {
+          await refreshAIUsage(userId);
         }
-      ]
-    );
+        Alert.alert('Sucesso!', 'Premium ativado. A IA foi desbloqueada!');
+        router.back();
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível abrir o paywall agora.');
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Purchases.restorePurchases();
+      if (userId) {
+        await refreshAIUsage(userId);
+      }
+      Alert.alert('Restaurar', 'Compras restauradas (se houver).');
+    } catch {
+      Alert.alert('Restaurar', 'Não foi possível restaurar compras agora.');
+    }
   };
 
   return (
@@ -65,39 +83,16 @@ export function PremiumScreen() {
 
           <View style={styles.plansContainer}>
             <Pressable 
-              style={[styles.planCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => handlePurchase('monthly')}
-            >
-              <View>
-                <Text style={[styles.planName, { color: colors.foreground }]}>Mensal</Text>
-                <Text style={[styles.planPrice, { color: colors.primary }]}>R$ 19,90/mês</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color={colors.muted} />
-            </Pressable>
-
-            <Pressable 
               style={[styles.planCard, { backgroundColor: colors.surface, borderColor: colors.primary, borderWidth: 2 }]}
-              onPress={() => handlePurchase('yearly')}
+              onPress={() => { void handlePurchase(); }}
             >
               <View style={styles.bestValueBadge}>
-                <Text style={styles.bestValueText}>MELHOR VALOR</Text>
+                <Text style={styles.bestValueText}>DESBLOQUEAR IA</Text>
               </View>
               <View>
-                <Text style={[styles.planName, { color: colors.foreground }]}>Anual</Text>
-                <Text style={[styles.planPrice, { color: colors.primary }]}>R$ 149,90/ano</Text>
-                <Text style={[styles.planSavings, { color: colors.success }]}>Economize 37%</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color={colors.muted} />
-            </Pressable>
-
-            <Pressable 
-              style={[styles.planCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => handlePurchase('lifetime')}
-            >
-              <View>
-                <Text style={[styles.planName, { color: colors.foreground }]}>Vitalício</Text>
-                <Text style={[styles.planPrice, { color: colors.primary }]}>R$ 299,90</Text>
-                <Text style={[styles.planSavings, { color: colors.muted }]}>Pagamento único</Text>
+                <Text style={[styles.planName, { color: colors.foreground }]}>Premium</Text>
+                <Text style={[styles.planPrice, { color: colors.primary }]}>IA Coach + Insights</Text>
+                <Text style={[styles.planSavings, { color: colors.muted }]}>Planos e preços definidos no RevenueCat</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color={colors.muted} />
             </Pressable>
@@ -105,7 +100,7 @@ export function PremiumScreen() {
 
           <AppButton 
             label="Restaurar Compras" 
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Restaurar", "Buscando compras anteriores..."); }}
+            onPress={() => { void handleRestore(); }}
             variant="ghost"
             style={{ marginTop: spacing.md }}
           />

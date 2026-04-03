@@ -27,6 +27,7 @@ import { spacing, typography } from "@/src/theme";
 import { initMonitoring, initFirebase } from "@/src/services/monitoring";
 import { identifyUser } from "@/src/services/analytics";
 import { AnimatedStack } from "@/src/components/AnimatedStack";
+import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/services/revenuecat";
 
 // Storybook Integration
 const SHOW_STORYBOOK = process.env.EXPO_PUBLIC_STORYBOOK === "true";
@@ -52,6 +53,7 @@ function AuthGate() {
 
   useEffect(() => {
     initializeMMKV();
+    void configureRevenueCat();
 
     if (!hasSupabaseEnv()) {
       console.log("[AuthGate] Supabase não configurado, pulando hydration");
@@ -83,6 +85,9 @@ function AuthGate() {
   useEffect(() => {
     if (isAuthenticated && user) {
       identifyUser(user.id, { email: user.email, name: user.name });
+      void loginRevenueCat(user.id);
+    } else {
+      void logoutRevenueCat();
     }
   }, [isAuthenticated, user]);
 
