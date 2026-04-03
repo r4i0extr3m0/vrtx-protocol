@@ -5,3 +5,4 @@ export * from "./MetricCard";
 export * from "./RestTimer";
 export * from "./SectionCard";
 export * from "./SyncStatusPill";
+export * from "./BodyCompositionFigure";

@@ -162,6 +162,11 @@ export function ProfileScreen() {
         <SectionCard title="Conta e Dados" subtitle="Gerenciamento e segurança." delay={500}>
           <BiometricAuth />
           <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+            <AppButton
+              label="Bioimpedância e Corpo"
+              onPress={() => router.push("/body-composition" as never)}
+              variant="secondary"
+            />
             <AppButton 
               label="Exportar Dados (JSON)" 
               onPress={() => exportToJSON(workouts, `coreirontrack_backup`)} 

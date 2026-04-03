@@ -28,9 +28,9 @@ function shouldUseMemoryStorage(): boolean {
   // react-native-mmkv v4 uses JSI which crashes in Expo Go (storeClient)
   // JSI errors cannot be caught by JavaScript try-catch
   if (Constants.executionEnvironment === "storeClient") return true;
-  // Use memory storage for now to avoid JSI issues in release builds
-  // TODO: Investigate JSI initialization in release APK
-  return true;
+  // Dev Build / Release: usar MMKV nativo (persistência real).
+  // Se falhar ao inicializar (ex.: JSI indisponível), o createNativeMMKVStorage faz fallback.
+  return false;
 }
 
 function createNativeMMKVStorage(): StorageLike {

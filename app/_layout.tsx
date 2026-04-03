@@ -28,6 +28,7 @@ import { initMonitoring, initFirebase } from "@/src/services/monitoring";
 import { identifyUser } from "@/src/services/analytics";
 import { AnimatedStack } from "@/src/components/AnimatedStack";
 import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/services/revenuecat";
+import { useOnboardingStore } from "@/src/store/onboardingStore";
 
 // Storybook Integration
 const SHOW_STORYBOOK = process.env.EXPO_PUBLIC_STORYBOOK === "true";
@@ -50,6 +51,7 @@ export const unstable_settings = {
 
 function AuthGate() {
   const { status, isAuthenticated, user, hydrateAuth } = useAuth();
+  const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
 
   useEffect(() => {
     initializeMMKV();
@@ -112,6 +114,7 @@ function AuthGate() {
     <AnimatedStack>
       {!isAuthenticated ? (
         <>
+          {!hasSeenOnboarding ? <Stack.Screen name="onboarding" /> : null}
           <Stack.Screen name="login" />
           <Stack.Screen name="signup-wizard" />
         </>

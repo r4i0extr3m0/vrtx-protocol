@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { useAuth, useTheme } from "@/src/hooks";
+import { useOnboardingStore } from "@/src/store/onboardingStore";
 import { radius, spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
   const { colors } = useTheme();
   const { signIn, signUp, setGuestMode } = useAuth();
+  const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!hasSeenOnboarding) {
+      router.replace("/onboarding");
+    }
+  }, [hasSeenOnboarding]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {

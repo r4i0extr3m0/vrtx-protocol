@@ -123,11 +123,46 @@ export interface GamificationData {
 
 export interface SyncQueueOperation<TData = object> {
   id: string;
-  entity: "workout" | "auth" | "exercise" | "template" | "meal" | "food" | "gamification";
+  entity:
+    | "workout"
+    | "auth"
+    | "exercise"
+    | "template"
+    | "meal"
+    | "food"
+    | "gamification"
+    | "body_composition";
   type: "create" | "update" | "delete";
   table: string;
   data: TData;
   timestamp: number;
   retries: number;
   lastError?: string;
+}
+
+// ----------------------------
+// Bioimpedância / Composição corporal
+// ----------------------------
+
+export interface BodyCompositionSegments {
+  // Valores em kg (quando aplicável) ou percentuais; para MVP usamos kg de massa muscular por segmento.
+  leftArmKg?: number;
+  rightArmKg?: number;
+  leftLegKg?: number;
+  rightLegKg?: number;
+  trunkKg?: number;
+}
+
+export interface BodyCompositionEntry {
+  id: string;
+  userId?: string;
+  date: string; // YYYY-MM-DD
+  weightKg?: number;
+  bodyFatPercent?: number;
+  leanMassKg?: number;
+  muscleMassKg?: number;
+  segments?: BodyCompositionSegments;
+  notes?: string;
+  createdAt: string;
+  syncStatus: "local" | "pending" | "synced" | "failed";
 }

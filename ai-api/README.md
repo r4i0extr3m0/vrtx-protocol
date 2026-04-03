@@ -44,6 +44,10 @@ export UPSTASH_REDIS_REST_TOKEN="..."
 # Supabase (server-side)
 export SUPABASE_URL="https://<project>.supabase.co"
 export SUPABASE_SERVICE_ROLE_KEY="..."
+export SUPABASE_ANON_KEY="..." # usado para validar o access_token do usuário (Auth)
+
+# Segurança: em produção, exija Authorization Bearer (Supabase access token)
+export ALLOW_INSECURE_USER_ID=false
 ```
 
 Limites (defaults):

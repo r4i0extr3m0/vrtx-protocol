@@ -82,6 +82,11 @@ UPSTASH_REDIS_REST_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+
+# Segurança: em produção, NÃO confie em user_id via header/body.
+# Use o token do Supabase (Authorization: Bearer <access_token>).
+ALLOW_INSECURE_USER_ID = os.environ.get("ALLOW_INSECURE_USER_ID", "true").lower() == "true"
 
 
 # Fallback local para dev (quando Redis não está configurado).
@@ -151,6 +156,45 @@ async def _upstash_incr_with_ttl(key: str, ttl_seconds: int) -> int:
 def _extract_user_id(req: Request, body_user_id: Optional[str]) -> Optional[str]:
     header_user_id = req.headers.get("x-user-id") or req.headers.get("X-User-Id")
     return header_user_id or body_user_id
+
+
+def _extract_bearer_token(req: Request) -> Optional[str]:
+    auth = req.headers.get("authorization") or req.headers.get("Authorization")
+    if not auth:
+        return None
+    match = re.match(r"^Bearer\s+(.+)$", auth.strip(), flags=re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+async def _resolve_authenticated_user_id(req: Request, fallback_user_id: Optional[str]) -> str:
+    """
+    Resolve o userId de forma segura:
+    - Preferência: token JWT do Supabase (Authorization Bearer)
+    - Fallback (dev): X-User-Id / body user_id se ALLOW_INSECURE_USER_ID=true
+    """
+    token = _extract_bearer_token(req)
+    if token and SUPABASE_URL and SUPABASE_ANON_KEY:
+        url = f"{SUPABASE_URL}/auth/v1/user"
+        headers = {
+            "apikey": SUPABASE_ANON_KEY,
+            "authorization": f"Bearer {token}",
+            "accept": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(url, headers=headers)
+            if r.status_code >= 400:
+                raise HTTPException(status_code=401, detail={"error": "unauthorized", "message": "Sessão inválida."})
+            data = r.json()
+            uid = data.get("id") if isinstance(data, dict) else None
+            if isinstance(uid, str) and uid:
+                return uid
+
+    if ALLOW_INSECURE_USER_ID:
+        uid = _extract_user_id(req, fallback_user_id)
+        if uid:
+            return uid
+
+    raise HTTPException(status_code=401, detail={"error": "unauthorized", "message": "Autenticação necessária."})
 
 
 async def _fetch_profile_premium(user_id: str) -> Tuple[bool, Optional[str]]:
@@ -497,10 +541,8 @@ async def _call_llm(prompt: str) -> str:
 
 @app.get("/usage")
 async def usage(request: Request, user_id: Optional[str] = None) -> dict:
-    # Aceita query param e/ou header X-User-Id
-    uid = _extract_user_id(request, user_id)
-    if not uid:
-        raise HTTPException(status_code=400, detail={"error": "missing_user", "message": "user_id é obrigatório."})
+    # Preferência: resolve uid a partir do token do Supabase
+    uid = await _resolve_authenticated_user_id(request, user_id)
 
     is_premium = await _is_user_premium(uid)
     day_id = _utc_day_id()
@@ -546,9 +588,7 @@ async def usage(request: Request, user_id: Optional[str] = None) -> dict:
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(req: AnalyzeRequest, request: Request) -> AnalyzeResponse:
-    uid = _extract_user_id(request, req.user_id)
-    if not uid:
-        raise HTTPException(status_code=400, detail={"error": "missing_user", "message": "user_id é obrigatório."})
+    uid = await _resolve_authenticated_user_id(request, req.user_id)
 
     usage_info = await _enforce_rate_limit(uid, "analyze")
 
@@ -600,9 +640,7 @@ async def analyze(req: AnalyzeRequest, request: Request) -> AnalyzeResponse:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, request: Request, user_id: Optional[str] = None) -> ChatResponse:
-    uid = _extract_user_id(request, user_id)
-    if not uid:
-        raise HTTPException(status_code=400, detail={"error": "missing_user", "message": "user_id é obrigatório."})
+    uid = await _resolve_authenticated_user_id(request, user_id)
 
     await _enforce_rate_limit(uid, "chat")
     # Chat MVP: transforma histórico em um único prompt.

@@ -1,4 +1,5 @@
 import { env } from "@/src/constants/env";
+import { useAuthStore } from "@/src/store/authStore";
 import type {
   AIAnalyzeRequest,
   AIAnalyzeResponse,
@@ -23,8 +24,15 @@ export class AIApiError extends Error {
 }
 
 function withUserHeader(headers: HeadersInit | undefined, userId?: string): HeadersInit {
-  if (!userId) return headers ?? {};
-  return { ...(headers ?? {}), "X-User-Id": userId };
+  const base = { ...(headers ?? {}) } as Record<string, string>;
+  const token = useAuthStore.getState().session?.accessToken;
+  if (token) {
+    base.Authorization = `Bearer ${token}`;
+  } else if (userId) {
+    // Fallback dev: permite autenticação insegura quando a API estiver com ALLOW_INSECURE_USER_ID=true
+    base["X-User-Id"] = userId;
+  }
+  return base;
 }
 
 async function fetchJsonWithTimeout<T>(url: string, init: RequestInit, timeoutMs = 12000): Promise<T> {
