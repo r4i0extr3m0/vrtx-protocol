@@ -1,6 +1,6 @@
-# CoreIronTrack – App Premium de Treino e Dieta Offline‑First
+# VRTX Protocol – App Premium de Treino e Dieta Offline‑First
 
-**CoreIronTrack** é um aplicativo mobile de fitness de alta performance focado em privacidade, escala e experiência do usuário. Construído com **React Native (Expo)**, ele oferece um ecossistema completo para treinos, nutrição e gamificação, funcionando perfeitamente offline e sincronizando com o **Supabase** através de uma arquitetura de sincronização delta otimizada.
+**VRTX Protocol** é um aplicativo mobile de fitness de alta performance focado em privacidade, escala e experiência do usuário. Construído com **React Native (Expo)**, ele oferece um ecossistema completo para treinos, nutrição e gamificação, funcionando perfeitamente offline e sincronizando com o **Supabase** através de uma arquitetura de sincronização delta otimizada.
 
 ---
 

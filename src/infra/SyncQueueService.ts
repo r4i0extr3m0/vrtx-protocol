@@ -3,8 +3,8 @@ import { storage } from "@/src/infra/mmkv";
 import { isInternetReachable, subscribeToNetworkState } from "@/src/infra/network";
 import type { SyncQueueOperation } from "@/src/types";
 
-const QUEUE_KEY = "coreirontrack.sync.queue";
-const LAST_SYNC_KEY = "coreirontrack.sync.last_timestamp";
+const QUEUE_KEY = "vrtxprotocol.sync.queue";
+const LAST_SYNC_KEY = "vrtxprotocol.sync.last_timestamp";
 const MAX_RETRIES = 5;
 const BASE_DELAY_MS = 1000;
 

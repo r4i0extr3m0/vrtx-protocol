@@ -102,7 +102,7 @@ export function ProfileScreen() {
           ))}
         </View>
 
-        <SectionCard title="Personalização" subtitle="Deixe o CoreIronTrack com a sua cara." delay={300}>
+        <SectionCard title="Personalização" subtitle="Deixe o VRTX Protocol com a sua cara." delay={300}>
           <ThemeSelector />
           
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -169,7 +169,7 @@ export function ProfileScreen() {
             />
             <AppButton 
               label="Exportar Dados (JSON)" 
-              onPress={() => exportToJSON(workouts, `coreirontrack_backup`)} 
+              onPress={() => exportToJSON(workouts, `vrtxprotocol_backup`)} 
               variant="secondary" 
             />
             <AppButton 
@@ -187,8 +187,8 @@ export function ProfileScreen() {
         </SectionCard>
 
         <View style={styles.footer}>
-          <Text style={[styles.version, { color: colors.muted }]}>CoreIronTrack v2.1.0 Premium</Text>
-          <Text style={[styles.copyright, { color: colors.muted }]}>© 2026 CoreIronTrack Team</Text>
+          <Text style={[styles.version, { color: colors.muted }]}>VRTX Protocol v2.1.0 Premium</Text>
+          <Text style={[styles.copyright, { color: colors.muted }]}>© 2026 VRTX Protocol Team</Text>
         </View>
       </ScrollView>
     </ScreenContainer>

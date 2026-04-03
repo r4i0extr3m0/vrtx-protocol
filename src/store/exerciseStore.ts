@@ -67,7 +67,7 @@ export const useExerciseStore = create<ExerciseStoreState>()(
       },
     }),
     {
-      name: "coreirontrack-exercise-store",
+      name: "vrtxprotocol-exercise-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

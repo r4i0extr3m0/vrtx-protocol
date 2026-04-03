@@ -68,7 +68,7 @@ export function AuthScreen() {
     <ScreenContainer className="px-6 py-8">
       <View style={styles.content}>
         <View style={styles.hero}>
-          <Text style={[styles.kicker, { color: colors.primary }]}>CoreIronTrack</Text>
+          <Text style={[styles.kicker, { color: colors.primary }]}>VRTX Protocol</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>
             {mode === "login" ? "Bem-vindo de volta." : "Crie sua conta."}
           </Text>

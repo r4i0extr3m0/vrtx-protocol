@@ -188,7 +188,7 @@ export function HomeScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={[styles.title, { color: colors.foreground }]}>CoreIronTrack</Text>
+              <Text style={[styles.title, { color: colors.foreground }]}>VRTX Protocol</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>Seu diário de treino definitivo.</Text>
           </View>
           <SyncStatusPill />

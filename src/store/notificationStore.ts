@@ -36,7 +36,7 @@ export const useNotificationStore = create<NotificationStoreState>()(
         })),
     }),
     {
-      name: "coreirontrack-notification-store",
+      name: "vrtxprotocol-notification-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
     }
   )

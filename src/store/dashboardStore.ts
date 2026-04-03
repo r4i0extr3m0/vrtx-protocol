@@ -45,7 +45,7 @@ export const useDashboardStore = create<DashboardState>()(
       }),
     }),
     {
-      name: "coreirontrack-dashboard-store",
+      name: "vrtxprotocol-dashboard-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
     },
   ),

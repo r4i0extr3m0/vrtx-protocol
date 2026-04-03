@@ -11,19 +11,19 @@ export function TermsAndPrivacyScreen() {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('terms');
 
-  const termsContent = `# Termos de Uso do CoreIronTrack
+  const termsContent = `# Termos de Uso do VRTX Protocol
 
 ## 1. Aceitação dos Termos
-Ao usar o CoreIronTrack, você concorda com estes termos e condições. Se não concordar, não use o aplicativo.
+Ao usar o VRTX Protocol, você concorda com estes termos e condições. Se não concordar, não use o aplicativo.
 
 ## 2. Uso Permitido
-Você concorda em usar o CoreIronTrack apenas para fins legítimos e de forma que não infrinja os direitos de terceiros ou restrinja seu uso.
+Você concorda em usar o VRTX Protocol apenas para fins legítimos e de forma que não infrinja os direitos de terceiros ou restrinja seu uso.
 
 ## 3. Conteúdo do Usuário
-Você é responsável por todo o conteúdo que publica no CoreIronTrack. Você garante que possui todos os direitos necessários sobre esse conteúdo.
+Você é responsável por todo o conteúdo que publica no VRTX Protocol. Você garante que possui todos os direitos necessários sobre esse conteúdo.
 
 ## 4. Limitação de Responsabilidade
-O CoreIronTrack é fornecido "como está". Não garantimos que o aplicativo será livre de erros ou que funcionará sem interrupções.
+O VRTX Protocol é fornecido "como está". Não garantimos que o aplicativo será livre de erros ou que funcionará sem interrupções.
 
 ## 5. Modificações
 Reservamos o direito de modificar estes termos a qualquer momento. Notificaremos você sobre mudanças significativas.
@@ -31,7 +31,7 @@ Reservamos o direito de modificar estes termos a qualquer momento. Notificaremos
 ## 6. Encerramento
 Podemos encerrar sua conta se você violar estes termos.`;
 
-  const privacyContent = `# Política de Privacidade do CoreIronTrack
+  const privacyContent = `# Política de Privacidade do VRTX Protocol
 
 ## 1. Coleta de Dados
 Coletamos informações que você nos fornece voluntariamente, como:

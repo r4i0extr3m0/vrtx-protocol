@@ -239,7 +239,7 @@ export const useAuthStore = create<AuthStoreState>()(
       }
     }),
     {
-      name: "coreirontrack-auth-store",
+      name: "vrtxprotocol-auth-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,

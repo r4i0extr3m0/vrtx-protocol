@@ -22,7 +22,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "offline",
     title: "Offline-First",
-    description: "Treine em qualquer lugar. O CoreIronTrack funciona 100% offline e sincroniza quando você estiver online.",
+    description: "Treine em qualquer lugar. O VRTX Protocol funciona 100% offline e sincroniza quando você estiver online.",
     icon: "📡",
     color: "#7CC6FF",
   },

@@ -55,7 +55,7 @@ export const useSyncStore = create<SyncStoreState>()(
       },
     }),
     {
-      name: "coreirontrack-sync-store",
+      name: "vrtxprotocol-sync-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       partialize: (state) => ({
         queue: state.queue,

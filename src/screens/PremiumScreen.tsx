@@ -66,7 +66,7 @@ export function PremiumScreen() {
           style={styles.headerGradient}
         >
           <Ionicons name="trophy" size={60} color="#fff" />
-          <Text style={styles.headerTitle}>CoreIronTrack Premium</Text>
+          <Text style={styles.headerTitle}>VRTX Protocol Premium</Text>
           <Text style={styles.headerSubtitle}>Desbloqueie todo o seu potencial</Text>
         </LinearGradient>
 

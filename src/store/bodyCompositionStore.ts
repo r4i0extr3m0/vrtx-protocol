@@ -69,7 +69,7 @@ export const useBodyCompositionStore = create<BodyCompositionStoreState>()(
       setHydrated: (value) => set({ hydrated: value }),
     }),
     {
-      name: "coreirontrack-body-composition-store",
+      name: "vrtxprotocol-body-composition-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

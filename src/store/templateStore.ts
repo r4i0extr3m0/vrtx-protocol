@@ -65,7 +65,7 @@ export const useTemplateStore = create<TemplateStoreState>()(
       },
     }),
     {
-      name: "coreirontrack-template-store",
+      name: "vrtxprotocol-template-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

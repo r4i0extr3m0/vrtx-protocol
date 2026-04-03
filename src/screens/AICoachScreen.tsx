@@ -24,7 +24,7 @@ import { secureStorage } from "@/src/infra/secureStorage";
 import { useAuthStore } from "@/src/store/authStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
 
-const CHAT_KEY = "coreirontrack.ai.chat.history.v1";
+const CHAT_KEY = "vrtxprotocol.ai.chat.history.v1";
 const DAILY_LIMIT = 30;
 
 function todayId(): string {
@@ -32,7 +32,7 @@ function todayId(): string {
 }
 
 function dailyCountKey(dateId: string): string {
-  return `coreirontrack.ai.chat.daily.count.${dateId}`;
+  return `vrtxprotocol.ai.chat.daily.count.${dateId}`;
 }
 
 function safeParseHistory(raw: string | null): AIChatMessage[] {

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "CoreIronTrack",
-    "slug": "coreirontrack",
+    "name": "VRTX Protocol",
+    "slug": "vrtx-protocol",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,14 +16,14 @@
     ],
     "ios": {
       "supportsTabletMode": true,
-      "bundleIdentifier": "com.coreirontrack.app"
+      "bundleIdentifier": "com.vrtxprotocol.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0D10"
       },
-      "package": "com.coreirontrack.app",
+      "package": "com.vrtxprotocol.app",
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.CAMERA",

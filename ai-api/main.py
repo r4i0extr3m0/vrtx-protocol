@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 
-app = FastAPI(title="CoreIronTrack AI API", version="0.1.0")
+app = FastAPI(title="VRTX Protocol AI API", version="0.1.0")
 
 
 FitnessObjective = Literal["hypertrophy", "weight_loss", "performance"]
@@ -655,7 +655,7 @@ async def chat(req: ChatRequest, request: Request, user_id: Optional[str] = None
             f"proteina_g={ctx.protein_g_avg}.\n"
         )
 
-    prompt = f"""Você é o AI Coach do CoreIronTrack.
+    prompt = f"""Você é o AI Coach do VRTX Protocol.
 Responda em português (Brasil), direto e com bullets quando útil.
 {ctx_text}
 Objetivo: {req.objective}

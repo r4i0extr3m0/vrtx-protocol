@@ -42,7 +42,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHydrated: (value) => set({ hydrated: value }),
     }),
     {
-      name: "coreirontrack-settings-store",
+      name: "vrtxprotocol-settings-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

@@ -14,7 +14,7 @@ export async function shareWorkoutTemplate(workout: Workout) {
     });
     
     const result = await Share.share({
-      message: `Confira meu treino "${workout.name}" no CoreIronTrack! Clique no link para importar: ${shareUrl}`,
+      message: `Confira meu treino "${workout.name}" no VRTX Protocol! Clique no link para importar: ${shareUrl}`,
       url: shareUrl,
       title: `Compartilhar Treino: ${workout.name}`
     });

@@ -1,4 +1,4 @@
-# CoreIronTrack AI API (FastAPI)
+# VRTX Protocol AI API (FastAPI)
 
 API simples para gerar **recomendações preditivas** (treino + nutrição) usando um LLM (Gemini ou Claude).
 

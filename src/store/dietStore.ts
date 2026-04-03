@@ -197,7 +197,7 @@ export const useDietStore = create<DietStoreState>()(
       }
     }),
     {
-      name: "coreirontrack-diet-store",
+      name: "vrtxprotocol-diet-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

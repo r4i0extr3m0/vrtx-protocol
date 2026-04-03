@@ -105,7 +105,7 @@ function AuthGate() {
           backgroundColor: "#0B0D10",
         }}
       >
-        <Text style={{ color: "#F4F7FB", fontSize: typography.section, fontWeight: "800" }}>Carregando CoreIronTrack…</Text>
+        <Text style={{ color: "#F4F7FB", fontSize: typography.section, fontWeight: "800" }}>Carregando VRTX Protocol…</Text>
       </View>
     );
   }

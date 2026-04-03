@@ -122,7 +122,7 @@ export const useGamificationStore = create<GamificationState>()(
       setHydrated: (value) => set({ hydrated: value }),
     }),
     {
-      name: "coreirontrack-gamification-store",
+      name: "vrtxprotocol-gamification-store",
       storage: createJSONStorage(() => mmkvJsonStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

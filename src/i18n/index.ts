@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 import * as Localization from "expo-localization";
 import { storage } from "@/src/infra/mmkv";
 
-const LANGUAGE_KEY = "coreirontrack.settings.language";
+const LANGUAGE_KEY = "vrtxprotocol.settings.language";
 
 const resources = {
   en: {
