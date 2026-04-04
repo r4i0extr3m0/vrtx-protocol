@@ -93,6 +93,8 @@ function AuthGate() {
     }
   }, [isAuthenticated, user]);
 
+  const shouldBypassAuthInDev = __DEV__ && !isAuthenticated;
+
   // Mostrar loading apenas se estiver em estado "loading"
   if (status === "loading") {
     return (
@@ -120,7 +122,22 @@ function AuthGate() {
 
   return (
     <AnimatedStack>
-      {!isAuthenticated ? (
+      {shouldBypassAuthInDev ? (
+        <>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="workout/[id]" />
+          <Stack.Screen name="history/[id]" />
+          <Stack.Screen name="exercises" />
+          <Stack.Screen name="templates" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="gamification" />
+          <Stack.Screen name="diet/index" />
+          <Stack.Screen name="diet/add-meal" />
+          <Stack.Screen name="diet/goals" />
+          <Stack.Screen name="camera" options={{ presentation: "fullScreenModal" }} />
+          <Stack.Screen name="sync-status" options={{ presentation: "modal" }} />
+        </>
+      ) : !isAuthenticated ? (
         <>
           {!hasSeenOnboarding ? <Stack.Screen name="onboarding" /> : null}
           <Stack.Screen name="login" />

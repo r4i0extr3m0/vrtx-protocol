@@ -28,6 +28,5 @@ export function IconSymbol({
   weight?: string;
 }) {
   const mappedName = MAPPING[name];
-  console.log("[IconSymbol] Rendering icon:", name, "→", mappedName, "color:", color, "size:", size);
   return <MaterialIcons color={color} size={size} name={mappedName as any} style={style} />;
 }

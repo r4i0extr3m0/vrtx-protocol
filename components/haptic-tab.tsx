@@ -4,9 +4,7 @@ import * as Haptics from "expo-haptics";
 
 export function HapticTab(props: BottomTabBarButtonProps) {
   const { onPress, onLongPress, onPressIn, style, children, testID } = props;
-  
-  console.log("[HapticTab] Rendering with children:", !!children, "testID:", testID);
-  
+
   return (
     <Pressable
       style={style}
