@@ -73,3 +73,29 @@ export async function getCurrentUser(): Promise<User | null> {
   const result = await client.auth.getUser();
   return result.data.user ?? null;
 }
+
+export function getPersistedAccessToken(): string | null {
+  const raw = storage.getString(AUTH_TOKEN_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      access_token?: string;
+      currentSession?: { access_token?: string };
+    };
+
+    if (typeof parsed.access_token === "string") {
+      return parsed.access_token;
+    }
+
+    if (typeof parsed.currentSession?.access_token === "string") {
+      return parsed.currentSession.access_token;
+    }
+  } catch (error) {
+    console.warn("[supabase] Não foi possível ler o token persistido.", error);
+  }
+
+  return null;
+}

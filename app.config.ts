@@ -1,5 +1,6 @@
 // Load environment variables with proper priority (system > .env)
 import "./scripts/load-env.js";
+import { existsSync } from "node:fs";
 import type { ExpoConfig } from "expo/config";
 
 // Bundle ID format: space.manus.<project_name_dots>.<timestamp>
@@ -22,6 +23,7 @@ const bundleId =
     })
     .join(".") || "space.manus.app";
 const schemeFromBundleId = "vrtxprotocol";
+const hasAndroidGoogleServices = existsSync("google-services.json");
 
 const env = {
   // App branding - update these values directly (do not use env vars)
@@ -45,6 +47,9 @@ const config: ExpoConfig = {
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
   extra: {
+    eas: {
+      projectId: "87dcd3d8-f02c-4a31-9cf7-158b13752b4f",
+    },
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   },
   ios: {
@@ -55,6 +60,9 @@ const config: ExpoConfig = {
       }
   },
   android: {
+    ...(hasAndroidGoogleServices
+      ? { googleServicesFile: "./google-services.json" }
+      : {}),
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -87,8 +95,9 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "@sentry/react-native",
-    "@react-native-firebase/app",
-    "@react-native-firebase/crashlytics",
+    ...(hasAndroidGoogleServices
+      ? ["@react-native-firebase/app", "@react-native-firebase/crashlytics"]
+      : []),
     "expo-localization",
     [
       "expo-audio",

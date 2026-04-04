@@ -12,15 +12,15 @@ import { createId, toIsoTimestamp } from "@/src/utils";
 const setSchema = z.object({
   id: z.string(),
   reps: z.number().int().min(0).max(1000),
-  weight: z.number().min(0).max(1000),
+  weightKg: z.number().min(0).max(1000),
   completed: z.boolean(),
-  type: z.enum(["normal", "warmup", "dropset", "failure"]).optional(),
+  notes: z.string().max(500).optional(),
 });
 
 const exerciseEntrySchema = z.object({
   id: z.string(),
-  exerciseId: z.string(),
   name: z.string(),
+  muscleGroup: z.string(),
   sets: z.array(setSchema),
   notes: z.string().max(500).optional(),
 });

@@ -101,6 +101,11 @@ export class SyncQueueService {
     return [...this.queue];
   }
 
+  replaceQueue(nextQueue: SyncQueueOperation[]): void {
+    this.queue = deduplicateQueue([...nextQueue]);
+    this.saveQueue();
+  }
+
   enqueue(operation: SyncQueueOperation): void {
     this.queue.push(operation);
     this.queue = deduplicateQueue(this.queue);

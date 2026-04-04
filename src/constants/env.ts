@@ -8,6 +8,18 @@ export const env = {
   revenueCatEntitlementId: process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? "pro",
 };
 
+export function getSupabaseEnvError(): string | null {
+  if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    return "Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no .env e gere um novo Dev Build.";
+  }
+
+  if (env.supabaseAnonKey.startsWith("sb_secret_")) {
+    return "EXPO_PUBLIC_SUPABASE_ANON_KEY está usando uma chave secreta do Supabase. Use a chave pública anon para login no app.";
+  }
+
+  return null;
+}
+
 export function hasSupabaseEnv(): boolean {
-  return Boolean(env.supabaseUrl && env.supabaseAnonKey);
+  return getSupabaseEnvError() === null;
 }

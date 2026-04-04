@@ -1,5 +1,6 @@
 export type AuthErrorCode =
   | "EMAIL_NOT_CONFIRMED"
+  | "INVALID_EMAIL"
   | "INVALID_CREDENTIALS"
   | "RATE_LIMIT"
   | "NETWORK"
@@ -25,6 +26,18 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
       title: "PROTOCOLO_PENDENTE",
       message: "Seu protocolo está quase pronto. Verifique o link de ativação no seu e-mail.",
       actionLabel: "VERIFICAR_INBOX",
+    };
+  }
+
+  if (
+    msg.includes("invalid email") ||
+    msg.includes("email address is invalid") ||
+    msg.includes("unable to validate email address")
+  ) {
+    return {
+      code: "INVALID_EMAIL",
+      title: "COORDENADA_INVÁLIDA",
+      message: "O e-mail informado não é válido. Revise o endereço e tente novamente.",
     };
   }
 

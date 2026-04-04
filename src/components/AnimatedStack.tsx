@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 
-export function AnimatedStack() {
+interface AnimatedStackProps {
+  children?: ReactNode;
+}
+
+export function AnimatedStack({ children }: AnimatedStackProps) {
   return (
     <Stack
       screenOptions={{
@@ -14,6 +18,8 @@ export function AnimatedStack() {
         gestureDirection: 'horizontal',
         fullScreenGestureEnabled: true,
       }}
-    />
+    >
+      {children}
+    </Stack>
   );
 }

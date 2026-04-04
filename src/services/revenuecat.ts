@@ -4,6 +4,7 @@ import Purchases, { LOG_LEVEL, type CustomerInfo } from "react-native-purchases"
 import { env } from "@/src/constants/env";
 
 let configured = false;
+let currentAppUserId: string | null = null;
 
 export function isRevenueCatConfigured(): boolean {
   return configured;
@@ -27,6 +28,7 @@ export async function loginRevenueCat(userId: string): Promise<void> {
   if (!configured) return;
   try {
     await Purchases.logIn(userId);
+    currentAppUserId = userId;
   } catch {
     // ignore
   }
@@ -34,8 +36,10 @@ export async function loginRevenueCat(userId: string): Promise<void> {
 
 export async function logoutRevenueCat(): Promise<void> {
   if (!configured) return;
+  if (!currentAppUserId) return;
   try {
     await Purchases.logOut();
+    currentAppUserId = null;
   } catch {
     // ignore
   }

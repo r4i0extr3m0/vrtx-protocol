@@ -70,13 +70,13 @@ Para questões sobre privacidade, entre em contato conosco através do aplicativ
           <AppButton
             label="Termos de Uso"
             onPress={() => setActiveTab('terms')}
-            variant={activeTab === 'terms' ? 'default' : 'secondary'}
+            variant={activeTab === 'terms' ? 'primary' : 'secondary'}
             style={styles.tab}
           />
           <AppButton
             label="Privacidade"
             onPress={() => setActiveTab('privacy')}
-            variant={activeTab === 'privacy' ? 'default' : 'secondary'}
+            variant={activeTab === 'privacy' ? 'primary' : 'secondary'}
             style={styles.tab}
           />
         </View>
@@ -86,7 +86,15 @@ Para questões sobre privacidade, entre em contato conosco através do aplicativ
           contentContainerStyle={styles.contentInner}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.textBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.textBox,
+              {
+                backgroundColor: "rgba(255,255,255,0.03)",
+                borderColor: colors.border,
+              },
+            ]}
+          >
             {(activeTab === 'terms' ? termsContent : privacyContent).split('\n').map((line, index) => {
               if (line.startsWith('# ')) {
                 return (
@@ -104,14 +112,14 @@ Para questões sobre privacidade, entre em contato conosco através do aplicativ
               }
               if (line.startsWith('- ')) {
                 return (
-                  <Text key={index} style={[styles.bullet, { color: colors.text }]}>
+                  <Text key={index} style={[styles.bullet, { color: colors.foreground }]}>
                     {line}
                   </Text>
                 );
               }
               if (line.trim()) {
                 return (
-                  <Text key={index} style={[styles.paragraph, { color: colors.text }]}>
+                  <Text key={index} style={[styles.paragraph, { color: colors.foreground }]}>
                     {line}
                   </Text>
                 );
@@ -134,7 +142,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   tab: {
     flex: 1,
@@ -164,13 +172,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   paragraph: {
-    fontSize: typography.bodySm,
-    lineHeight: typography.bodySm * 1.6,
+    fontSize: typography.bodySm + 1,
+    lineHeight: (typography.bodySm + 1) * 1.65,
+    fontWeight: '500',
     marginBottom: spacing.sm,
   },
   bullet: {
-    fontSize: typography.bodySm,
-    lineHeight: typography.bodySm * 1.6,
+    fontSize: typography.bodySm + 1,
+    lineHeight: (typography.bodySm + 1) * 1.65,
+    fontWeight: '500',
     marginLeft: spacing.md,
     marginBottom: spacing.sm,
   },

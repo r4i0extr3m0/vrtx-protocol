@@ -1,5 +1,5 @@
 import { env } from "@/src/constants/env";
-import { useAuthStore } from "@/src/store/authStore";
+import { getPersistedAccessToken } from "@/src/api/supabase";
 import type {
   AIAnalyzeRequest,
   AIAnalyzeResponse,
@@ -45,7 +45,7 @@ export function translateAIError(err: unknown): { title: string; message: string
 
 function withUserHeader(headers: HeadersInit | undefined, userId?: string): HeadersInit {
   const base = { ...(headers ?? {}) } as Record<string, string>;
-  const token = useAuthStore.getState().session?.accessToken;
+  const token = getPersistedAccessToken();
   if (token) {
     base.Authorization = `Bearer ${token}`;
   } else if (userId) {

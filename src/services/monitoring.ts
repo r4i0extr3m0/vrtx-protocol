@@ -1,17 +1,31 @@
 import * as Sentry from '@sentry/react-native';
 
-let firebaseInitialized = false;
 let analyticsAvailable = false;
 let crashlyticsAvailable = false;
+let monitoringInitialized = false;
+let firebaseInitialized = false;
 
 export const initMonitoring = () => {
-  // Sentry is initialized by the Sentry plugin in app.config.ts
-  // This function is kept for compatibility but Sentry initialization
-  // happens automatically through the @sentry/react-native plugin
+  if (monitoringInitialized) {
+    return;
+  }
+
+  const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+  Sentry.init({
+    dsn,
+    enabled: Boolean(dsn),
+    tracesSampleRate: 1.0,
+  });
+
+  monitoringInitialized = true;
   console.log('[Monitoring] Initialized');
 };
 
 export const initFirebase = () => {
+  if (firebaseInitialized) {
+    return;
+  }
+
   try {
     // Firebase is initialized automatically by the plugin
     // This function is kept for explicit initialization if needed
@@ -27,7 +41,7 @@ export const initFirebase = () => {
     }
 
     try {
-      const { getAnalytics, logEvent } = require('@react-native-firebase/analytics');
+      require('@react-native-firebase/analytics');
       analyticsAvailable = true;
       console.log('[Firebase] Analytics available');
     } catch (e) {

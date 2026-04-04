@@ -148,7 +148,6 @@ export function ExercisesScreen() {
       <FlashList
         data={filtered}
         renderItem={renderItem}
-        estimatedItemSize={120}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
