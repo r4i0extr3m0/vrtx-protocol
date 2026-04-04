@@ -1,72 +1,75 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useColors } from "@/hooks/use-colors";
+import { AppIcon } from "@/src/components/AppIcon";
+import { useTheme } from "@/src/hooks";
+import { typography } from "@/src/theme";
 
 export default function TabLayout() {
-  const colors = useColors();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
-  const tabBarHeight = 58 + bottomPadding;
+  const tabBarHeight = 64 + bottomPadding;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.tint,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: {
-          paddingTop: 8,
-          paddingBottom: bottomPadding,
-          height: tabBarHeight,
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          borderTopWidth: 0.5,
+        tabBarLabelStyle: {
+          fontFamily: typography.family.mono,
+          fontSize: 10,
+          fontWeight: '700',
+          paddingBottom: 4,
         },
+        tabBarStyle: {
+          position: 'absolute',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 255, 255, 0.08)',
+          backgroundColor: 'transparent',
+          height: tabBarHeight,
+          elevation: 0,
+        },
+        tabBarBackground: () => (
+          <BlurView 
+            intensity={30} 
+            tint="dark" 
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(13, 13, 13, 0.8)' }]} 
+          />
+        ),
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) => {
-            console.log("[Tab] Home icon - focused:", focused, "color:", color);
-            return <IconSymbol size={28} name="house.fill" color={color} />;
-          },
+          title: "COMMAND",
+          tabBarIcon: ({ color }) => <AppIcon name="Cpu" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="workout"
         options={{
-          title: "Treino",
-          tabBarIcon: ({ color, focused }) => {
-            console.log("[Tab] Workout icon - focused:", focused, "color:", color);
-            return <IconSymbol size={28} name="dumbbell.fill" color={color} />;
-          },
+          title: "PROTOCOLO",
+          tabBarIcon: ({ color }) => <AppIcon name="Zap" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: "Histórico",
-          tabBarIcon: ({ color, focused }) => {
-            console.log("[Tab] History icon - focused:", focused, "color:", color);
-            return <IconSymbol size={28} name="clock.fill" color={color} />;
-          },
+          title: "LOGS",
+          tabBarIcon: ({ color }) => <AppIcon name="Database" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="statistics"
         options={{
-          title: "Stats",
-          tabBarIcon: ({ color, focused }) => {
-            console.log("[Tab] Stats icon - focused:", focused, "color:", color);
-            return <IconSymbol size={28} name="chart.bar.fill" color={color} />;
-          },
+          title: "ANALYTICS",
+          tabBarIcon: ({ color }) => <AppIcon name="Activity" size={24} color={color} />,
         }}
       />
     </Tabs>

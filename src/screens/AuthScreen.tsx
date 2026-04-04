@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { Alert, StyleSheet, Text, View, KeyboardAvoidingView, Platform, ScrollView, Pressable } from "react-native";
 import { router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeIn, FadeInDown, useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { ScreenContainer } from "@/components/screen-container";
-import { AppButton } from "@/src/components/AppButton";
+import { 
+  ScreenWrapper, 
+  GlassCard, 
+  NeonButton, 
+  InputGlass, 
+  BadgeMetal 
+} from "../components/ui";
 import { useAuth, useTheme } from "@/src/hooks";
 import { useOnboardingStore } from "@/src/store/onboardingStore";
 import { hasSupabaseEnv } from "@/src/constants/env";
-import { radius, spacing, typography, shadows } from "@/src/theme";
-import { ScreenBackdrop } from "../components/ScreenBackdrop";
+import { spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
   const { colors } = useTheme();
@@ -23,10 +26,6 @@ export function AuthScreen() {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passFocused, setPassFocused] = useState(false);
-  const [nameFocused, setNameFocused] = useState(false);
-
   const supabaseReady = useMemo(() => hasSupabaseEnv(), []);
 
   useEffect(() => {
@@ -54,11 +53,7 @@ export function AuthScreen() {
         router.push({ pathname: "/email-pending", params: { email: email.trim() } } as never);
         return;
       }
-      // Tradução de erros UX Writing
-      const message = result.message?.includes("Invalid login credentials") 
-        ? "Acesso negado. Verifique seu e-mail e senha." 
-        : result.message;
-      Alert.alert("FALHA NA AUTENTICAÇÃO", message ?? "Erro de conexão com o servidor.");
+      Alert.alert("FALHA NA AUTENTICAÇÃO", result.message ?? "Erro de conexão com o servidor.");
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -76,10 +71,7 @@ export function AuthScreen() {
     setSubmitting(false);
     if (!result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const message = result.message?.includes("User already registered")
-        ? "Este protocolo já está em uso. Tente fazer login."
-        : result.message;
-      Alert.alert("FALHA NO REGISTRO", message ?? "Não foi possível criar sua conta.");
+      Alert.alert("FALHA NO REGISTRO", result.message ?? "Não foi possível criar sua conta.");
       return;
     }
     
@@ -92,19 +84,8 @@ export function AuthScreen() {
     router.replace("/signup-wizard");
   };
 
-  const getInputStyle = (focused: boolean) => [
-    styles.input,
-    { 
-      backgroundColor: "rgba(255,255,255,0.05)", 
-      borderColor: focused ? colors.primary : colors.border, 
-      color: colors.foreground,
-      borderWidth: focused ? 1.5 : 1,
-    },
-  ];
-
   return (
-    <ScreenContainer>
-      <ScreenBackdrop />
+    <ScreenWrapper withSafeArea={false}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -112,125 +93,100 @@ export function AuthScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.hero}>
-              <Text style={[styles.kicker, { color: colors.primary }]}>VRTX_COMMAND_CENTER</Text>
-              <Text style={[styles.title, { color: colors.foreground }]}>
+              <BadgeMetal label="VRTX_COMMAND_CENTER" variant="primary" style={styles.heroBadge} />
+              <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
                 {mode === "login" ? "AUTH_REQUIRED" : "NEW_PROTOCOL"}
               </Text>
-              <Text style={[styles.subtitle, { color: colors.muted }]}>
+              <Text style={[styles.subtitle, { color: colors.muted, fontFamily: typography.family.mono }]}>
                 {!supabaseReady
-                  ? "SISTEMA_OFFLINE: Configure as variáveis de ambiente para habilitar sincronização."
+                  ? "SISTEMA_OFFLINE: Redundância local ativa."
                   : mode === "login"
-                    ? "Insira suas credenciais para acessar o painel de controle."
-                    : "Inicie o setup do seu hardware biológico no VRTX Protocol."}
+                    ? "Insira suas credenciais de acesso."
+                    : "Inicie o setup do seu hardware biológico."}
               </Text>
             </Animated.View>
 
-            <Animated.View
-              entering={FadeInDown.delay(200).duration(600).springify()}
-              style={[styles.form, { backgroundColor: "rgba(26, 26, 26, 0.8)", borderColor: colors.border }]}
-            >
-              <LinearGradient
-                colors={["rgba(255,255,255,0.03)", "transparent"]}
-                style={StyleSheet.absoluteFill}
-              />
-              
+            <GlassCard style={styles.formCard} intensity={20}>
               {!supabaseReady ? (
                 <View style={styles.offlineWarning}>
-                  <Text style={[styles.statusText, { color: colors.warning }]}>STATUS: MODO_LOCAL</Text>
-                  <AppButton
+                  <BadgeMetal label="STATUS: MODO_LOCAL" variant="warning" />
+                  <Text style={[styles.offlineText, { color: colors.muted, fontFamily: typography.family.mono }]}>
+                    O sistema está operando em modo de isolamento. Os dados serão salvos localmente.
+                  </Text>
+                  <NeonButton
                     label="Termos e Privacidade"
                     onPress={() => router.push("/terms-and-privacy" as never)}
-                    variant="secondary"
+                    variant="glass"
+                    style={{ width: '100%' }}
                   />
                 </View>
               ) : (
                 <>
                   {mode === "signup" && (
-                    <View style={styles.inputWrapper}>
-                      <Text style={[styles.inputLabel, { color: colors.muted }]}>OPERADOR</Text>
-                      <TextInput
-                        autoCapitalize="words"
-                        autoCorrect={false}
-                        onChangeText={setName}
-                        onFocus={() => setNameFocused(true)}
-                        onBlur={() => setNameFocused(false)}
-                        placeholder="Nome do Operador"
-                        placeholderTextColor="rgba(255,255,255,0.2)"
-                        style={getInputStyle(nameFocused)}
-                        value={name}
-                      />
-                    </View>
+                    <InputGlass
+                      label="OPERADOR"
+                      placeholder="Nome do Operador"
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                    />
                   )}
                   
-                  <View style={styles.inputWrapper}>
-                    <Text style={[styles.inputLabel, { color: colors.muted }]}>COORDENADA_EMAIL</Text>
-                    <TextInput
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      keyboardType="email-address"
-                      onChangeText={setEmail}
-                      onFocus={() => setEmailFocused(true)}
-                      onBlur={() => setEmailFocused(false)}
-                      placeholder="email@vrtx.com"
-                      placeholderTextColor="rgba(255,255,255,0.2)"
-                      style={getInputStyle(emailFocused)}
-                      value={email}
-                    />
-                  </View>
+                  <InputGlass
+                    label="COORDENADA_EMAIL"
+                    placeholder="email@vrtx.com"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
 
-                  <View style={styles.inputWrapper}>
-                    <Text style={[styles.inputLabel, { color: colors.muted }]}>CHAVE_ACESSO</Text>
-                    <TextInput
-                      onChangeText={setPassword}
-                      onFocus={() => setPassFocused(true)}
-                      onBlur={() => setPassFocused(false)}
-                      placeholder="••••••••"
-                      placeholderTextColor="rgba(255,255,255,0.2)"
-                      secureTextEntry
-                      style={getInputStyle(passFocused)}
-                      value={password}
-                    />
-                  </View>
+                  <InputGlass
+                    label="CHAVE_ACESSO"
+                    placeholder="••••••••"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                  />
 
                   <View style={styles.buttonStack}>
-                    <AppButton
+                    <NeonButton
                       label={submitting ? "PROCESSANDO..." : mode === "login" ? "EXECUTAR_LOGIN" : "REGISTRAR_PROTOCOLO"}
-                      onPress={() => { 
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        mode === "login" ? void handleLogin() : void handleSignUp(); 
-                      }}
+                      onPress={mode === "login" ? handleLogin : handleSignUp}
                       disabled={submitting}
+                      variant="primary"
                     />
                     
                     <View style={styles.divider}>
                       <View style={[styles.line, { backgroundColor: colors.border }]} />
-                      <Text style={[styles.dividerText, { color: colors.muted }]}>OU</Text>
+                      <Text style={[styles.dividerText, { color: colors.muted, fontFamily: typography.family.mono }]}>OU</Text>
                       <View style={[styles.line, { backgroundColor: colors.border }]} />
                     </View>
 
-                    <AppButton
+                    <NeonButton
                       label={mode === "login" ? "CRIAR_NOVA_CONTA" : "JÁ_TENHO_ACESSO"}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setMode(mode === "login" ? "signup" : "login");
-                      }}
-                      variant="secondary"
+                      onPress={() => setMode(mode === "login" ? "signup" : "login")}
+                      variant="glass"
                     />
                   </View>
                 </>
               )}
-            </Animated.View>
+            </GlassCard>
             
             <View style={styles.footer}>
-              <Text style={[styles.statusFooter, { color: colors.success }]}>● STATUS DO SERVIDOR: OPERACIONAL</Text>
+              <Text style={[styles.statusFooter, { color: colors.success, fontFamily: typography.family.mono }]}>
+                ● STATUS: OPERACIONAL • VRTX v2.0
+              </Text>
               <Pressable onPress={() => router.push("/terms-and-privacy" as never)}>
-                <Text style={[styles.legalText, { color: colors.muted }]}>TERMOS_DE_SERVIÇO // PRIVACIDADE</Text>
+                <Text style={[styles.legalText, { color: colors.muted, fontFamily: typography.family.mono }]}>
+                  TERMOS_DE_SERVIÇO // PRIVACIDADE
+                </Text>
               </Pressable>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenContainer>
+    </ScreenWrapper>
   );
 }
 
@@ -241,54 +197,32 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.xl,
+    paddingTop: 60,
     paddingBottom: spacing.xxl,
     justifyContent: "center",
     gap: spacing.xl,
   },
   hero: {
     gap: spacing.xs,
-    marginTop: spacing.xl,
+    alignItems: 'center',
   },
-  kicker: {
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 2,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  heroBadge: {
+    marginBottom: 8,
   },
   title: {
     fontSize: 32,
     fontWeight: "900",
     letterSpacing: -1,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontSize: 12,
+    textAlign: 'center',
     opacity: 0.8,
-  },
-  form: {
-    borderRadius: radius.xxl,
-    borderWidth: 1,
-    padding: spacing.xl,
-    gap: spacing.lg,
-    overflow: "hidden",
-    ...shadows.card,
-  },
-  inputWrapper: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
-  input: {
-    minHeight: 56,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    fontSize: 15,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  formCard: {
+    padding: 0,
   },
   buttonStack: {
     gap: spacing.md,
@@ -303,22 +237,21 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    opacity: 0.5,
+    opacity: 0.3,
   },
   dividerText: {
     fontSize: 10,
     fontWeight: "800",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   offlineWarning: {
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.md,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "900",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  offlineText: {
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   footer: {
     alignItems: "center",
@@ -327,13 +260,12 @@ const styles = StyleSheet.create({
   statusFooter: {
     fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 1,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    letterSpacing: 1.5,
   },
   legalText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
     textDecorationLine: "underline",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    letterSpacing: 0.5,
   },
 });

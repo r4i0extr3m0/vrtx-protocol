@@ -1,74 +1,85 @@
+/**
+ * VRTX Protocol - Industrial Premium Command Center Palette
+ * Base: #0D0D0D (Deep Graphite)
+ * Primary: #0096FF (Metallic Blue)
+ * Accent: #00C2FF (Neon Glow)
+ */
+
 export const colors = {
   dark: {
-    // Ultra-dark grayscale (Linear/Family style)
+    // Base
     background: "#0D0D0D",
-    surface: "#121212",
-    surfaceAlt: "#1A1A1A",
-    surfaceElevated: "#242424",
+    foreground: "#FFFFFF",
+    foregroundMuted: "#E2E8F0",
+    surface: "#1A1A1A",
+    surfaceAlt: "#252525",
+    surfaceElevated: "#2D2D2D",
     
-    foreground: "#F4F7FB",
-    foregroundMuted: "#E0E6ED",
-    muted: "#8A949E",
+    // Brand
+    primary: "#0096FF",
+    primaryStrong: "#007ACC",
+    primaryGlow: "#00C2FF",
+    secondary: "#64748B",
     
-    border: "#333333",
-    borderStrong: "#444444",
-    borderThin: "rgba(51, 51, 51, 0.5)", // 0.5px equivalent opacity if needed
+    // Semantic
+    success: "#10B981",
+    successGlow: "#34D399",
+    error: "#EF4444",
+    errorGlow: "#F87171",
+    warning: "#F59E0B",
+    info: "#0096FF",
     
-    // Brand & Semantic
-    primary: "#7CC6FF",
-    primaryStrong: "#4AA8F0",
-    primaryGradient: ["#1A1A1A", "#121212"], // Industrial card gradient
-    bgGradient: ["#121212", "#080808"], // Radial/Linear bg gradient
-    brandGradient: ["#7CC6FF", "#4AA8F0"],
+    // Neutral
+    muted: "#94A3B8",
+    border: "rgba(255, 255, 255, 0.1)",
+    borderStrong: "rgba(255, 255, 255, 0.2)",
+    borderGlow: "rgba(0, 150, 255, 0.3)",
     
-    success: "#39D98A",
-    successGradient: ["#39D98A", "#2EAF6F"],
-    warning: "#F5B942",
-    error: "#FF6B6B",
-    info: "#7CC6FF",
-    
-    // Shadows & Blurs
-    cardShadow: "rgba(0, 0, 0, 0.6)",
-    glow: "rgba(124, 198, 255, 0.15)",
+    // Gradients
+    primaryGradient: ["#1A1A1A", "#121212"],
+    bgGradient: ["#0D0D0D", "#050505"],
+    brandGradient: ["#0096FF", "#00C2FF"] as [string, string],
+    darkGradient: ["#1A1A1A", "#0D0D0D"] as [string, string],
+    glassGradient: ["rgba(255, 255, 255, 0.08)", "rgba(255, 255, 255, 0.03)"] as [string, string],
+    metalGradient: ["#2C2C2C", "#1A1A1A", "#0D0D0D"] as [string, string, string],
+    successGradient: ["#10B981", "#059669"],
 
-    // Accents for custom themes
+    // Shadows & Blurs
+    cardShadow: "rgba(0, 0, 0, 0.8)",
+    glow: "rgba(0, 150, 255, 0.2)",
+
     accents: {
-      blue: "#7CC6FF",
-      purple: "#BF7CFF",
-      orange: "#FF9F7C",
-      green: "#39D98A",
-      pink: "#FF7CBF",
+      blue: "#0096FF",
+      purple: "#8B5CF6",
+      orange: "#F97316",
+      green: "#10B981",
+      pink: "#EC4899",
     }
   },
   light: {
+    // Keep light mode for compatibility but focus on dark
     background: "#F3F6F9",
     surface: "#FFFFFF",
     surfaceAlt: "#E8EEF4",
     surfaceElevated: "#F8FAFC",
-    
     foreground: "#0F1720",
     foregroundMuted: "#1A2633",
     muted: "#5E6C79",
-    
     border: "rgba(0, 0, 0, 0.06)",
     borderStrong: "rgba(0, 0, 0, 0.12)",
-    
-    primary: "#2376B7",
-    primaryStrong: "#145A91",
+    primary: "#007ACC",
+    primaryStrong: "#005A9E",
     primaryGradient: ["#FFFFFF", "#F3F6F9"],
-    brandGradient: ["#2376B7", "#145A91"],
-    
+    brandGradient: ["#007ACC", "#0096FF"],
     success: "#1FA764",
     successGradient: ["#1FA764", "#16804D"],
     warning: "#BA7A12",
     error: "#CF4B4B",
-    info: "#2376B7",
-    
+    info: "#007ACC",
     cardShadow: "rgba(0, 0, 0, 0.05)",
-    glow: "rgba(35, 118, 183, 0.05)",
-
+    glow: "rgba(0, 122, 204, 0.05)",
     accents: {
-      blue: "#2376B7",
+      blue: "#007ACC",
       purple: "#8B5CF6",
       orange: "#F97316",
       green: "#10B981",

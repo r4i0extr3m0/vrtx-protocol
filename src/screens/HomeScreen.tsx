@@ -1,36 +1,32 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable, ActivityIndicator, Dimensions } from "react-native";
+import { ScrollView, StyleSheet, Text, View, Pressable, Dimensions } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, FadeInUp, Layout, useAnimatedStyle, withRepeat, withTiming, withSequence } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
 
-import { ScreenContainer } from "@/components/screen-container";
-import { AppButton } from "@/src/components/AppButton";
-import { MetricCard } from "@/src/components/MetricCard";
-import { SectionCard } from "@/src/components/SectionCard";
-import { SyncStatusPill } from "@/src/components/SyncStatusPill";
-import { AppIcon, IconName } from "@/src/components/AppIcon";
-import { SkeletonLoader } from "@/src/components/SkeletonLoader";
+import { 
+  ScreenWrapper, 
+  GlassCard, 
+  NeonButton, 
+  BadgeMetal, 
+  ProgressBarGlow 
+} from "../components/ui";
+import { AppIcon } from "@/src/components/AppIcon";
 import { useWorkout, useTheme } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
-import { spacing, typography, radius, shadows } from "@/src/theme";
+import { spacing, typography, radius } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
-import { LinearGradient } from "expo-linear-gradient";
-import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
-import { HapticFeedback } from "@/src/services/haptics";
-import { useDietStore } from "@/src/store/dietStore";
-import { fetchAIRecommendations, translateAIError, AIApiError } from "@/src/services/AIInsights";
-import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
+import { fetchAIRecommendations } from "@/src/services/AIInsights";
 import { useAuthStore } from "@/src/store/authStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
-import { ScreenBackdrop } from "../components/ScreenBackdrop";
+import { useDietStore } from "@/src/store/dietStore";
+import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 
 export function HomeScreen() {
   const { colors } = useTheme();
   const { workouts, createWorkout, isLoading: workoutsLoading } = useWorkout();
-  const { widgets } = useDashboardStore();
   const meals = useDietStore((s) => s.meals);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -39,21 +35,16 @@ export function HomeScreen() {
   const latestWorkout = workouts[0] ?? null;
   const summary = latestWorkout ? summarizeWorkout(latestWorkout) : null;
 
-  const [objective] = useState<FitnessObjective>("hypertrophy");
-  const [level] = useState<TrainingLevel>("intermediate");
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiData, setAiData] = useState<AIAnalyzeResponse | null>(null);
+  const [aiData, setAiData] = useState<any>(null);
 
   const last7Summary = useMemo(() => {
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-
     const lastWorkouts = workouts.filter((w) => {
       const ts = Date.parse(w.startedAt || w.date);
       return Number.isFinite(ts) && ts >= sevenDaysAgo;
     });
-
     const totalVolumeKg = lastWorkouts.reduce((acc, w) => {
       const workoutVolume = w.exercises.reduce((wAcc, ex) => {
         const exVol = ex.sets.reduce((sAcc, set) => sAcc + set.reps * set.weightKg, 0);
@@ -61,396 +52,348 @@ export function HomeScreen() {
       }, 0);
       return acc + workoutVolume;
     }, 0);
-
-    const lastMeals = meals.filter((m) => Date.parse(m.createdAt) >= sevenDaysAgo);
-    const caloriesAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalCalories, 0) / 7);
-    const proteinGAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalProtein, 0) / 7);
-
-    return {
-      workoutCount: lastWorkouts.length,
-      totalVolumeKg,
-      caloriesAvg: Number.isFinite(caloriesAvg) ? caloriesAvg : undefined,
-      proteinGAvg: Number.isFinite(proteinGAvg) ? proteinGAvg : undefined,
-    };
-  }, [meals, workouts]);
+    return { workoutCount: lastWorkouts.length, totalVolumeKg };
+  }, [workouts]);
 
   useEffect(() => {
-    let cancelled = false;
     const run = async () => {
-      if (workouts.length === 0 && meals.length === 0) return;
-      if (!isAuthenticated || !userId) return;
-
-      await refreshAIUsage(userId);
-      const latestUsage = usePremiumStore.getState().aiUsage;
-      const remaining = latestUsage?.analyze?.remaining ?? null;
-      const isPremium = latestUsage?.is_premium ?? false;
-      if (!isPremium && remaining !== null && remaining <= 0) {
-        setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
-        return;
-      }
-
+      if (workouts.length === 0 || !isAuthenticated || !userId) return;
       setAiLoading(true);
-      setAiError(null);
       try {
         const res = await fetchAIRecommendations({
           userId,
-          objective,
-          level,
+          objective: "hypertrophy",
+          level: "intermediate",
           last7Days: last7Summary,
         });
-        if (!cancelled) setAiData(res);
+        setAiData(res);
       } catch (e) {
-        if (cancelled) return;
-        if (e instanceof AIApiError && e.status === 403 && e.code === "daily_limit") {
-          setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
-          return;
-        }
-        setAiError(translateAIError(e).message);
+        console.error(e);
       } finally {
-        if (!cancelled) setAiLoading(false);
+        setAiLoading(false);
       }
     };
     void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [level, meals.length, objective, workouts.length, last7Summary, isAuthenticated, userId]);
+  }, [userId, isAuthenticated, last7Summary]);
 
   const handleNewWorkout = () => {
-    HapticFeedback.impactMedium();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const draft = createWorkout("Protocolo de Execução");
     trackEvent(ANALYTICS_EVENTS.WORKOUT_STARTED, { workout_id: draft.id });
     router.push({ pathname: "/workout/[id]", params: { id: draft.id } } as never);
   };
 
-  const renderWidget = (widget: WidgetConfig, index: number) => {
-    if (!widget.visible) return null;
-
-    if (workoutsLoading) {
-      return (
-        <View style={[styles.widgetCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <SkeletonLoader width={40} height={40} borderRadius={20} />
-          <View style={{ gap: 8, marginTop: 12 }}>
-            <SkeletonLoader width={80} height={12} borderRadius={4} />
-            <SkeletonLoader width={120} height={24} borderRadius={4} />
-          </View>
-        </View>
-      );
-    }
-
-    switch (widget.type) {
-      case 'volume':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="Volume Total" 
-            value={summary ? formatVolume(summary.totalVolume) : "0 kg"} 
-            icon="Dumbbell"
-            trend="+12%" 
-            delay={300 + index * 100} 
-          />
-        );
-      case 'streak':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="Streak" 
-            value="7" 
-            icon="Flame"
-            hint="dias seguidos" 
-            color={colors.warning}
-            delay={300 + index * 100} 
-          />
-        );
-      case 'pr':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="1RM Máximo" 
-            value={summary ? `${summary.bestOneRM.toFixed(1)} kg` : "0 kg"} 
-            icon="Trophy"
-            hint="Supino Reto" 
-            delay={300 + index * 100} 
-          />
-        );
-      case 'sessions':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="Sessões" 
-            value={String(workouts.length)} 
-            icon="Calendar"
-            hint="Total histórico" 
-            delay={300 + index * 100} 
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <ScreenContainer>
-      <ScreenBackdrop />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper withSafeArea={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-          <View style={styles.headerText}>
-              <Text style={[styles.title, { color: colors.foreground }]}>VRTX_COMMAND_CENTER</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>STATUS: OPERACIONAL // USER_ID: {userId?.slice(0, 8)}</Text>
+          <View>
+            <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
+              VRTX_COMMAND_CENTER
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.muted, fontFamily: typography.family.mono }]}>
+              STATUS: OPERACIONAL // OPERADOR: {userId?.slice(0, 8).toUpperCase()}
+            </Text>
           </View>
-          <SyncStatusPill />
+          <BadgeMetal label="REDUNDANCY_ON" variant="metal" />
         </Animated.View>
 
-        <View style={styles.bentoGrid}>
-          {/* Hero Card: Protocolo de Execução */}
-          <Animated.View entering={FadeInUp.delay(200)} style={styles.span2}>
-            <Pressable onPress={handleNewWorkout}>
-              <LinearGradient
-                colors={["#1A1A1A", "#121212"]}
-                style={[styles.mainActionCard, { borderColor: colors.border, borderWidth: 1 }]}
-              >
-                <View style={styles.heroContent}>
-                  <Text style={[styles.kicker, { color: colors.primary }]}>PRÓXIMA_MISSÃO</Text>
-                  <Text style={styles.mainActionTitle}>PROTOCOLO_DE_EXECUÇÃO</Text>
-                  <Text style={[styles.mainActionSubtitle, { color: colors.muted }]}>
-                    {latestWorkout ? `ÚLTIMO_LOG: ${latestWorkout.name.toUpperCase()}` : "INICIAR_NOVO_LOG_DE_TREINO"}
-                  </Text>
+        {/* Hero Card: PRÓXIMA MISSÃO */}
+        <Animated.View entering={FadeInUp.delay(200)} style={styles.heroSection}>
+          <Pressable onPress={handleNewWorkout}>
+            <GlassCard style={styles.heroCard} intensity={40}>
+              <View style={styles.heroHeader}>
+                <BadgeMetal label="PRÓXIMA_MISSÃO" variant="primary" />
+                <View style={styles.pulseContainer}>
+                  <View style={[styles.pulse, { backgroundColor: colors.primary }]} />
                 </View>
-                <View style={[styles.mainActionIcon, { backgroundColor: colors.primary }]}>
-                  <AppIcon name="Zap" size={24} color="#000" strokeWidth={2.5} />
-                </View>
-                
-                {/* Border Glow Effect */}
-                <View style={[StyleSheet.absoluteFill, { borderRadius: radius.xl, borderWidth: 0.5, borderColor: "rgba(124, 198, 255, 0.2)" }]} />
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
+              </View>
+              <Text style={[styles.heroTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
+                PROTOCOLO_DE_EXECUÇÃO
+              </Text>
+              <Text style={[styles.heroDesc, { color: colors.muted, fontFamily: typography.family.mono }]}>
+                {latestWorkout ? `ÚLTIMO_LOG: ${latestWorkout.name.toUpperCase()}` : "INICIAR_NOVO_LOG_DE_TREINO"}
+              </Text>
+              <NeonButton 
+                label="INICIAR_SESSÃO" 
+                onPress={handleNewWorkout} 
+                variant="primary" 
+                style={styles.heroButton}
+                icon={<AppIcon name="Zap" size={16} color="#000" />}
+              />
+            </GlassCard>
+          </Pressable>
+        </Animated.View>
 
-          {/* Widgets Grid */}
-          <View style={styles.widgetsContainer}>
-            {widgets.map((widget, index) => (
-              <Animated.View 
-                key={widget.id} 
-                layout={Layout.duration(220)}
-                style={widget.type === 'volume' || widget.type === 'streak' || widget.type === 'pr' || widget.type === 'sessions' ? styles.widgetHalf : styles.span2}
-              >
-                {renderWidget(widget, index)}
-              </Animated.View>
-            ))}
+        {/* Bento Grid */}
+        <View style={styles.bentoGrid}>
+          <View style={styles.bentoRow}>
+            <GlassCard style={styles.bentoHalf} intensity={15}>
+              <View style={styles.bentoHeader}>
+                <AppIcon name="Dumbbell" size={14} color={colors.primary} />
+                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>VOLUME</Text>
+              </View>
+              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>
+                {summary ? formatVolume(summary.totalVolume) : "0KG"}
+              </Text>
+              <BadgeMetal label="+12%" variant="success" style={styles.bentoTrend} />
+            </GlassCard>
+
+            <GlassCard style={styles.bentoHalf} intensity={15}>
+              <View style={styles.bentoHeader}>
+                <AppIcon name="Flame" size={14} color="#F59E0B" />
+                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>STREAK</Text>
+              </View>
+              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>7</Text>
+              <Text style={[styles.bentoSub, { color: colors.muted, fontFamily: typography.family.mono }]}>DIAS_ATIVOS</Text>
+            </GlassCard>
           </View>
 
-          {/* AI Insights Bento Card */}
-          <Animated.View entering={FadeInDown.delay(600)} style={styles.span2}>
-            <SectionCard 
-              title="ANÁLISE_PREDITIVA_IA" 
-              icon="Zap"
-              loading={aiLoading}
-              error={aiError}
-            >
-              {aiData ? (
-                <View style={styles.aiContent}>
-                  <Text style={[styles.aiText, { color: colors.foregroundMuted }]}>{aiData.summary}</Text>
-                  <View style={styles.aiMetrics}>
-                    <View style={[styles.aiMetricPill, { backgroundColor: colors.surfaceAlt }]}>
-                      <Text style={[styles.aiMetricLabel, { color: colors.muted }]}>FOCO</Text>
-                      <Text style={[styles.aiMetricValue, { color: colors.primary }]}>{aiData.recommendations[0]?.slice(0, 20)}...</Text>
-                    </View>
-                  </View>
-                </View>
-              ) : (
-                <Text style={[styles.aiPlaceholder, { color: colors.muted }]}>Aguardando telemetria de dados para análise...</Text>
-              )}
-            </SectionCard>
-          </Animated.View>
+          <View style={styles.bentoRow}>
+            <GlassCard style={styles.bentoHalf} intensity={15}>
+              <View style={styles.bentoHeader}>
+                <AppIcon name="Trophy" size={14} color={colors.primaryGlow} />
+                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>1RM_MAX</Text>
+              </View>
+              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>
+                {summary ? `${summary.bestOneRM.toFixed(0)}KG` : "0KG"}
+              </Text>
+              <Text style={[styles.bentoSub, { color: colors.muted, fontFamily: typography.family.mono }]}>SUPINO_RETO</Text>
+            </GlassCard>
 
-          {/* Library Section */}
-          <View style={styles.span2}>
-             <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>LOGS_DE_DESEMPENHO</Text>
-             </View>
-             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.libraryScroll}>
-                {[
-                  { label: "EXERCÍCIOS", icon: "Dumbbell" as IconName, path: "/exercises" },
-                  { label: "TEMPLATES", icon: "ClipboardList" as IconName, path: "/templates" },
-                  { label: "DIETA", icon: "Apple" as IconName, path: "/diet" },
-                  { label: "PROGRESSO", icon: "TrendingUp" as IconName, path: "/gamification" },
-                ].map((item, i) => (
-                  <Animated.View key={item.label} entering={FadeInDown.delay(800 + i * 100)}>
-                    <Pressable 
-                      onPress={() => {
-                        HapticFeedback.selection();
-                        router.push(item.path as never);
-                      }}
-                      style={[styles.libraryItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    >
-                      <View style={[styles.libraryIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
-                        <AppIcon name={item.icon} size={20} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.libraryLabel, { color: colors.foreground }]}>{item.label}</Text>
-                    </Pressable>
-                  </Animated.View>
-                ))}
-             </ScrollView>
+            <GlassCard style={styles.bentoHalf} intensity={15}>
+              <View style={styles.bentoHeader}>
+                <AppIcon name="Calendar" size={14} color={colors.secondary} />
+                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>SESSÕES</Text>
+              </View>
+              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>
+                {workouts.length}
+              </Text>
+              <Text style={[styles.bentoSub, { color: colors.muted, fontFamily: typography.family.mono }]}>LOGS_TOTAIS</Text>
+            </GlassCard>
           </View>
         </View>
+
+        {/* AI Predictive Analysis Section */}
+        <Animated.View entering={FadeInDown.delay(400)} style={styles.aiSection}>
+          <GlassCard style={styles.aiCard} intensity={25}>
+            <View style={styles.aiHeader}>
+              <AppIcon name="Cpu" size={18} color={colors.primary} />
+              <Text style={[styles.aiTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
+                ANÁLISE_PREDITIVA_IA
+              </Text>
+            </View>
+            <View style={styles.aiDivider} />
+            {aiLoading ? (
+              <View style={styles.aiLoading}>
+                <ProgressBarGlow progress={0.6} color={colors.primary} glow />
+                <Text style={[styles.aiLoadingText, { color: colors.muted, fontFamily: typography.family.mono }]}>
+                  PROCESSANDO_DADOS_TELEMETRIA...
+                </Text>
+              </View>
+            ) : (
+              <View>
+                <Text style={[styles.aiSummary, { color: colors.foregroundMuted }]}>
+                  {aiData?.summary || "Sincronize mais treinos para gerar insights preditivos de performance."}
+                </Text>
+                <View style={styles.aiTags}>
+                  <BadgeMetal label="HIPERTROFIA_OTIMIZADA" variant="metal" />
+                  <BadgeMetal label="RECUPERAÇÃO_72H" variant="metal" />
+                </View>
+              </View>
+            )}
+          </GlassCard>
+        </Animated.View>
+
+        {/* Small Navigation Cards */}
+        <View style={styles.navGrid}>
+          {[
+            { label: 'Exercícios', icon: 'Dumbbell', path: '/exercises' },
+            { label: 'Templates', icon: 'Copy', path: '/templates' },
+            { label: 'Dieta', icon: 'Apple', path: '/diet' },
+            { label: 'Progresso', icon: 'TrendingUp', path: '/evolution' },
+          ].map((item, i) => (
+            <Pressable 
+              key={item.label} 
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(item.path as any);
+              }}
+              style={styles.navItem}
+            >
+              <GlassCard style={styles.navCard} intensity={10}>
+                <AppIcon name={item.icon as any} size={20} color={colors.muted} />
+                <Text style={[styles.navLabel, { color: colors.foreground, fontFamily: typography.family.mono }]}>
+                  {item.label.toUpperCase()}
+                </Text>
+              </GlassCard>
+            </Pressable>
+          ))}
+        </View>
       </ScrollView>
-    </ScreenContainer>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-    gap: spacing.xl,
+  scrollContent: {
+    paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerText: {
-    gap: 4,
+    alignItems: 'center',
+    marginBottom: 30,
   },
   title: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 2,
-    fontFamily: "monospace",
-  },
-  subtitle: {
-    fontSize: 10,
-    fontWeight: '600',
-    fontFamily: "monospace",
-  },
-  bentoGrid: {
-    gap: spacing.lg,
-  },
-  span2: {
-    width: '100%',
-  },
-  mainActionCard: {
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 120,
-    overflow: 'hidden',
-  },
-  heroContent: {
-    flex: 1,
-    gap: 4,
-  },
-  kicker: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    fontFamily: "monospace",
-  },
-  mainActionTitle: {
-    color: '#FFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
-  mainActionSubtitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: "monospace",
+  subtitle: {
+    fontSize: 9,
+    letterSpacing: 1,
+    opacity: 0.6,
   },
-  mainActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.md,
+  heroSection: {
+    marginBottom: 20,
   },
-  widgetsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+  heroCard: {
+    padding: 24,
   },
-  widgetHalf: {
-    width: (width - spacing.xl * 2 - spacing.md) / 2,
-  },
-  widgetCard: {
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    minHeight: 140,
-  },
-  sectionHeader: {
+  heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 10,
+  heroTitle: {
+    fontSize: 24,
     fontWeight: '900',
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
+  heroDesc: {
+    fontSize: 10,
     letterSpacing: 1.5,
-    fontFamily: "monospace",
+    marginBottom: 24,
+    opacity: 0.7,
   },
-  libraryScroll: {
-    gap: spacing.md,
+  heroButton: {
+    marginTop: 8,
   },
-  libraryItem: {
-    width: 110,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  libraryIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
+  pulseContainer: {
+    width: 12,
+    height: 12,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  libraryLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    textAlign: 'center',
-    fontFamily: "monospace",
+  pulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    // Note: Animation would be added here for real pulse
   },
-  aiContent: {
-    gap: spacing.md,
+  bentoGrid: {
+    gap: 12,
+    marginBottom: 20,
   },
-  aiText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: "monospace",
-  },
-  aiMetrics: {
+  bentoRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 12,
   },
-  aiMetricPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+  bentoHalf: {
+    flex: 1,
+    padding: 16,
+    minHeight: 120,
+    justifyContent: 'space-between',
+  },
+  bentoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
-  aiMetricLabel: {
+  bentoLabel: {
     fontSize: 9,
-    fontWeight: '900',
-    fontFamily: "monospace",
+    fontWeight: '800',
+    letterSpacing: 1,
   },
-  aiMetricValue: {
+  bentoValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+  bentoSub: {
+    fontSize: 8,
+    letterSpacing: 1,
+    opacity: 0.5,
+  },
+  bentoTrend: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+  },
+  aiSection: {
+    marginBottom: 20,
+  },
+  aiCard: {
+    padding: 20,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  aiTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  aiDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 16,
+  },
+  aiLoading: {
+    gap: 12,
+    paddingVertical: 10,
+  },
+  aiLoadingText: {
+    fontSize: 9,
+    textAlign: 'center',
+    opacity: 0.5,
+  },
+  aiSummary: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  aiTags: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  navGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  navItem: {
+    width: (width - 52) / 2,
+  },
+  navCard: {
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  navLabel: {
     fontSize: 10,
     fontWeight: '800',
-    fontFamily: "monospace",
+    letterSpacing: 1,
   },
-  aiPlaceholder: {
-    fontSize: 12,
-    fontFamily: "monospace",
-    fontStyle: 'italic',
-  }
 });
