@@ -137,7 +137,7 @@ export function AppCard({
 
   return (
     <AnimatedPressable
-      entering={FadeInDown.delay(delay).springify()}
+      entering={FadeInDown.delay(delay).duration(450)}
       onPress={onPress ? handlePress : undefined}
       onPressIn={onPress ? handlePressIn : undefined}
       onPressOut={onPress ? handlePressOut : undefined}

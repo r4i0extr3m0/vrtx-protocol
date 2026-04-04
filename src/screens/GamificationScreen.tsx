@@ -4,8 +4,7 @@ import Animated, {
   useAnimatedStyle, 
   useSharedValue, 
   withSpring,
-  FadeInDown,
-  ZoomIn
+  FadeInDown
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -55,7 +54,7 @@ export function GamificationScreen() {
 
         <View style={styles.statsRow}>
           <Animated.View 
-            entering={ZoomIn.delay(100)}
+            entering={FadeInDown.delay(120).duration(450)}
             style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
           >
             <View style={[styles.emojiBg, { backgroundColor: colors.warning + "15" }]}>
@@ -66,7 +65,7 @@ export function GamificationScreen() {
           </Animated.View>
           
           <Animated.View 
-            entering={ZoomIn.delay(200)}
+            entering={FadeInDown.delay(220).duration(450)}
             style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
           >
             <View style={[styles.emojiBg, { backgroundColor: colors.primary + "15" }]}>

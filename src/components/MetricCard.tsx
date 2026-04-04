@@ -34,7 +34,7 @@ export function MetricCard({
 
   return (
     <Animated.View 
-      entering={FadeInDown.delay(delay).springify().damping(15)}
+      entering={FadeInDown.delay(delay).duration(450)}
       style={[
         styles.card, 
         { 

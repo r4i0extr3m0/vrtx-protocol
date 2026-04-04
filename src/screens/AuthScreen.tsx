@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
@@ -64,8 +66,14 @@ export function AuthScreen() {
 
   return (
     <ScreenContainer className="px-6 py-8">
+      <LinearGradient
+        colors={[colors.primary + "10", "transparent", colors.info + "08"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={styles.content}>
-        <View style={styles.hero}>
+        <Animated.View entering={FadeInDown.duration(450)} style={styles.hero}>
           <Text style={[styles.kicker, { color: colors.primary }]}>VRTX Protocol</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>
             {mode === "login" ? "Bem-vindo de volta." : "Crie sua conta."}
@@ -77,9 +85,23 @@ export function AuthScreen() {
                 ? "Entre com suas credenciais para sincronizar seus dados com segurança."
                 : "Crie uma conta para sincronizar treinos, dieta e progresso em todos os dispositivos."}
           </Text>
-        </View>
+          <Animated.View entering={FadeIn.delay(180)} style={styles.pillsRow}>
+            <View style={[styles.pill, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}>
+              <Text style={[styles.pillText, { color: colors.foreground }]}>Offline‑first</Text>
+            </View>
+            <View style={[styles.pill, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}>
+              <Text style={[styles.pillText, { color: colors.foreground }]}>Privacidade</Text>
+            </View>
+            <View style={[styles.pill, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}>
+              <Text style={[styles.pillText, { color: colors.foreground }]}>IA Contextual</Text>
+            </View>
+          </Animated.View>
+        </Animated.View>
 
-        <View style={[styles.form, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Animated.View
+          entering={FadeInDown.delay(120).duration(450)}
+          style={[styles.form, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
           {!supabaseReady ? (
             <>
               <AppButton
@@ -158,7 +180,7 @@ export function AuthScreen() {
           />
             </>
           )}
-        </View>
+        </Animated.View>
       </View>
     </ScreenContainer>
   );
@@ -173,6 +195,23 @@ const styles = StyleSheet.create({
   hero: {
     gap: spacing.md,
     paddingTop: spacing.xxl,
+  },
+  pillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  pill: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   kicker: {
     fontSize: typography.caption,

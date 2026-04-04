@@ -9,7 +9,7 @@ import {
   Pressable,
 } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -90,7 +90,7 @@ export function ProfileScreen() {
           {stats.map((stat, index) => (
             <Animated.View 
               key={stat.label}
-              entering={ZoomIn.delay(index * 100)}
+              entering={FadeInDown.delay(index * 90).duration(450)}
               style={[styles.statItem, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
             >
               <View style={[styles.statIconWrapper, { backgroundColor: stat.color + '15' }]}>

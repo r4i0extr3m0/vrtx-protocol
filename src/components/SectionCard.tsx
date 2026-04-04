@@ -22,8 +22,10 @@ export function SectionCard({ title, subtitle, children, delay = 0, fullWidth = 
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(delay).springify().damping(15)}
-      layout={Layout.springify()}
+      // "Cinema": sem bounce/spring, entra com opacidade + deslocamento suave
+      entering={FadeInDown.delay(delay).duration(450)}
+      // Evita warnings de transform/layout e jitter em alguns dispositivos
+      layout={Layout.duration(220)}
       style={[
         styles.container,
         {

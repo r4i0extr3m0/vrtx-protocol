@@ -223,7 +223,7 @@ export function HomeScreen() {
             {widgets.map((widget, index) => (
               <Animated.View 
                 key={widget.id} 
-                layout={Layout.springify()}
+                layout={Layout.duration(220)}
                 style={widget.type === 'volume' || widget.type === 'streak' || widget.type === 'pr' || widget.type === 'sessions' ? styles.widgetHalf : styles.span2}
               >
                 {renderWidget(widget, index)}
