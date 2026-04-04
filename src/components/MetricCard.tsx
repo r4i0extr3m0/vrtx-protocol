@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
+import { StyleSheet, Text, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from '@/src/hooks';
@@ -34,36 +34,44 @@ export function MetricCard({
 
   return (
     <Animated.View 
-      entering={FadeInDown.delay(delay).duration(450)}
+      entering={FadeInDown.delay(delay).duration(600).springify().damping(15)}
       style={[
         styles.card, 
         { 
           borderColor: colors.border,
           flex: fullWidth ? 0 : 1,
           width: fullWidth ? '100%' : undefined,
+          backgroundColor: colors.surface,
         },
-        shadows.card,
         style
       ]}
     >
       <LinearGradient
-        colors={colors.primaryGradient}
+        colors={["#1A1A1A", "#121212"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[StyleSheet.absoluteFill, { borderRadius: radius.xl }]}
       />
+      
+      {/* Subtle Inner Border / Glow */}
+      <View style={[StyleSheet.absoluteFill, { 
+        borderRadius: radius.xl, 
+        borderWidth: 0.5, 
+        borderColor: "rgba(255,255,255,0.05)" 
+      }]} />
+
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             {icon && (
-              <View style={[styles.iconWrapper, { backgroundColor: accentColor + '15' }]}>
-                <AppIcon name={icon} size={16} color={accentColor} strokeWidth={2.5} />
+              <View style={[styles.iconWrapper, { backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", borderWidth: 0.5 }]}>
+                <AppIcon name={icon} size={14} color={accentColor} strokeWidth={2.5} />
               </View>
             )}
-            <Text style={[styles.label, { color: colors.muted }]}>{label}</Text>
+            <Text style={[styles.label, { color: colors.muted }]}>{label.toUpperCase()}</Text>
           </View>
           {trend && (
-            <View style={[styles.trendBadge, { backgroundColor: trend.startsWith('+') ? colors.success + '15' : colors.error + '15' }]}>
+            <View style={[styles.trendBadge, { backgroundColor: "rgba(255,255,255,0.03)", borderColor: trend.startsWith('+') ? colors.success + '40' : colors.error + '40', borderWidth: 0.5 }]}>
               <Text style={[styles.trendText, { color: trend.startsWith('+') ? colors.success : colors.error }]}>{trend}</Text>
             </View>
           )}
@@ -73,7 +81,7 @@ export function MetricCard({
           <Text style={[styles.value, { color: colors.foreground }]}>{value}</Text>
           {hint && (
             <Text style={[styles.hint, { color: colors.muted }]} numberOfLines={1}>
-              {hint}
+              {hint.toUpperCase()}
             </Text>
           )}
         </View>
@@ -106,37 +114,40 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.md,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   label: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   trendBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   trendText: {
-    fontSize: 10,
-    fontWeight: "800",
+    fontSize: 9,
+    fontWeight: "900",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   body: {
-    gap: 2,
+    gap: 0,
   },
   value: {
     fontSize: 28,
     fontWeight: "900",
-    letterSpacing: -1.5,
+    letterSpacing: -1,
   },
   hint: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
 });

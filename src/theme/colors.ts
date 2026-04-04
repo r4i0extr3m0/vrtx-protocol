@@ -1,22 +1,24 @@
 export const colors = {
   dark: {
     // Ultra-dark grayscale (Linear/Family style)
-    background: "#0A0C0F",
-    surface: "#111316",
-    surfaceAlt: "#1A1D22",
-    surfaceElevated: "#22262B",
+    background: "#0D0D0D",
+    surface: "#121212",
+    surfaceAlt: "#1A1A1A",
+    surfaceElevated: "#242424",
     
     foreground: "#F4F7FB",
     foregroundMuted: "#E0E6ED",
     muted: "#8A949E",
     
-    border: "rgba(255, 255, 255, 0.08)",
-    borderStrong: "rgba(255, 255, 255, 0.15)",
+    border: "#333333",
+    borderStrong: "#444444",
+    borderThin: "rgba(51, 51, 51, 0.5)", // 0.5px equivalent opacity if needed
     
     // Brand & Semantic
     primary: "#7CC6FF",
     primaryStrong: "#4AA8F0",
-    primaryGradient: ["#111316", "#0A0C0F"], // Dark card gradient
+    primaryGradient: ["#1A1A1A", "#121212"], // Industrial card gradient
+    bgGradient: ["#121212", "#080808"], // Radial/Linear bg gradient
     brandGradient: ["#7CC6FF", "#4AA8F0"],
     
     success: "#39D98A",

@@ -62,12 +62,12 @@ export function AppInput({
 
     return {
       borderColor,
-      backgroundColor: isFocused ? colors.surfaceAlt : colors.surface,
-      borderWidth: isFocused || error ? 2 : 1,
+      backgroundColor: isFocused ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+      borderWidth: isFocused || error ? 1.5 : 1,
     };
   });
 
-  const dynamicHeight = Math.max(56, 56 * fontScale);
+  const dynamicHeight = Math.max(52, 52 * fontScale);
 
   return (
     <View style={styles.container}>
@@ -78,12 +78,12 @@ export function AppInput({
             styles.label, 
             { 
               color: error ? colors.error : colors.muted,
-              fontSize: 12 * fontScale
+              fontSize: 10 * fontScale
             }
           ]}
           accessibilityRole="header"
         >
-          {label}
+          {label.toUpperCase()}
         </Text>
       )}
       
@@ -92,7 +92,6 @@ export function AppInput({
           styles.inputWrapper, 
           containerStyle,
           { height: dynamicHeight },
-          !isFocused && shadows.card,
           style
         ]}
       >
@@ -103,11 +102,12 @@ export function AppInput({
             styles.input, 
             { 
               color: colors.foreground,
-              fontSize: 16 * fontScale
+              fontSize: 14 * fontScale,
+              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
             },
             Platform.OS === 'web' && { outlineStyle: 'none' } as any
           ]}
-          placeholderTextColor={colors.muted}
+          placeholderTextColor="rgba(255,255,255,0.2)"
           onFocus={handleFocus}
           onBlur={handleBlur}
           accessibilityLabel={label || props.placeholder}
@@ -127,12 +127,12 @@ export function AppInput({
             styles.errorText, 
             { 
               color: colors.error,
-              fontSize: 12 * fontScale
+              fontSize: 10 * fontScale
             }
           ]}
           accessibilityLiveRegion="polite"
         >
-          {error}
+          {error.toUpperCase()}
         </Text>
       )}
     </View>
@@ -145,16 +145,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontWeight: '900',
+    letterSpacing: 1.5,
     marginBottom: spacing.xs,
-    marginLeft: 4,
+    marginLeft: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
   },
   input: {
@@ -169,8 +169,9 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   errorText: {
-    fontWeight: '600',
+    fontWeight: '800',
     marginTop: 4,
-    marginLeft: 4,
+    marginLeft: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

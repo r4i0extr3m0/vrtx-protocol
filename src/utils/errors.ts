@@ -14,37 +14,37 @@ export interface TranslatedError {
 
 /**
  * Traduz erros “crus” (Supabase/HTTP) para mensagens de produto (sem vazamento de abstração).
- * Não depende de SDK específico: opera em strings.
+ * Estética "Engineering Command Center" / "Industrial Premium".
  */
 export function translateAuthError(rawMessage: string | undefined): TranslatedError {
   const msg = (rawMessage ?? "").toLowerCase();
 
-  if (msg.includes("email not confirmed") || msg.includes("email") && msg.includes("confirmed")) {
+  if (msg.includes("email not confirmed") || (msg.includes("email") && msg.includes("confirmed"))) {
     return {
       code: "EMAIL_NOT_CONFIRMED",
-      title: "Quase lá!",
-      message: "Confirme seu e-mail para ativar sua conta e iniciar seu protocolo.",
-      actionLabel: "Verificar e-mail",
+      title: "PROTOCOLO_PENDENTE",
+      message: "Seu protocolo está quase pronto. Verifique o link de ativação no seu e-mail.",
+      actionLabel: "VERIFICAR_INBOX",
     };
   }
 
   if (
     msg.includes("invalid login credentials") ||
-    msg.includes("invalid") && msg.includes("credentials") ||
-    msg.includes("invalid") && msg.includes("password")
+    (msg.includes("invalid") && msg.includes("credentials")) ||
+    (msg.includes("invalid") && msg.includes("password"))
   ) {
     return {
       code: "INVALID_CREDENTIALS",
-      title: "Credenciais incorretas",
-      message: "E-mail ou senha inválidos. Verifique e tente novamente.",
+      title: "ACESSO_NEGADO",
+      message: "Acesso negado. Verifique suas coordenadas (E-mail/Senha).",
     };
   }
 
   if (msg.includes("rate limit") || msg.includes("too many requests") || msg.includes("429")) {
     return {
       code: "RATE_LIMIT",
-      title: "Muitas tentativas",
-      message: "Aguarde um pouco e tente novamente. Isso protege sua conta contra abuso.",
+      title: "LIMITE_DE_REQUISIÇÕES",
+      message: "Muitas tentativas detectadas. Sistema em cooldown para proteção da conta.",
     };
   }
 
@@ -56,15 +56,14 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
   ) {
     return {
       code: "NETWORK",
-      title: "Sem conexão",
-      message: "Não conseguimos conectar agora. Verifique sua internet e tente novamente.",
+      title: "ERRO_DE_TELEMETRIA",
+      message: "Falha na conexão com o servidor. Verifique seu sinal de rede.",
     };
   }
 
   return {
     code: "UNKNOWN",
-    title: "Algo não saiu como esperado",
-    message: "Não foi possível concluir agora. Tente novamente em instantes.",
+    title: "ERRO_SISTÊMICO",
+    message: "Ocorreu uma falha inesperada no processamento. Tente novamente.",
   };
 }
-

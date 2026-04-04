@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
+import { ScrollView, StyleSheet, Text, View, Pressable, ActivityIndicator, Dimensions } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, Layout, useAnimatedStyle, withRepeat, withTiming, withSequence } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
@@ -9,6 +9,7 @@ import { MetricCard } from "@/src/components/MetricCard";
 import { SectionCard } from "@/src/components/SectionCard";
 import { SyncStatusPill } from "@/src/components/SyncStatusPill";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
+import { SkeletonLoader } from "@/src/components/SkeletonLoader";
 import { useWorkout, useTheme } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
 import { spacing, typography, radius, shadows } from "@/src/theme";
@@ -18,19 +19,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
 import { HapticFeedback } from "@/src/services/haptics";
 import { useDietStore } from "@/src/store/dietStore";
-import { fetchAIRecommendations, sendAIFeedback, translateAIError, AIApiError } from "@/src/services/AIInsights";
+import { fetchAIRecommendations, translateAIError, AIApiError } from "@/src/services/AIInsights";
 import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
 import { useAuthStore } from "@/src/store/authStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
+import { ScreenBackdrop } from "../components/ScreenBackdrop";
+
+const { width } = Dimensions.get("window");
 
 export function HomeScreen() {
   const { colors } = useTheme();
-  const { workouts, createWorkout } = useWorkout();
+  const { workouts, createWorkout, isLoading: workoutsLoading } = useWorkout();
   const { widgets } = useDashboardStore();
   const meals = useDietStore((s) => s.meals);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const aiUsage = usePremiumStore((s) => s.aiUsage);
   const refreshAIUsage = usePremiumStore((s) => s.refreshAIUsage);
   
   const latestWorkout = workouts[0] ?? null;
@@ -41,7 +44,6 @@ export function HomeScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiData, setAiData] = useState<AIAnalyzeResponse | null>(null);
-  const [aiFeedback, setAiFeedback] = useState<-1 | 0 | 1>(0);
 
   const last7Summary = useMemo(() => {
     const now = Date.now();
@@ -75,11 +77,9 @@ export function HomeScreen() {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      // só tenta buscar quando há pelo menos algum dado
       if (workouts.length === 0 && meals.length === 0) return;
       if (!isAuthenticated || !userId) return;
 
-      // Atualiza uso (server-side) e faz gate antes de chamar /analyze
       await refreshAIUsage(userId);
       const latestUsage = usePremiumStore.getState().aiUsage;
       const remaining = latestUsage?.analyze?.remaining ?? null;
@@ -117,13 +117,26 @@ export function HomeScreen() {
   }, [level, meals.length, objective, workouts.length, last7Summary, isAuthenticated, userId]);
 
   const handleNewWorkout = () => {
-    const draft = createWorkout("Treino rápido");
+    HapticFeedback.impactMedium();
+    const draft = createWorkout("Protocolo de Execução");
     trackEvent(ANALYTICS_EVENTS.WORKOUT_STARTED, { workout_id: draft.id });
     router.push({ pathname: "/workout/[id]", params: { id: draft.id } } as never);
   };
 
   const renderWidget = (widget: WidgetConfig, index: number) => {
     if (!widget.visible) return null;
+
+    if (workoutsLoading) {
+      return (
+        <View style={[styles.widgetCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SkeletonLoader width={40} height={40} borderRadius={20} />
+          <View style={{ gap: 8, marginTop: 12 }}>
+            <SkeletonLoader width={80} height={12} borderRadius={4} />
+            <SkeletonLoader width={120} height={24} borderRadius={4} />
+          </View>
+        </View>
+      );
+    }
 
     switch (widget.type) {
       case 'volume':
@@ -177,41 +190,43 @@ export function HomeScreen() {
   };
 
   return (
-    <ScreenContainer className="px-5">
+    <ScreenContainer>
+      <ScreenBackdrop />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerText}>
-              <Text style={[styles.title, { color: colors.foreground }]}>VRTX Protocol</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Seu diário de treino definitivo.</Text>
+              <Text style={[styles.title, { color: colors.foreground }]}>VRTX_COMMAND_CENTER</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>STATUS: OPERACIONAL // USER_ID: {userId?.slice(0, 8)}</Text>
           </View>
           <SyncStatusPill />
         </Animated.View>
 
-        {/* Bento Grid Layout com Widgets Dinâmicos */}
         <View style={styles.bentoGrid}>
-          {/* Main Action Card */}
+          {/* Hero Card: Protocolo de Execução */}
           <Animated.View entering={FadeInUp.delay(200)} style={styles.span2}>
             <Pressable onPress={handleNewWorkout}>
               <LinearGradient
-                colors={colors.brandGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.mainActionCard, shadows.card]}
+                colors={["#1A1A1A", "#121212"]}
+                style={[styles.mainActionCard, { borderColor: colors.border, borderWidth: 1 }]}
               >
-                <View>
-                  <Text style={styles.mainActionTitle}>Novo Treino</Text>
-                  <Text style={styles.mainActionSubtitle}>
-                    {latestWorkout ? `Último: ${latestWorkout.name}` : "Comece uma nova sessão"}
+                <View style={styles.heroContent}>
+                  <Text style={[styles.kicker, { color: colors.primary }]}>PRÓXIMA_MISSÃO</Text>
+                  <Text style={styles.mainActionTitle}>PROTOCOLO_DE_EXECUÇÃO</Text>
+                  <Text style={[styles.mainActionSubtitle, { color: colors.muted }]}>
+                    {latestWorkout ? `ÚLTIMO_LOG: ${latestWorkout.name.toUpperCase()}` : "INICIAR_NOVO_LOG_DE_TREINO"}
                   </Text>
                 </View>
-                <View style={styles.mainActionIcon}>
+                <View style={[styles.mainActionIcon, { backgroundColor: colors.primary }]}>
                   <AppIcon name="Zap" size={24} color="#000" strokeWidth={2.5} />
                 </View>
+                
+                {/* Border Glow Effect */}
+                <View style={[StyleSheet.absoluteFill, { borderRadius: radius.xl, borderWidth: 0.5, borderColor: "rgba(124, 198, 255, 0.2)" }]} />
               </LinearGradient>
             </Pressable>
           </Animated.View>
 
-          {/* Renderização Dinâmica de Widgets com Animação de Layout */}
+          {/* Widgets Grid */}
           <View style={styles.widgetsContainer}>
             {widgets.map((widget, index) => (
               <Animated.View 
@@ -224,30 +239,49 @@ export function HomeScreen() {
             ))}
           </View>
 
-          {/* Quick Library Scroll */}
+          {/* AI Insights Bento Card */}
+          <Animated.View entering={FadeInDown.delay(600)} style={styles.span2}>
+            <SectionCard 
+              title="ANÁLISE_PREDITIVA_IA" 
+              icon="Zap"
+              loading={aiLoading}
+              error={aiError}
+            >
+              {aiData ? (
+                <View style={styles.aiContent}>
+                  <Text style={[styles.aiText, { color: colors.foregroundMuted }]}>{aiData.summary}</Text>
+                  <View style={styles.aiMetrics}>
+                    <View style={[styles.aiMetricPill, { backgroundColor: colors.surfaceAlt }]}>
+                      <Text style={[styles.aiMetricLabel, { color: colors.muted }]}>FOCO</Text>
+                      <Text style={[styles.aiMetricValue, { color: colors.primary }]}>{aiData.recommendations[0]?.slice(0, 20)}...</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <Text style={[styles.aiPlaceholder, { color: colors.muted }]}>Aguardando telemetria de dados para análise...</Text>
+              )}
+            </SectionCard>
+          </Animated.View>
+
+          {/* Library Section */}
           <View style={styles.span2}>
              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Biblioteca</Text>
-                <Pressable onPress={() => {
-                  HapticFeedback.selection();
-                  // Abriria modal de customização do dashboard
-                }}>
-                  <AppIcon name="Settings" size={20} color={colors.muted} />
-                </Pressable>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>LOGS_DE_DESEMPENHO</Text>
              </View>
              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.libraryScroll}>
                 {[
-                  { label: "Exercícios", icon: "Dumbbell" as IconName, path: "/exercises" },
-                  { label: "Templates", icon: "ClipboardList" as IconName, path: "/templates" },
-                  { label: "Dieta", icon: "Apple" as IconName, path: "/diet" },
-                  { label: "Progresso", icon: "TrendingUp" as IconName, path: "/gamification" },
-                  { label: "AI Coach", icon: "psychology" as IconName, path: "/ai-coach" },
-                  { label: "Perfil", icon: "User" as IconName, path: "/profile" },
+                  { label: "EXERCÍCIOS", icon: "Dumbbell" as IconName, path: "/exercises" },
+                  { label: "TEMPLATES", icon: "ClipboardList" as IconName, path: "/templates" },
+                  { label: "DIETA", icon: "Apple" as IconName, path: "/diet" },
+                  { label: "PROGRESSO", icon: "TrendingUp" as IconName, path: "/gamification" },
                 ].map((item, i) => (
-                  <Animated.View key={item.label} entering={FadeInDown.delay(700 + i * 100)}>
+                  <Animated.View key={item.label} entering={FadeInDown.delay(800 + i * 100)}>
                     <Pressable 
-                      onPress={() => router.push(item.path as never)}
-                      style={[styles.libraryItem, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+                      onPress={() => {
+                        HapticFeedback.selection();
+                        router.push(item.path as never);
+                      }}
+                      style={[styles.libraryItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     >
                       <View style={[styles.libraryIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
                         <AppIcon name={item.icon} size={20} color={colors.primary} />
@@ -258,88 +292,6 @@ export function HomeScreen() {
                 ))}
              </ScrollView>
           </View>
-
-          {/* Recent Activity / Insights */}
-          <View style={styles.span2}>
-            <SectionCard title="Insights por IA" subtitle="Preditivo (beta) — baseado nos seus últimos 7 dias.">
-              {aiLoading ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                  <ActivityIndicator />
-                  <Text style={[styles.insightText, { color: colors.muted }]}>Gerando recomendações...</Text>
-                </View>
-              ) : aiError ? (
-                <View style={{ gap: spacing.sm }}>
-                  <Text style={[styles.insightText, { color: colors.muted }]}>{aiError}</Text>
-                  {aiError.includes("Assine") ? (
-                    <AppButton label="Ver Premium" onPress={() => router.push("/premium" as never)} />
-                  ) : null}
-                </View>
-              ) : aiData ? (
-                <View style={{ gap: spacing.sm }}>
-                  <Text style={[styles.insightText, { color: colors.foreground }]}>{aiData.summary}</Text>
-                  {aiData.nextBestActions?.slice(0, 2).map((a) => (
-                    <View key={a} style={styles.insightRow}>
-                      <View style={[styles.insightIcon, { backgroundColor: colors.primary + "15" }]}>
-                        <AppIcon name="psychology" size={20} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.insightText, { color: colors.foreground }]}>{a}</Text>
-                    </View>
-                  ))}
-                  <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
-                    <Pressable
-                      onPress={() => {
-                        HapticFeedback.selection();
-                        setAiFeedback(1);
-                        void sendAIFeedback({
-                          kind: "analyze",
-                          rating: 1,
-                          userId: userId ?? undefined,
-                          cacheKey: aiData.meta?.cacheKey,
-                        }).catch(() => undefined);
-                      }}
-                      style={[
-                        styles.feedbackBtn,
-                        {
-                          backgroundColor: aiFeedback === 1 ? colors.success + "20" : colors.surface,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <AppIcon name="thumb-up" size={18} color={aiFeedback === 1 ? colors.success : colors.muted} />
-                      <Text style={{ color: colors.muted, fontWeight: "800" }}>Útil</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        HapticFeedback.selection();
-                        setAiFeedback(-1);
-                        void sendAIFeedback({
-                          kind: "analyze",
-                          rating: -1,
-                          userId: userId ?? undefined,
-                          cacheKey: aiData.meta?.cacheKey,
-                        }).catch(() => undefined);
-                      }}
-                      style={[
-                        styles.feedbackBtn,
-                        {
-                          backgroundColor: aiFeedback === -1 ? colors.error + "18" : colors.surface,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <AppIcon name="thumb-down" size={18} color={aiFeedback === -1 ? colors.error : colors.muted} />
-                      <Text style={{ color: colors.muted, fontWeight: "800" }}>Ruim</Text>
-                    </Pressable>
-                  </View>
-                  <AppButton label="Abrir AI Coach" onPress={() => router.push("/ai-coach" as never)} />
-                </View>
-              ) : (
-                <Text style={[styles.insightText, { color: colors.muted }]}>
-                  Registre treinos e refeições para desbloquear insights personalizados.
-                </Text>
-              )}
-            </SectionCard>
-          </View>
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -348,81 +300,87 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
     gap: spacing.xl,
-    paddingBottom: spacing.xxxl,
-    paddingTop: spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+    alignItems: 'flex-start',
   },
   headerText: {
-    gap: 2,
+    gap: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: -1.5,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
+    fontFamily: "monospace",
   },
   subtitle: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: "monospace",
   },
   bentoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  feedbackBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-  },
-  widgetsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    width: '100%',
-  },
-  widgetHalf: {
-    width: '47.5%', // Aproximadamente metade com gap
+    gap: spacing.lg,
   },
   span2: {
     width: '100%',
   },
   mainActionCard: {
+    borderRadius: radius.xl,
+    padding: spacing.xl,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.xl,
-    borderRadius: radius.xxl,
     minHeight: 120,
+    overflow: 'hidden',
+  },
+  heroContent: {
+    flex: 1,
+    gap: 4,
+  },
+  kicker: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    fontFamily: "monospace",
   },
   mainActionTitle: {
-    color: '#000',
-    fontSize: 24,
+    color: '#FFF',
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
   mainActionSubtitle: {
-    color: 'rgba(0,0,0,0.6)',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: "monospace",
   },
   mainActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.md,
+  },
+  widgetsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  widgetHalf: {
+    width: (width - spacing.xl * 2 - spacing.md) / 2,
+  },
+  widgetCard: {
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    minHeight: 140,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -431,51 +389,68 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: 1.5,
+    fontFamily: "monospace",
   },
   libraryScroll: {
     gap: spacing.md,
-    paddingRight: spacing.xl,
-    paddingBottom: spacing.sm,
   },
   libraryItem: {
-    padding: spacing.lg,
-    borderRadius: radius.xl,
+    width: 110,
+    padding: spacing.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',
-    minWidth: 110,
     gap: spacing.sm,
   },
   libraryIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   libraryLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: -0.2,
+    textAlign: 'center',
+    fontFamily: "monospace",
   },
-  insightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  aiContent: {
     gap: spacing.md,
   },
-  insightIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  insightText: {
-    flex: 1,
+  aiText: {
     fontSize: 14,
-    fontWeight: '600',
     lineHeight: 20,
+    fontFamily: "monospace",
   },
+  aiMetrics: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  aiMetricPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiMetricLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    fontFamily: "monospace",
+  },
+  aiMetricValue: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: "monospace",
+  },
+  aiPlaceholder: {
+    fontSize: 12,
+    fontFamily: "monospace",
+    fontStyle: 'italic',
+  }
 });

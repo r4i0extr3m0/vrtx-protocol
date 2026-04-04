@@ -9,7 +9,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/src/hooks";
 import { radius, spacing, typography, shadows } from "@/src/theme";
-import { HapticFeedback } from "@/src/services/haptics";
+import * as Haptics from "expo-haptics";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -38,11 +38,11 @@ export function AppButton({
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity: disabled ? 0.5 : 1,
+    opacity: disabled ? 0.4 : 1,
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
   };
 
   const handlePressOut = () => {
@@ -53,11 +53,9 @@ export function AppButton({
     if (disabled) return;
     
     if (variant === "brand" || variant === "success") {
-      HapticFeedback.medium();
-    } else if (variant === "ghost") {
-      HapticFeedback.selection();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } else {
-      HapticFeedback.light();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
     onPress();
@@ -65,16 +63,16 @@ export function AppButton({
 
   const getColors = () => {
     switch (variant) {
-      case "brand": return { bg: undefined, grad: colors.brandGradient, text: "#000" };
-      case "success": return { bg: undefined, grad: colors.successGradient, text: "#fff" };
-      case "secondary": return { bg: colors.surfaceAlt, grad: undefined, text: colors.foreground };
-      case "ghost": return { bg: "transparent", grad: undefined, text: colors.muted };
-      default: return { bg: colors.surface, grad: undefined, text: colors.foreground };
+      case "brand": return { bg: undefined, grad: colors.brandGradient, text: "#000", border: "transparent" };
+      case "success": return { bg: undefined, grad: colors.successGradient, text: "#fff", border: "transparent" };
+      case "secondary": return { bg: "rgba(255,255,255,0.05)", grad: undefined, text: colors.foreground, border: colors.border };
+      case "ghost": return { bg: "transparent", grad: undefined, text: colors.muted, border: "transparent" };
+      default: return { bg: colors.surface, grad: undefined, text: colors.foreground, border: colors.border };
     }
   };
 
   const config = getColors();
-  const dynamicMinHeight = Math.max(56, 56 * fontScale);
+  const dynamicMinHeight = Math.max(52, 52 * fontScale);
 
   return (
     <AnimatedPressable
@@ -90,10 +88,9 @@ export function AppButton({
         styles.base,
         {
           backgroundColor: config.bg,
-          borderColor: variant === "ghost" ? "transparent" : colors.border,
+          borderColor: config.border,
           minHeight: dynamicMinHeight,
         },
-        variant !== "ghost" && shadows.card,
         animatedStyle,
         style,
       ]}
@@ -108,18 +105,18 @@ export function AppButton({
           <View style={styles.contentWrapper}>
             <Text 
               allowFontScaling={true}
-              style={[styles.label, { color: config.text, fontSize: 15 * fontScale }]}
+              style={[styles.label, { color: config.text, fontSize: 13 * fontScale }]}
             >
-              {label}
+              {label.toUpperCase()}
             </Text>
           </View>
         </LinearGradient>
       ) : (
         <Text 
           allowFontScaling={true}
-          style={[styles.label, { color: config.text, fontSize: 15 * fontScale }]}
+          style={[styles.label, { color: config.text, fontSize: 13 * fontScale }]}
         >
-          {label}
+          {label.toUpperCase()}
         </Text>
       )}
     </AnimatedPressable>
@@ -128,7 +125,7 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: spacing.xl,
@@ -142,7 +139,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: 1,
     textAlign: 'center',
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
 });

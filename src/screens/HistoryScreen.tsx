@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Platform } from "react-native";
 import { router } from "expo-router";
 import { FlashList } from "@shopify/flash-list";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -10,6 +10,7 @@ import { useTheme, useWorkout } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { EmptyState } from "@/src/components/EmptyState";
+import { ScreenBackdrop } from "../components/ScreenBackdrop";
 import * as Haptics from "expo-haptics";
 
 export function HistoryScreen() {
@@ -34,13 +35,13 @@ export function HistoryScreen() {
         style={[styles.item, { backgroundColor: colors.surface, borderColor: colors.border }]}
       >
         <View style={styles.itemText}>
-          <Text style={[styles.itemTitle, { color: colors.foreground }]}>{workout.name}</Text>
+          <Text style={[styles.itemTitle, { color: colors.foreground }]}>{workout.name.toUpperCase()}</Text>
           <Text style={[styles.itemMeta, { color: colors.muted }]}>
-            {workout.date} · {summary.exerciseCount} exercícios · {formatVolume(summary.totalVolume)}
+            {workout.date} // {summary.exerciseCount} EXERCÍCIOS // {formatVolume(summary.totalVolume)}
           </Text>
         </View>
         <AppButton
-          label="Abrir"
+          label="ABRIR"
           onPress={handlePress}
           variant="ghost"
           style={styles.openBtn}
@@ -51,6 +52,7 @@ export function HistoryScreen() {
 
   return (
     <ScreenContainer className="px-0 py-0">
+      <ScreenBackdrop />
       <FlashList
         data={workouts}
         renderItem={renderItem}
@@ -58,18 +60,18 @@ export function HistoryScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Histórico</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>LOGS_DE_DESEMPENHO</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>
-              Consulte sessões anteriores com foco em leitura rápida e recuperação do contexto do treino.
+              Acesso aos registros históricos de telemetria e performance do protocolo.
             </Text>
           </View>
         }
         ListEmptyComponent={
           <EmptyState 
-            title="Histórico Vazio"
-            description="Seu histórico ainda está vazio. Crie um treino para começar a formar a linha do tempo."
-            emoji="📅"
-            actionLabel="Iniciar Treino"
+            title="LOGS_NÃO_ENCONTRADOS"
+            description="Nenhum registro de atividade detectado no sistema. Inicie um novo protocolo para gerar logs."
+            emoji="📡"
+            actionLabel="INICIAR_PROTOCOLO"
             onAction={() => router.push("/workout" as never)}
           />
         }
@@ -87,16 +89,19 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
     marginBottom: spacing.xl,
+    paddingTop: spacing.md,
   },
   title: {
-    fontSize: typography.title,
+    fontSize: 12,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: 2,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   subtitle: {
-    fontSize: typography.body,
-    lineHeight: 22,
-    fontWeight: "500",
+    fontSize: 10,
+    lineHeight: 16,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   item: {
     borderRadius: radius.xl,
@@ -106,40 +111,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   itemText: {
     flex: 1,
     gap: spacing.xs,
   },
   itemTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: -0.5,
   },
   itemMeta: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 9,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   openBtn: {
-    minHeight: 36,
+    minHeight: 32,
     paddingHorizontal: spacing.md,
-  },
-  swipeContainer: {
-    position: "relative",
-    marginBottom: spacing.md,
-    justifyContent: "center",
-  },
-  deleteButton: {
-    position: "absolute",
-    right: 0,
-    height: "100%",
-    width: 100,
-    borderRadius: radius.xl,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

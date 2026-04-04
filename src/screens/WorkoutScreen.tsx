@@ -63,30 +63,30 @@ function SetFormModal({ visible, editingSet, onClose, onSave }: SetFormModalProp
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
       <Pressable onPress={onClose} style={styles.overlay} />
       <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-          {editingSet ? "Editar série" : "Nova série"}
-        </Text>
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: colors.muted }]}>Repetições</Text>
-            <TextInput keyboardType="number-pad" onChangeText={setReps} style={inputStyle} value={reps} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: colors.muted }]}>Carga (kg)</Text>
-            <TextInput keyboardType="decimal-pad" onChangeText={setWeight} style={inputStyle} value={weight} />
-          </View>
-        </View>
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            setCompleted((v) => !v);
-          }}
-          style={[styles.completedToggle, { backgroundColor: completed ? colors.success + "22" : colors.surfaceAlt, borderColor: completed ? colors.success : colors.border }]}
-        >
-          <Text style={[styles.completedText, { color: completed ? colors.success : colors.muted }]}>
-            {completed ? "✓ Série concluída" : "Marcar como concluída"}
+          <Text style={[styles.modalTitle, { color: colors.foreground, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 14, fontWeight: "900" }]}>
+            {editingSet ? "EDITAR_SET" : "NOVO_SET"}
           </Text>
-        </Pressable>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.label, { color: colors.muted, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 10 }]}>REPETIÇÕES</Text>
+              <TextInput keyboardType="number-pad" onChangeText={setReps} style={inputStyle} value={reps} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.label, { color: colors.muted, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 10 }]}>CARGA_KG</Text>
+              <TextInput keyboardType="decimal-pad" onChangeText={setWeight} style={inputStyle} value={weight} />
+            </View>
+          </View>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setCompleted((v) => !v);
+            }}
+            style={[styles.completedToggle, { backgroundColor: completed ? colors.success + "10" : "transparent", borderColor: completed ? colors.success : colors.border, borderWidth: 1, borderRadius: radius.md }]}
+          >
+            <Text style={[styles.completedText, { color: completed ? colors.success : colors.muted, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 11, fontWeight: "800" }]}>
+              {completed ? "✓ SET_CONCLUÍDO" : "MARCAR_COMO_CONCLUÍDO"}
+            </Text>
+          </Pressable>
         <View style={styles.row}>
           <AppButton label="Cancelar" onPress={onClose} variant="secondary" style={{ flex: 1 }} />
           <AppButton label="Salvar" onPress={handleSave} style={{ flex: 1 }} />
@@ -173,11 +173,12 @@ export function WorkoutScreen() {
   if (!workout) {
     return (
       <ScreenContainer className="px-5">
+        <ScreenBackdrop />
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Treino</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Sessões salvas no dispositivo.</Text>
+          <Text style={[styles.title, { color: colors.foreground, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 12, letterSpacing: 2 }]}>PROTOCOLO_DE_EXECUÇÃO</Text>
+          <Text style={[styles.subtitle, { color: colors.muted, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 10 }]}>SESSÕES_LOCAIS_REDUNDANTES</Text>
         </View>
-        <AppButton label="Novo treino em branco" onPress={() => createWorkout("Treino do dia")} variant="brand" />
+        <AppButton label="INICIAR_NOVO_LOG" onPress={() => createWorkout("Protocolo de Execução")} variant="brand" />
         <View style={{ marginTop: spacing.xl }}>
            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Templates</Text>
            {templates.map((t) => (
@@ -205,9 +206,9 @@ export function WorkoutScreen() {
 
   return (
     <ScreenContainer className="px-5">
-      <Animated.View style={prAnimatedStyle} pointerEvents="none">
-        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 18 }}>🏆 NOVO RECORDE!</Text>
-      </Animated.View>
+        <Animated.View style={prAnimatedStyle} pointerEvents="none">
+          <Text style={{ color: "#fff", fontWeight: "900", fontSize: 14, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", letterSpacing: 1 }}>🏆 NOVO_RECORDE_PESSOAL!</Text>
+        </Animated.View>
 
       <FlashList
         data={workout.exercises}

@@ -102,10 +102,18 @@ function AuthGate() {
           justifyContent: "center",
           alignItems: "center",
           padding: spacing.xl,
-          backgroundColor: "#0B0D10",
+          backgroundColor: "#0D0D0D",
         }}
       >
-        <Text style={{ color: "#F4F7FB", fontSize: typography.section, fontWeight: "800" }}>Carregando VRTX Protocol…</Text>
+        <Text style={{ 
+          color: "#7CC6FF", 
+          fontSize: 12, 
+          fontWeight: "900", 
+          letterSpacing: 2,
+          fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" 
+        }}>
+          BOOTING_VRTX_PROTOCOL...
+        </Text>
       </View>
     );
   }
