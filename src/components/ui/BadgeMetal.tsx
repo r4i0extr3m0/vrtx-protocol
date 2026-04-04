@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, View, Text, Platform } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/src/hooks';
-import { radius, spacing, typography } from '@/src/theme';
+import { radius, typography } from '@/src/theme';
 
 interface BadgeMetalProps {
   label: string;
@@ -12,8 +12,8 @@ interface BadgeMetalProps {
 }
 
 /**
- * BadgeMetal - High-end status badge with brushed metal and glass effect.
- * Features: Multi-layer gradient, Border highlight, Monospace text.
+ * BadgeMetal - Minimalist tech status badge.
+ * No neon. Focus on subdued colors and clean typography.
  */
 export function BadgeMetal({ 
   label, 
@@ -26,29 +26,29 @@ export function BadgeMetal({
   const getColors = () => {
     switch (variant) {
       case 'primary': return { 
-        bg: ['#1A1A1A', '#0096FF'], 
-        text: '#FFF', 
-        border: 'rgba(0, 150, 255, 0.5)' 
+        bg: [colors.primary, colors.primaryStrong], 
+        text: '#FFFFFF', 
+        border: 'transparent' 
       };
       case 'success': return { 
-        bg: ['#1A1A1A', '#10B981'], 
-        text: '#FFF', 
-        border: 'rgba(16, 185, 129, 0.5)' 
+        bg: ['rgba(16, 185, 129, 0.15)', 'rgba(16, 185, 129, 0.05)'], 
+        text: colors.success, 
+        border: 'rgba(16, 185, 129, 0.2)' 
       };
       case 'error': return { 
-        bg: ['#1A1A1A', '#EF4444'], 
-        text: '#FFF', 
-        border: 'rgba(239, 68, 68, 0.5)' 
+        bg: ['rgba(239, 68, 68, 0.15)', 'rgba(239, 68, 68, 0.05)'], 
+        text: colors.error, 
+        border: 'rgba(239, 68, 68, 0.2)' 
       };
       case 'warning': return { 
-        bg: ['#1A1A1A', '#F59E0B'], 
-        text: '#FFF', 
-        border: 'rgba(245, 158, 11, 0.5)' 
+        bg: ['rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.05)'], 
+        text: colors.warning, 
+        border: 'rgba(245, 158, 11, 0.2)' 
       };
       default: return { 
-        bg: ['#2C2C2C', '#1A1A1A', '#0D0D0D'], 
+        bg: [colors.surfaceAlt, colors.surface], 
         text: colors.muted, 
-        border: 'rgba(255, 255, 255, 0.12)' 
+        border: colors.borderStrong 
       };
     }
   };
@@ -58,20 +58,12 @@ export function BadgeMetal({
   return (
     <View style={[styles.container, { borderColor: config.border }, style]}>
       <LinearGradient
-        colors={config.bg}
+        colors={config.bg as [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius.xs }]}
       />
       
-      {/* Glossy Overlay */}
-      <LinearGradient
-        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]}
-      />
-
       <View style={styles.content}>
         {icon && <View style={styles.iconWrapper}>{icon}</View>}
         <Text style={[
@@ -91,9 +83,9 @@ export function BadgeMetal({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.md,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.xs,
     borderWidth: 1,
     overflow: 'hidden',
     alignSelf: 'flex-start',
@@ -107,7 +99,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   label: {
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: 1,
   },
 });

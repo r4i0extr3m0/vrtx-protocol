@@ -1,184 +1,180 @@
 import React from 'react';
 import { 
-  Pressable, 
   StyleSheet, 
   Text, 
-  View, 
-  Platform, 
-  useWindowDimensions 
+  Pressable, 
+  ActivityIndicator, 
+  ViewStyle, 
+  TextStyle,
+  Platform
 } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
   withSpring,
+  withTiming
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/src/hooks';
-import { radius, spacing, typography, shadows, animations } from '@/src/theme';
+import { radius, spacing, typography, animations } from '@/src/theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-interface NeonButtonProps {
+interface SciFiButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'glass' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'glass' | 'ghost';
+  loading?: boolean;
   disabled?: boolean;
-  style?: any;
   icon?: React.ReactNode;
+  style?: ViewStyle;
+  labelStyle?: TextStyle;
 }
 
 /**
- * NeonButton - Metallic & Neon button for elite UI.
- * Features: Heavy spring scale, Haptics, Neon Glow, Monospace label.
+ * SciFiButton - Minimalist high-tech button.
+ * No neon. Focus on clean borders and subtle gradients.
  */
-export function NeonButton({
-  label,
-  onPress,
-  variant = 'primary',
+export function NeonButton({ 
+  label, 
+  onPress, 
+  variant = 'primary', 
+  loading = false, 
   disabled = false,
-  style,
   icon,
-}: NeonButtonProps) {
+  style,
+  labelStyle
+}: SciFiButtonProps) {
   const { colors } = useTheme();
-  const { fontScale } = useWindowDimensions();
   const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: disabled ? 0.4 : 1,
-  }));
+  const opacity = useSharedValue(1);
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.95, animations.spring.pop);
+    scale.value = withSpring(0.97, animations.spring.tight);
+    opacity.value = withTiming(0.8, { duration: 100 });
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, animations.spring.pop);
+    scale.value = withSpring(1, animations.spring.smooth);
+    opacity.value = withTiming(1, { duration: 100 });
   };
 
-  const handlePress = () => {
-    if (disabled) return;
-    
-    if (variant === 'primary') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
-    onPress();
-  };
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
 
-  const getColors = () => {
+  const getVariantStyles = () => {
     switch (variant) {
-      case 'primary': return { 
-        bg: undefined, 
-        grad: colors.brandGradient, 
-        text: "#000", 
-        border: 'transparent',
-        glow: true 
-      };
-      case 'glass': return { 
-        bg: 'rgba(255, 255, 255, 0.08)', 
-        grad: undefined, 
-        text: colors.foreground, 
-        border: 'rgba(255, 255, 255, 0.15)',
-        glow: false 
-      };
-      case 'secondary': return { 
-        bg: '#1A1A1A', 
-        grad: undefined, 
-        text: colors.muted, 
-        border: colors.border,
-        glow: false 
-      };
-      case 'ghost': return { 
-        bg: 'transparent', 
-        grad: undefined, 
-        text: colors.muted, 
-        border: 'transparent',
-        glow: false 
-      };
-      default: return { 
-        bg: colors.surface, 
-        grad: undefined, 
-        text: colors.foreground, 
-        border: colors.border,
-        glow: false 
-      };
+      case 'primary':
+        return {
+          bg: [colors.primary, colors.primaryStrong],
+          text: "#FFFFFF",
+          border: "transparent",
+        };
+      case 'secondary':
+        return {
+          bg: [colors.surfaceAlt, colors.surface],
+          text: colors.foreground,
+          border: colors.borderStrong,
+        };
+      case 'glass':
+        return {
+          bg: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.02)'],
+          text: colors.foreground,
+          border: "rgba(255, 255, 255, 0.08)",
+        };
+      case 'ghost':
+        return {
+          bg: ['transparent', 'transparent'],
+          text: colors.primary,
+          border: "transparent",
+        };
+      default:
+        return {
+          bg: [colors.primary, colors.primaryStrong],
+          text: "#FFFFFF",
+          border: "transparent",
+        };
     }
   };
 
-  const config = getColors();
-  const dynamicMinHeight = Math.max(52, 52 * fontScale);
+  const config = getVariantStyles();
 
   return (
-    <AnimatedPressable
-      disabled={disabled}
-      onPress={handlePress}
+    <Pressable
+      onPress={() => {
+        if (!disabled && !loading) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onPress();
+        }
+      }}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[
-        styles.base,
-        {
-          backgroundColor: config.bg,
-          borderColor: config.border,
-          minHeight: dynamicMinHeight,
+      disabled={disabled || loading}
+      style={({ pressed }) => [
+        styles.container,
+        { 
+          borderColor: config.border, 
+          borderWidth: variant === 'ghost' ? 0 : 1,
+          opacity: disabled ? 0.5 : 1,
+          borderRadius: radius.md,
         },
-        config.glow && shadows.primaryGlow,
-        animatedStyle,
-        style,
+        style
       ]}
     >
-      {config.grad && (
-        <LinearGradient
-          colors={config.grad}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-
-      <View style={styles.contentWrapper}>
-        {icon && <View style={styles.iconWrapper}>{icon}</View>}
-        <Text 
-          style={[
-            styles.label, 
-            { 
-              color: config.text, 
-              fontSize: 13 * fontScale,
-              fontFamily: typography.family.mono,
-            }
-          ]}
-        >
-          {label.toUpperCase()}
-        </Text>
-      </View>
-    </AnimatedPressable>
+      <Animated.View style={[styles.content, animatedStyle]}>
+        {variant !== 'ghost' && (
+          <LinearGradient
+            colors={config.bg as [string, string]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]}
+          />
+        )}
+        
+        {loading ? (
+          <ActivityIndicator color={config.text} size="small" />
+        ) : (
+          <>
+            {icon && <View style={styles.iconWrapper}>{icon}</View>}
+            <Text style={[
+              styles.label, 
+              { 
+                color: config.text, 
+                fontFamily: typography.family.mono,
+                fontSize: 12,
+              },
+              labelStyle
+            ]}>
+              {label.toUpperCase()}
+            </Text>
+          </>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: radius.md,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: spacing.xl,
-    borderWidth: 1,
-    overflow: "hidden",
-    marginVertical: spacing.xs,
+  container: {
+    minHeight: 48,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  contentWrapper: {
+  content: {
     flexDirection: 'row',
-    justifyContent: "center",
-    alignItems: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+    height: '100%',
+  },
+  label: {
+    fontWeight: '800',
+    letterSpacing: 1.5,
   },
   iconWrapper: {
     marginRight: spacing.sm,
-  },
-  label: {
-    fontWeight: "900",
-    letterSpacing: 1.5,
-    textAlign: 'center',
   },
 });

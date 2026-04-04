@@ -13,23 +13,21 @@ import Animated, {
   useSharedValue, 
   withSpring,
   interpolateColor,
-  withTiming
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@/src/hooks';
-import { radius, spacing, typography, shadows, animations } from '@/src/theme';
+import { radius, spacing, typography, animations } from '@/src/theme';
 
 interface InputGlassProps extends TextInputProps {
   label?: string;
   error?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  accessibilityHint?: string;
 }
 
 /**
- * InputGlass - High-end text input with glassmorphism and focus glow.
- * Features: Floating label, Focus border glow, Glass background.
+ * MinimalInput - Clean tech input.
+ * No neon. Focus on clean borders and subtle surface change.
  */
 export function InputGlass({ 
   label, 
@@ -39,7 +37,6 @@ export function InputGlass({
   onFocus, 
   onBlur, 
   style,
-  accessibilityHint,
   ...props 
 }: InputGlassProps) {
   const { colors } = useTheme();
@@ -63,49 +60,41 @@ export function InputGlass({
     const borderColor = interpolateColor(
       focusAnim.value,
       [0, 1],
-      [error ? colors.error : 'rgba(255, 255, 255, 0.1)', colors.primary]
+      [error ? colors.error : colors.border, colors.primary]
     );
-
-    const shadowOpacity = withTiming(focusAnim.value * 0.4, { duration: 200 });
 
     return {
       borderColor,
       borderWidth: 1,
-      shadowColor: colors.primary,
-      shadowOpacity,
-      shadowRadius: 10,
-      elevation: isFocused ? 4 : 0,
+      backgroundColor: interpolateColor(
+        focusAnim.value,
+        [0, 1],
+        [colors.surface, colors.surfaceAlt]
+      ),
     };
   });
 
   const labelStyle = useAnimatedStyle(() => {
-    const translateY = withSpring(isFocused || props.value ? -24 : 0, animations.spring.smooth);
-    const scale = withSpring(isFocused || props.value ? 0.85 : 1, animations.spring.smooth);
-    const opacity = withSpring(isFocused || props.value ? 1 : 0.6, animations.spring.smooth);
     const color = interpolateColor(
       focusAnim.value,
       [0, 1],
       [colors.muted, colors.primary]
     );
 
-    return {
-      transform: [{ translateY }, { scale }],
-      opacity,
-      color,
-    };
+    return { color };
   });
 
-  const dynamicHeight = Math.max(52, 52 * fontScale);
+  const dynamicHeight = Math.max(48, 48 * fontScale);
 
   return (
-    <View style={[styles.container, { marginTop: label ? 20 : 0 }]}>
+    <View style={styles.container}>
       {label && (
         <Animated.Text 
           style={[
             styles.label, 
             { 
               fontFamily: typography.family.mono,
-              fontSize: 12 * fontScale
+              fontSize: 10 * fontScale
             },
             labelStyle
           ]}
@@ -122,11 +111,13 @@ export function InputGlass({
           style
         ]}
       >
-        <BlurView 
-          intensity={15} 
-          tint="dark" 
-          style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]} 
-        />
+        {Platform.OS !== 'web' && (
+          <BlurView 
+            intensity={10} 
+            tint="dark" 
+            style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]} 
+          />
+        )}
         
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
         
@@ -143,10 +134,6 @@ export function InputGlass({
           placeholderTextColor="rgba(255, 255, 255, 0.2)"
           onFocus={handleFocus}
           onBlur={handleBlur}
-          accessibilityLabel={label || props.placeholder}
-          accessibilityHint={accessibilityHint || error}
-          accessibilityState={{ disabled: props.editable === false }}
-          allowFontScaling={true}
           {...props}
         />
         
@@ -159,7 +146,7 @@ export function InputGlass({
             styles.errorText, 
             { 
               color: colors.error,
-              fontSize: 10 * fontScale,
+              fontSize: 9 * fontScale,
               fontFamily: typography.family.mono,
             }
           ]}
@@ -173,28 +160,24 @@ export function InputGlass({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     width: '100%',
-    position: 'relative',
   },
   label: {
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    position: 'absolute',
-    left: 4,
-    top: 14,
-    zIndex: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 6,
+    marginLeft: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     overflow: 'hidden',
   },
   input: {
     flex: 1,
-    fontWeight: '600',
+    fontWeight: '500',
     height: '100%',
   },
   iconLeft: {
@@ -204,8 +187,8 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   errorText: {
-    fontWeight: '800',
-    marginTop: 6,
-    marginLeft: 4,
+    fontWeight: '700',
+    marginTop: 4,
+    marginLeft: 2,
   },
 });

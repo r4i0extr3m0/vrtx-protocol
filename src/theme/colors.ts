@@ -1,55 +1,54 @@
 /**
- * VRTX Protocol - Industrial Premium Command Center Palette
- * Base: #0D0D0D (Deep Graphite)
- * Primary: #0096FF (Metallic Blue)
- * Accent: #00C2FF (Neon Glow)
+ * VRTX Protocol - Dark Minimalist Sci-Fi Palette
+ * Aesthetic: Steel, Graphite, and Subdued Tech Blue.
+ * No neon accents.
  */
 
 export const colors = {
   dark: {
-    // Base
-    background: "#0D0D0D",
-    foreground: "#FFFFFF",
-    foregroundMuted: "#E2E8F0",
-    surface: "#1A1A1A",
-    surfaceAlt: "#252525",
-    surfaceElevated: "#2D2D2D",
+    // Base - Deep Space/Graphite
+    background: "#0A0A0B",
+    foreground: "#F8FAFC",
+    foregroundMuted: "#CBD5E1",
+    surface: "#141417",
+    surfaceAlt: "#1C1C21",
+    surfaceElevated: "#24242B",
     
-    // Brand
-    primary: "#0096FF",
-    primaryStrong: "#007ACC",
-    primaryGlow: "#00C2FF",
-    secondary: "#64748B",
+    // Brand - Steel Blue / Cobalt (Subdued)
+    primary: "#3B82F6", // Steel Blue
+    primaryStrong: "#2563EB",
+    primaryGlow: "rgba(59, 130, 246, 0.15)", // Very subtle
+    secondary: "#475569", // Slate
     
-    // Semantic
+    // Semantic - Muted variants
     success: "#10B981",
-    successGlow: "#34D399",
+    successGlow: "rgba(16, 185, 129, 0.1)",
     error: "#EF4444",
-    errorGlow: "#F87171",
+    errorGlow: "rgba(239, 68, 68, 0.1)",
     warning: "#F59E0B",
-    info: "#0096FF",
+    info: "#3B82F6",
     
-    // Neutral
-    muted: "#94A3B8",
-    border: "rgba(255, 255, 255, 0.1)",
-    borderStrong: "rgba(255, 255, 255, 0.2)",
-    borderGlow: "rgba(0, 150, 255, 0.3)",
+    // Neutral & Borders
+    muted: "#64748B",
+    border: "rgba(255, 255, 255, 0.06)",
+    borderStrong: "rgba(255, 255, 255, 0.12)",
+    borderGlow: "rgba(59, 130, 246, 0.1)",
     
-    // Gradients
-    primaryGradient: ["#1A1A1A", "#121212"],
-    bgGradient: ["#0D0D0D", "#050505"],
-    brandGradient: ["#0096FF", "#00C2FF"] as [string, string],
-    darkGradient: ["#1A1A1A", "#0D0D0D"] as [string, string],
-    glassGradient: ["rgba(255, 255, 255, 0.08)", "rgba(255, 255, 255, 0.03)"] as [string, string],
-    metalGradient: ["#2C2C2C", "#1A1A1A", "#0D0D0D"] as [string, string, string],
+    // Gradients - Linear and subtle
+    primaryGradient: ["#141417", "#0A0A0B"],
+    bgGradient: ["#0A0A0B", "#050505"],
+    brandGradient: ["#3B82F6", "#2563EB"] as [string, string],
+    darkGradient: ["#1C1C21", "#141417"] as [string, string],
+    glassGradient: ["rgba(255, 255, 255, 0.05)", "rgba(255, 255, 255, 0.01)"] as [string, string],
+    metalGradient: ["#24242B", "#1C1C21", "#141417"] as [string, string, string],
     successGradient: ["#10B981", "#059669"],
 
     // Shadows & Blurs
-    cardShadow: "rgba(0, 0, 0, 0.8)",
-    glow: "rgba(0, 150, 255, 0.2)",
+    cardShadow: "rgba(0, 0, 0, 0.4)",
+    glow: "rgba(59, 130, 246, 0.05)",
 
     accents: {
-      blue: "#0096FF",
+      blue: "#3B82F6",
       purple: "#8B5CF6",
       orange: "#F97316",
       green: "#10B981",
@@ -57,29 +56,29 @@ export const colors = {
     }
   },
   light: {
-    // Keep light mode for compatibility but focus on dark
-    background: "#F3F6F9",
+    // Standard light mode
+    background: "#F8FAFC",
     surface: "#FFFFFF",
-    surfaceAlt: "#E8EEF4",
-    surfaceElevated: "#F8FAFC",
-    foreground: "#0F1720",
-    foregroundMuted: "#1A2633",
-    muted: "#5E6C79",
+    surfaceAlt: "#F1F5F9",
+    surfaceElevated: "#FFFFFF",
+    foreground: "#0F172A",
+    foregroundMuted: "#334155",
+    muted: "#64748B",
     border: "rgba(0, 0, 0, 0.06)",
     borderStrong: "rgba(0, 0, 0, 0.12)",
-    primary: "#007ACC",
-    primaryStrong: "#005A9E",
-    primaryGradient: ["#FFFFFF", "#F3F6F9"],
-    brandGradient: ["#007ACC", "#0096FF"],
-    success: "#1FA764",
-    successGradient: ["#1FA764", "#16804D"],
-    warning: "#BA7A12",
-    error: "#CF4B4B",
-    info: "#007ACC",
-    cardShadow: "rgba(0, 0, 0, 0.05)",
-    glow: "rgba(0, 122, 204, 0.05)",
+    primary: "#2563EB",
+    primaryStrong: "#1D4ED8",
+    primaryGradient: ["#FFFFFF", "#F8FAFC"],
+    brandGradient: ["#2563EB", "#3B82F6"],
+    success: "#10B981",
+    successGradient: ["#10B981", "#059669"],
+    warning: "#D97706",
+    error: "#DC2626",
+    info: "#2563EB",
+    cardShadow: "rgba(0, 0, 0, 0.03)",
+    glow: "rgba(37, 99, 235, 0.02)",
     accents: {
-      blue: "#007ACC",
+      blue: "#2563EB",
       purple: "#8B5CF6",
       orange: "#F97316",
       green: "#10B981",
