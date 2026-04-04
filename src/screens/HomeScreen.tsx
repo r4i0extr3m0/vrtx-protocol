@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
 import { HapticFeedback } from "@/src/services/haptics";
 import { useDietStore } from "@/src/store/dietStore";
-import { fetchAIRecommendations, sendAIFeedback, AIApiError } from "@/src/services/AIInsights";
+import { fetchAIRecommendations, sendAIFeedback, translateAIError, AIApiError } from "@/src/services/AIInsights";
 import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
 import { useAuthStore } from "@/src/store/authStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
@@ -105,14 +105,7 @@ export function HomeScreen() {
           setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
           return;
         }
-        const msg = e instanceof Error ? e.message : "";
-        if (/aborted/i.test(msg)) {
-          setAiError("A IA demorou para responder. Tente novamente em instantes.");
-        } else if (/HTTP 429/.test(msg)) {
-          setAiError("IA ocupada no momento (limite atingido). Tente mais tarde.");
-        } else {
-          setAiError("Sem conexão com o AI (verifique EXPO_PUBLIC_AI_API_URL).");
-        }
+        setAiError(translateAIError(e).message);
       } finally {
         if (!cancelled) setAiLoading(false);
       }

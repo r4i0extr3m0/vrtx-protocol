@@ -14,6 +14,7 @@ import { useTheme } from "@/src/hooks";
 import { useGamificationStore } from "@/src/store/gamificationStore";
 import { radius, spacing, typography, shadows } from "@/src/theme";
 import * as Haptics from "expo-haptics";
+import { protocolNameFromLevel } from "@/src/utils";
 
 const BADGES_INFO: Record<string, { title: string; description: string; icon: string }> = {
   xp_100: { title: "Iniciante", description: "Alcançou 100 XP", icon: "🌱" },
@@ -117,7 +118,7 @@ export function GamificationScreen() {
         </View>
 
         <SectionCard 
-          title={`Nível ${level}`} 
+          title={protocolNameFromLevel(level)}
           subtitle={`${totalXP} / ${nextLevelXP} XP para o próximo nível`}
           delay={300}
         >

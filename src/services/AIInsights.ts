@@ -23,6 +23,26 @@ export class AIApiError extends Error {
   }
 }
 
+export function translateAIError(err: unknown): { title: string; message: string } {
+  if (err instanceof AIApiError) {
+    if (err.status === 401) {
+      return { title: "Sessão expirada", message: "Entre novamente para continuar usando a IA." };
+    }
+    if (err.status === 429 || err.code === "rate_limit") {
+      return { title: "Limite atingido", message: "Você atingiu o limite de uso por hoje. Tente amanhã ou assine o Premium." };
+    }
+    if (err.status >= 500) {
+      return { title: "IA indisponível", message: "A IA está instável no momento. Tente novamente em instantes." };
+    }
+    return { title: "IA", message: err.message || "Não foi possível concluir agora." };
+  }
+  const msg = String((err as any)?.message ?? "");
+  if (msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")) {
+    return { title: "Sem conexão", message: "Conecte-se à internet para usar a IA." };
+  }
+  return { title: "IA", message: "Não foi possível concluir agora." };
+}
+
 function withUserHeader(headers: HeadersInit | undefined, userId?: string): HeadersInit {
   const base = { ...(headers ?? {}) } as Record<string, string>;
   const token = useAuthStore.getState().session?.accessToken;

@@ -6,6 +6,7 @@ import { hasSupabaseEnv } from "@/src/constants/env";
 import { mmkvJsonStorage } from "@/src/infra/mmkv";
 import type { AuthSession, UserProfile } from "@/src/types";
 import { usePremiumStore } from "@/src/store/premiumStore";
+import { translateAuthError } from "@/src/utils";
 
 interface AuthStoreState {
   isAuthenticated: boolean;
@@ -14,8 +15,13 @@ interface AuthStoreState {
   status: "idle" | "loading" | "authenticated" | "guest" | "pending_confirmation";
   setGuestMode: () => void;
   hydrateAuth: () => Promise<void>;
-  signUp: (email: string, password: string, name?: string) => Promise<{ success: boolean; message?: string }>;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  signUp: (
+    email: string,
+    password: string,
+    name?: string
+  ) => Promise<{ success: boolean; message?: string; code?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string; code?: string }>;
+  resendConfirmation: (email: string) => Promise<{ success: boolean; message?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; message?: string }>;
   enableBiometrics: (enabled: boolean) => void;
@@ -69,7 +75,8 @@ export const useAuthStore = create<AuthStoreState>()(
             options: { data: { name: name ?? "" } },
           });
           if (result.error) {
-            return { success: false, message: result.error.message };
+            const t = translateAuthError(result.error.message);
+            return { success: false, message: t.message, code: t.code };
           }
           
           const isPending = !result.data.session && result.data.user;
@@ -132,7 +139,8 @@ export const useAuthStore = create<AuthStoreState>()(
           const result = await client.auth.signInWithPassword({ email, password });
 
           if (result.error) {
-            return { success: false, message: result.error.message };
+            const t = translateAuthError(result.error.message);
+            return { success: false, message: t.message, code: t.code };
           }
 
           if (result.data.user) {
@@ -159,7 +167,22 @@ export const useAuthStore = create<AuthStoreState>()(
         } catch (error) {
           console.error("[authStore.signIn]", error);
           set({ isAuthenticated: false, user: null, session: null, status: "idle" });
-          return { success: false, message: "Não foi possível concluir o login agora." };
+          const t = translateAuthError(String((error as any)?.message ?? "network"));
+          return { success: false, message: t.message, code: t.code };
+        }
+      },
+      resendConfirmation: async (email: string) => {
+        try {
+          if (!hasSupabaseEnv()) return { success: false, message: "Supabase não configurado." };
+          const client = getSupabaseClient();
+          const { error } = await client.auth.resend({ type: "signup", email });
+          if (error) {
+            const t = translateAuthError(error.message);
+            return { success: false, message: t.message };
+          }
+          return { success: true };
+        } catch {
+          return { success: false, message: "Não foi possível reenviar agora." };
         }
       },
       signOut: async () => {

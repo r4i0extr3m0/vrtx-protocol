@@ -13,7 +13,7 @@ import { radius, spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
   const { colors } = useTheme();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, status, isAuthenticated } = useAuth();
   const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -24,10 +24,14 @@ export function AuthScreen() {
   const supabaseReady = useMemo(() => hasSupabaseEnv(), []);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+      return;
+    }
     if (!hasSeenOnboarding) {
       router.replace("/onboarding");
     }
-  }, [hasSeenOnboarding]);
+  }, [hasSeenOnboarding, isAuthenticated]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -38,6 +42,10 @@ export function AuthScreen() {
     const result = await signIn(email.trim(), password);
     setSubmitting(false);
     if (!result.success) {
+      if (result.code === "EMAIL_NOT_CONFIRMED") {
+        router.push({ pathname: "/email-pending", params: { email: email.trim() } } as never);
+        return;
+      }
       Alert.alert("Falha ao entrar", result.message ?? "Não foi possível autenticar sua sessão.");
       return;
     }
@@ -54,6 +62,11 @@ export function AuthScreen() {
     setSubmitting(false);
     if (!result.success) {
       Alert.alert("Falha ao criar conta", result.message ?? "Não foi possível criar sua conta.");
+      return;
+    }
+    // Se o Supabase estiver configurado com confirmação de e-mail, direciona para tela dedicada.
+    if (status === "pending_confirmation") {
+      router.replace({ pathname: "/email-pending", params: { email: email.trim() } } as never);
       return;
     }
     router.replace("/signup-wizard");
