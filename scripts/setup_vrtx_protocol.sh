@@ -9,7 +9,7 @@ set -euo pipefail
 # - Este script NÃO cria Dev Build (EAS) pois isso exige login e decisão de plataforma.
 # - Ele apenas instala dependências e prepara .env.
 
-REPO_URL="https://github.com/r4i0extr3m0/CoreIronTrack.git"
+REPO_URL="https://github.com/r4i0extr3m0/vrtx-protocol.git"
 DIR="vrtx-protocol"
 
 if [ -d "$DIR" ]; then
@@ -41,4 +41,3 @@ fi
 
 echo "OK. Próximo passo recomendado:"
 echo "  npx expo start --dev-client"
-

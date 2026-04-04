@@ -14,7 +14,7 @@ Este guia é um “script de execução” para você colar no Trae e seguir sem
 
 ## 1) Clonar o repositório
 ```bash
-git clone https://github.com/r4i0extr3m0/CoreIronTrack.git vrtx-protocol
+git clone https://github.com/r4i0extr3m0/vrtx-protocol.git vrtx-protocol
 cd vrtx-protocol
 ```
 
@@ -101,4 +101,3 @@ npx expo start --dev-client
 - IA retornando 401: confirme login no Supabase + `SUPABASE_ANON_KEY` na AI API.
 - Paywall não abre: confirme Dev Build + chaves RevenueCat.
 - Dados “somem”: confirme Dev Build (não Expo Go).
-
