@@ -125,7 +125,7 @@ export const useAuthStore = create<AuthStoreState>()(
         try {
           if (!hasSupabaseEnv()) {
             set({ isAuthenticated: false, user: null, session: null, status: "idle" });
-            return { success: false, message: "Credenciais Supabase ainda não configuradas." };
+            return { success: false, message: "Login indisponível neste build. Configure Supabase e gere um novo Dev Build." };
           }
 
           const client = getSupabaseClient();

@@ -24,6 +24,23 @@ const ICON_MAP: Record<string, string> = {
   'Clock': 'history',
   'BarChart': 'bar-chart',
   'Dumbbell': 'fitness-center',
+  'Zap': 'bolt',
+  'ClipboardList': 'assignment',
+  'Apple': 'apple',
+  'TrendingUp': 'trending_up',
+  'User': 'person',
+  'Camera': 'photo_camera',
+  'Beef': 'restaurant',
+  'Wheat': 'grain',
+  'Droplets': 'water_drop',
+  'Utensils': 'restaurant',
+  'Coffee': 'coffee',
+  'Moon': 'dark_mode',
+  'Flame': 'local_fire_department',
+  'Star': 'star',
+  'Trophy': 'emoji_events',
+  'Calendar': 'calendar_today',
+  'X': 'close',
 };
 
 export function AppIcon({ 
@@ -33,7 +50,7 @@ export function AppIcon({
   style, 
 }: AppIconProps) {
   const { colors } = useTheme();
-  const iconName = ICON_MAP[name] || name;
+  const iconName = ICON_MAP[name] || name || 'help_outline';
 
   return (
     <MaterialIcons 

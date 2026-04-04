@@ -35,13 +35,15 @@ function shouldUseMemoryStorage(): boolean {
 
 function createNativeMMKVStorage(): StorageLike {
   try {
-    const { MMKV } = require("react-native-mmkv");
+    // react-native-mmkv v4: MMKV class JS não existe mais, use createMMKV()
+    // https://github.com/greg-schrammel/react-native-mmkv/blob/main/docs/V4_UPGRADE_GUIDE.md
+    const { createMMKV } = require("react-native-mmkv");
     const encryptionKey = "vrtxprotocol-secure-key-2026";
-    const mmkvInstance = new MMKV({
+    const mmkvInstance = createMMKV({
       id: "vrtxprotocol-storage",
-      encryptionKey: encryptionKey,
+      encryptionKey,
     });
-    return mmkvInstance;
+    return mmkvInstance as StorageLike;
   } catch (error) {
     console.error("Erro ao criar MMKV nativo, usando memory storage como fallback:", error);
     return createMemoryStorage();

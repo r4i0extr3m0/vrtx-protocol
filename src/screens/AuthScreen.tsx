@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
@@ -6,17 +6,20 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { useAuth, useTheme } from "@/src/hooks";
 import { useOnboardingStore } from "@/src/store/onboardingStore";
+import { hasSupabaseEnv } from "@/src/constants/env";
 import { radius, spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
   const { colors } = useTheme();
-  const { signIn, signUp, setGuestMode } = useAuth();
+  const { signIn, signUp } = useAuth();
   const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const supabaseReady = useMemo(() => hasSupabaseEnv(), []);
 
   useEffect(() => {
     if (!hasSeenOnboarding) {
@@ -54,11 +57,6 @@ export function AuthScreen() {
     router.replace("/signup-wizard");
   };
 
-  const handleGuest = () => {
-    setGuestMode();
-    router.replace("/");
-  };
-
   const inputStyle = [
     styles.input,
     { backgroundColor: colors.surfaceAlt, borderColor: colors.border, color: colors.foreground },
@@ -73,13 +71,25 @@ export function AuthScreen() {
             {mode === "login" ? "Bem-vindo de volta." : "Crie sua conta."}
           </Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            {mode === "login"
-              ? "Entre com suas credenciais ou continue em modo local para registrar treinos sem internet."
-              : "Crie uma conta para sincronizar seus treinos em todos os dispositivos."}
+            {!supabaseReady
+              ? "Login temporariamente indisponível neste build. Configure Supabase no .env e gere um novo Dev Build."
+              : mode === "login"
+                ? "Entre com suas credenciais para sincronizar seus dados com segurança."
+                : "Crie uma conta para sincronizar treinos, dieta e progresso em todos os dispositivos."}
           </Text>
         </View>
 
         <View style={[styles.form, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {!supabaseReady ? (
+            <>
+              <AppButton
+                label="Ver Termos e Privacidade"
+                onPress={() => router.push("/terms-and-privacy" as never)}
+                variant="secondary"
+              />
+            </>
+          ) : (
+            <>
           {mode === "signup" && (
             <TextInput
               autoCapitalize="words"
@@ -141,12 +151,13 @@ export function AuthScreen() {
               />
             </>
           )}
-          <AppButton label="Continuar no modo local" onPress={handleGuest} variant="ghost" />
           <AppButton 
             label="Termos e Privacidade" 
             onPress={() => router.push("/terms-and-privacy" as never)} 
             variant="ghost" 
           />
+            </>
+          )}
         </View>
       </View>
     </ScreenContainer>
