@@ -2,10 +2,10 @@ import "../global.css";
 import * as Sentry from "@sentry/react-native";
 import { PostHogProvider } from "posthog-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, SplashScreen } from "expo-router";
+import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, Text, View } from "react-native";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import "@/lib/_core/nativewind-pressable";
@@ -23,10 +23,9 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { initializeMMKV } from "@/src/infra/mmkv";
 import { useAuth } from "@/src/hooks";
-import { spacing, typography } from "@/src/theme";
+import { spacing } from "@/src/theme";
 import { initMonitoring, initFirebase } from "@/src/services/monitoring";
 import { identifyUser } from "@/src/services/analytics";
-import { AnimatedStack } from "@/src/components/AnimatedStack";
 import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/services/revenuecat";
 import { useOnboardingStore } from "@/src/store/onboardingStore";
 
@@ -50,21 +49,40 @@ export const unstable_settings = {
 };
 
 function AuthGate() {
-  const { status, isAuthenticated, user, hydrateAuth } = useAuth();
+  const { status, isAuthenticated, user, hasHydrated, hydrateAuth } = useAuth();
   const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
+  const onboardingHydrated = useOnboardingStore((s) => s.hasHydrated);
+  const pathname = usePathname();
+  const router = useRouter();
+  const [bootCompleted, setBootCompleted] = useState(false);
+  const shouldBypassAuthInDev = __DEV__ && !hasSupabaseEnv();
 
   useEffect(() => {
     initializeMMKV();
     void configureRevenueCat();
 
+    if (!onboardingHydrated) {
+      return;
+    }
+
+    let isMounted = true;
+
     if (!hasSupabaseEnv()) {
       console.log("[AuthGate] Supabase não configurado, pulando hydration");
-      void SplashScreen.hideAsync();
+      void hydrateAuth().finally(() => {
+        if (isMounted) {
+          setBootCompleted(true);
+        }
+        void SplashScreen.hideAsync();
+      });
       return;
     }
 
     const hydrationTimeout = setTimeout(() => {
       console.warn("[AuthGate] hydrateAuth timeout após 6s");
+      if (isMounted) {
+        setBootCompleted(true);
+      }
       void SplashScreen.hideAsync();
     }, 6000);
 
@@ -74,14 +92,17 @@ function AuthGate() {
       })
       .finally(() => {
         clearTimeout(hydrationTimeout);
+        if (isMounted) {
+          setBootCompleted(true);
+        }
         void SplashScreen.hideAsync();
       });
 
     return () => {
+      isMounted = false;
       clearTimeout(hydrationTimeout);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hydrateAuth, onboardingHydrated]);
 
   // Analytics: Identificar usuário quando autenticado
   useEffect(() => {
@@ -93,78 +114,94 @@ function AuthGate() {
     }
   }, [isAuthenticated, user]);
 
-  const shouldBypassAuthInDev = __DEV__ && !isAuthenticated;
+  const isPublicRoute =
+    pathname === "/onboarding" ||
+    pathname === "/login" ||
+    pathname === "/signup-wizard" ||
+    pathname === "/email-pending" ||
+    pathname === "/forgot-password" ||
+    pathname === "/terms-and-privacy" ||
+    pathname === "/oauth/callback";
 
-  // Mostrar loading apenas se estiver em estado "loading"
-  if (status === "loading") {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          padding: spacing.xl,
-          backgroundColor: "#0D0D0D",
-        }}
-      >
-        <Text style={{ 
-          color: "#7CC6FF", 
-          fontSize: 12, 
-          fontWeight: "900", 
-          letterSpacing: 2,
-          fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" 
-        }}>
-          BOOTING_VRTX_PROTOCOL...
-        </Text>
-      </View>
-    );
+  useEffect(() => {
+    if (!onboardingHydrated || !hasHydrated || !bootCompleted || status === "loading") {
+      return;
+    }
+
+    if (shouldBypassAuthInDev && !isAuthenticated) {
+      if (
+        pathname === "/login" ||
+        pathname === "/onboarding" ||
+        pathname === "/signup-wizard" ||
+        pathname === "/email-pending" ||
+        pathname === "/forgot-password" ||
+        pathname === "/terms-and-privacy" ||
+        pathname === "/oauth/callback"
+      ) {
+        router.replace("/");
+      }
+
+      return;
+    }
+
+    if (!isAuthenticated) {
+      if (!hasSeenOnboarding && pathname !== "/onboarding") {
+        router.replace("/onboarding");
+        return;
+      }
+
+      if (hasSeenOnboarding && !isPublicRoute) {
+        router.replace("/login");
+      }
+
+      return;
+    }
+
+    if (user && !user.onboardingCompleted && pathname !== "/signup-wizard") {
+      router.replace("/signup-wizard");
+      return;
+    }
+
+    if (
+      pathname === "/onboarding" ||
+      pathname === "/login" ||
+      (pathname === "/signup-wizard" && Boolean(user?.onboardingCompleted))
+    ) {
+      router.replace("/(tabs)");
+    }
+  }, [
+    bootCompleted,
+    hasHydrated,
+    hasSeenOnboarding,
+    isAuthenticated,
+    isPublicRoute,
+    onboardingHydrated,
+    pathname,
+    router,
+    shouldBypassAuthInDev,
+    status,
+    user,
+  ]);
+
+  if (!onboardingHydrated || !hasHydrated || !bootCompleted || status === "loading") {
+    return null;
   }
 
   return (
-    <AnimatedStack>
-      {shouldBypassAuthInDev ? (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="workout/[id]" />
-          <Stack.Screen name="history/[id]" />
-          <Stack.Screen name="exercises" />
-          <Stack.Screen name="templates" />
-          <Stack.Screen name="profile" />
-          <Stack.Screen name="gamification" />
-          <Stack.Screen name="diet/index" />
-          <Stack.Screen name="diet/add-meal" />
-          <Stack.Screen name="diet/goals" />
-          <Stack.Screen name="camera" options={{ presentation: "fullScreenModal" }} />
-          <Stack.Screen name="sync-status" options={{ presentation: "modal" }} />
-        </>
-      ) : !isAuthenticated ? (
-        <>
-          {!hasSeenOnboarding ? <Stack.Screen name="onboarding" /> : null}
-          <Stack.Screen name="login" />
-          <Stack.Screen name="signup-wizard" />
-        </>
-      ) : (
-        <>
-          {user && !user.onboardingCompleted ? (
-            <Stack.Screen name="signup-wizard" />
-          ) : (
-            <Stack.Screen name="(tabs)" />
-          )}
-          <Stack.Screen name="workout/[id]" />
-          <Stack.Screen name="history/[id]" />
-          <Stack.Screen name="exercises" />
-          <Stack.Screen name="templates" />
-          <Stack.Screen name="profile" />
-          <Stack.Screen name="gamification" />
-          <Stack.Screen name="diet/index" />
-          <Stack.Screen name="diet/add-meal" />
-          <Stack.Screen name="diet/goals" />
-          <Stack.Screen name="camera" options={{ presentation: "fullScreenModal" }} />
-          <Stack.Screen name="sync-status" options={{ presentation: "modal" }} />
-        </>
-      )}
-      <Stack.Screen name="oauth/callback" />
-    </AnimatedStack>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: Platform.OS === "ios" ? "default" : "fade_from_bottom",
+        contentStyle: { backgroundColor: "#0B0D10" },
+        animationDuration: 400,
+        gestureEnabled: true,
+        gestureDirection: "horizontal",
+        fullScreenGestureEnabled: true,
+      }}
+    >
+      <Stack.Screen name="camera" options={{ presentation: "fullScreenModal" }} />
+      <Stack.Screen name="sync-status" options={{ presentation: "modal" }} />
+    </Stack>
   );
 }
 
@@ -217,6 +254,7 @@ function RootLayout() {
 
   const posthogApiKey = process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
+  const shouldEnablePostHog = Platform.OS === "web" && Boolean(posthogApiKey);
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -229,9 +267,9 @@ function RootLayout() {
     </GestureHandlerRootView>
   );
 
-  const wrappedContent = posthogApiKey ? (
+  const wrappedContent = shouldEnablePostHog ? (
     <PostHogProvider
-      apiKey={posthogApiKey}
+      apiKey={posthogApiKey!}
       options={{ host: posthogHost || "https://us.i.posthog.com" }}
     >
       {content}

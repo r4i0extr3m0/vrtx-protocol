@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Dimensions, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, View, Text, TextInput, Pressable, StyleSheet, Dimensions, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import { useAuth, useTheme } from "@/src/hooks";
 import { spacing, typography, radius } from "@/src/theme";
@@ -13,8 +13,8 @@ type Step = "account" | "profile" | "goals";
 
 export function SignupWizardScreen() {
   const { colors } = useTheme();
-  const { signUp, updateProfile } = useAuth();
-  const [step, setStep] = useState<Step>("account");
+  const { signUp, updateProfile, isAuthenticated } = useAuth();
+  const [step, setStep] = useState<Step>(isAuthenticated ? "profile" : "account");
   const [loading, setLoading] = useState(false);
 
   // Form state
@@ -25,17 +25,40 @@ export function SignupWizardScreen() {
   const [height, setHeight] = useState("");
   const [goal, setGoal] = useState<"gain" | "lose" | "maintain">("maintain");
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      setStep("profile");
+    }
+  }, [isAuthenticated]);
+
+  const parseOptionalNumber = (value: string): number | undefined => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
   const handleAccountSubmit = async () => {
-    if (!email || !password) return;
+    if (!email || !password) {
+      Alert.alert("Campos obrigatórios", "Preencha e-mail e senha.");
+      return;
+    }
     setLoading(true);
     const result = await signUp(email, password, name);
     setLoading(false);
     if (result.success) {
+      if (result.requiresEmailConfirmation) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert(
+          "Confirme seu e-mail",
+          result.message ?? "Enviamos um link de confirmação para seu e-mail. Depois disso, faça login no app."
+        );
+        router.replace("/login");
+        return;
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep("profile");
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Exibir erro (simplificado aqui)
+      Alert.alert("Falha ao criar conta", result.message ?? "Não foi possível criar sua conta.");
     }
   };
 
@@ -46,13 +69,18 @@ export function SignupWizardScreen() {
 
   const handleFinalSubmit = async () => {
     setLoading(true);
-    await updateProfile({
-      weight: parseFloat(weight),
-      height: parseFloat(height),
+    const result = await updateProfile({
+      weight: parseOptionalNumber(weight),
+      height: parseOptionalNumber(height),
       goal,
       onboardingCompleted: true,
     });
     setLoading(false);
+    if (!result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Falha ao salvar perfil", result.message ?? "Não foi possível concluir seu cadastro.");
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace("/");
   };

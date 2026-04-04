@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { getCurrentSession, getCurrentUser, getSupabaseClient } from "@/src/api/supabase";
-import { hasSupabaseEnv } from "@/src/constants/env";
+import { getSupabaseEnvError, hasSupabaseEnv } from "@/src/constants/env";
 import { mmkvJsonStorage } from "@/src/infra/mmkv";
 import type { AuthSession, UserProfile } from "@/src/types";
 import { usePremiumStore } from "@/src/store/premiumStore";
@@ -13,13 +13,14 @@ interface AuthStoreState {
   user: UserProfile | null;
   session: AuthSession | null;
   status: "idle" | "loading" | "authenticated" | "guest" | "pending_confirmation";
+  hasHydrated: boolean;
   setGuestMode: () => void;
   hydrateAuth: () => Promise<void>;
   signUp: (
     email: string,
     password: string,
     name?: string
-  ) => Promise<{ success: boolean; message?: string; code?: string }>;
+  ) => Promise<{ success: boolean; message?: string; code?: string; requiresEmailConfirmation?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string; code?: string }>;
   resendConfirmation: (email: string) => Promise<{ success: boolean; message?: string }>;
   signOut: () => Promise<void>;
@@ -41,16 +42,109 @@ function mapSession(session: any): AuthSession | null {
   };
 }
 
-function mapUser(user: any): UserProfile | null {
+type ProfileRecord = Partial<UserProfile> & {
+  biometrics_enabled?: boolean;
+  onboarding_completed?: boolean;
+  activity_level?: UserProfile["activityLevel"];
+};
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function getOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function getOptionalNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function getOptionalGoal(value: unknown): UserProfile["goal"] | undefined {
+  return value === "gain" || value === "lose" || value === "maintain" ? value : undefined;
+}
+
+function getOptionalActivityLevel(value: unknown): UserProfile["activityLevel"] | undefined {
+  return value === "sedentary" ||
+    value === "light" ||
+    value === "moderate" ||
+    value === "active" ||
+    value === "very_active"
+    ? value
+    : undefined;
+}
+
+function normalizeProfile(profile: any): Partial<UserProfile> {
+  if (!profile) {
+    return {};
+  }
+
+  return {
+    email: getOptionalString(profile.email),
+    name: getOptionalString(profile.name),
+    biometricsEnabled: getOptionalBoolean(profile.biometricsEnabled ?? profile.biometrics_enabled),
+    onboardingCompleted: getOptionalBoolean(profile.onboardingCompleted ?? profile.onboarding_completed),
+    weight: getOptionalNumber(profile.weight),
+    height: getOptionalNumber(profile.height),
+    goal: getOptionalGoal(profile.goal),
+    activityLevel: getOptionalActivityLevel(profile.activityLevel ?? profile.activity_level),
+  };
+}
+
+function mapUser(user: any, profile?: ProfileRecord | null): UserProfile | null {
   if (!user || !user.email) {
     return null;
   }
 
+  const normalizedProfile = normalizeProfile(profile);
+  const metadata = user.user_metadata ?? {};
+
   return {
     id: user.id,
-    email: user.email,
-    name: typeof user.user_metadata?.name === "string" ? user.user_metadata.name : undefined,
+    email: normalizedProfile.email ?? user.email,
+    name: normalizedProfile.name ?? getOptionalString(metadata.name),
+    biometricsEnabled:
+      normalizedProfile.biometricsEnabled ??
+      getOptionalBoolean(metadata.biometricsEnabled ?? metadata.biometrics_enabled),
+    onboardingCompleted:
+      normalizedProfile.onboardingCompleted ??
+      getOptionalBoolean(metadata.onboardingCompleted ?? metadata.onboarding_completed),
+    weight: normalizedProfile.weight,
+    height: normalizedProfile.height,
+    goal: normalizedProfile.goal,
+    activityLevel: normalizedProfile.activityLevel,
   };
+}
+
+async function fetchProfile(userId: string): Promise<Partial<UserProfile> | null> {
+  if (!hasSupabaseEnv()) {
+    return null;
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.from("profiles").select("*").eq("id", userId).maybeSingle();
+
+    if (error) {
+      console.warn("[authStore.fetchProfile]", error.message);
+      return null;
+    }
+
+    return normalizeProfile(data);
+  } catch (error) {
+    console.warn("[authStore.fetchProfile]", error);
+    return null;
+  }
+}
+
+async function resolveMappedUser(user: any, shouldFetchProfile = true): Promise<UserProfile | null> {
+  const baseUser = mapUser(user);
+  if (!baseUser?.id || !shouldFetchProfile) {
+    return baseUser;
+  }
+
+  const profile = await fetchProfile(baseUser.id);
+  return mapUser(user, profile);
 }
 
 export const useAuthStore = create<AuthStoreState>()(
@@ -59,14 +153,18 @@ export const useAuthStore = create<AuthStoreState>()(
       isAuthenticated: false,
       user: null,
       session: null,
-      status: "idle",
+      status: "loading",
+      hasHydrated: false,
       setGuestMode: () => {
-        set({ isAuthenticated: false, user: null, session: null, status: "idle" });
+        set({ isAuthenticated: false, user: null, session: null, status: "guest", hasHydrated: true });
       },
       signUp: async (email: string, password: string, name?: string) => {
         try {
           if (!hasSupabaseEnv()) {
-            return { success: false, message: "Credenciais Supabase ainda não configuradas." };
+            return {
+              success: false,
+              message: getSupabaseEnvError() ?? "Login indisponível neste build.",
+            };
           }
           const client = getSupabaseClient();
           const result = await client.auth.signUp({
@@ -89,14 +187,22 @@ export const useAuthStore = create<AuthStoreState>()(
               created_at: new Date().toISOString(),
             });
           }
-          
+
+          const mappedUser = await resolveMappedUser(result.data.user, Boolean(result.data.session));
           set({
             isAuthenticated: Boolean(result.data.session && result.data.user),
             session: mapSession(result.data.session),
-            user: mapUser(result.data.user),
+            user: mappedUser,
             status: isPending ? "pending_confirmation" : (result.data.session ? "authenticated" : "idle"),
+            hasHydrated: true,
           });
-          return { success: true };
+          return {
+            success: true,
+            requiresEmailConfirmation: Boolean(isPending),
+            message: isPending
+              ? "Enviamos um link de confirmação para seu e-mail. Confirme sua conta para continuar."
+              : undefined,
+          };
         } catch (error) {
           console.error("[authStore.signUp]", error);
           return { success: false, message: "Não foi possível criar a conta agora." };
@@ -107,32 +213,36 @@ export const useAuthStore = create<AuthStoreState>()(
 
         try {
           if (!hasSupabaseEnv()) {
-            set({ isAuthenticated: false, user: null, session: null, status: "idle" });
+            set({ isAuthenticated: false, user: null, session: null, status: "guest", hasHydrated: true });
             return;
           }
 
           const [session, user] = await Promise.all([getCurrentSession(), getCurrentUser()]);
+          const mappedUser = session && user ? await resolveMappedUser(user) : mapUser(user);
           set({
             isAuthenticated: Boolean(session && user),
             session: mapSession(session),
-            user: mapUser(user),
+            user: mappedUser,
             status: session && user ? "authenticated" : "idle",
+            hasHydrated: true,
           });
 
-          const mapped = mapUser(user);
-          if (mapped?.id) {
-            void usePremiumStore.getState().refreshAIUsage(mapped.id);
+          if (mappedUser?.id) {
+            void usePremiumStore.getState().refreshAIUsage(mappedUser.id);
           }
         } catch (error) {
           console.error("[authStore.hydrateAuth]", error);
-          set({ isAuthenticated: false, user: null, session: null, status: "idle" });
+          set({ isAuthenticated: false, user: null, session: null, status: "idle", hasHydrated: true });
         }
       },
       signIn: async (email: string, password: string) => {
         try {
           if (!hasSupabaseEnv()) {
-            set({ isAuthenticated: false, user: null, session: null, status: "idle" });
-            return { success: false, message: "Login indisponível neste build. Configure Supabase e gere um novo Dev Build." };
+            set({ isAuthenticated: false, user: null, session: null, status: "idle", hasHydrated: true });
+            return {
+              success: false,
+              message: getSupabaseEnvError() ?? "Login indisponível neste build.",
+            };
           }
 
           const client = getSupabaseClient();
@@ -151,22 +261,23 @@ export const useAuthStore = create<AuthStoreState>()(
               updated_at: new Date().toISOString(),
             });
           }
+          const mappedUser = await resolveMappedUser(result.data.user, Boolean(result.data.session));
           set({
             isAuthenticated: Boolean(result.data.session && result.data.user),
             session: mapSession(result.data.session),
-            user: mapUser(result.data.user),
+            user: mappedUser,
             status: result.data.session && result.data.user ? "authenticated" : "idle",
+            hasHydrated: true,
           });
 
-          const mapped = mapUser(result.data.user);
-          if (mapped?.id) {
-            void usePremiumStore.getState().refreshAIUsage(mapped.id);
+          if (mappedUser?.id) {
+            void usePremiumStore.getState().refreshAIUsage(mappedUser.id);
           }
 
           return { success: true };
         } catch (error) {
           console.error("[authStore.signIn]", error);
-          set({ isAuthenticated: false, user: null, session: null, status: "idle" });
+          set({ isAuthenticated: false, user: null, session: null, status: "idle", hasHydrated: true });
           const t = translateAuthError(String((error as any)?.message ?? "network"));
           return { success: false, message: t.message, code: t.code };
         }
@@ -195,7 +306,7 @@ export const useAuthStore = create<AuthStoreState>()(
           console.error("[authStore.signOut]", error);
         }
 
-        set({ isAuthenticated: false, user: null, session: null, status: "guest" });
+        set({ isAuthenticated: false, user: null, session: null, status: "guest", hasHydrated: true });
         usePremiumStore.getState().resetPremium();
       },
       updateProfile: async (updates: Partial<UserProfile>) => {

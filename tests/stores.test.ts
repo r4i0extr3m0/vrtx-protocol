@@ -29,6 +29,77 @@ describe("authStore", () => {
     expect(useAuthStore.getState().status).toBe("guest");
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
+
+  it("hydrates session with profile fields from profiles table", async () => {
+    const storage = createMemoryJsonStorage();
+    const getCurrentSession = vi.fn().mockResolvedValue({
+      access_token: "access-token",
+      refresh_token: "refresh-token",
+      expires_at: 123456,
+    });
+    const getCurrentUser = vi.fn().mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      user_metadata: { name: "Victor" },
+    });
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Victor Profile",
+        onboarding_completed: true,
+        biometrics_enabled: true,
+        weight: 82,
+        height: 180,
+        goal: "gain",
+        activity_level: "active",
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const refreshAIUsage = vi.fn();
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      getCurrentSession,
+      getCurrentUser,
+      getSupabaseClient: vi.fn(() => ({ from })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage, resetPremium: vi.fn() }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    await useAuthStore.getState().hydrateAuth();
+
+    expect(from).toHaveBeenCalledWith("profiles");
+    expect(select).toHaveBeenCalledWith("*");
+    expect(eq).toHaveBeenCalledWith("id", "user-1");
+    expect(useAuthStore.getState().user).toMatchObject({
+      id: "user-1",
+      email: "user@example.com",
+      name: "Victor Profile",
+      onboardingCompleted: true,
+      biometricsEnabled: true,
+      weight: 82,
+      height: 180,
+      goal: "gain",
+      activityLevel: "active",
+    });
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().status).toBe("authenticated");
+    expect(refreshAIUsage).toHaveBeenCalledWith("user-1");
+  });
 });
 
 describe("workoutStore", () => {
