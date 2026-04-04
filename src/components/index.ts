@@ -6,3 +6,4 @@ export * from "./RestTimer";
 export * from "./SectionCard";
 export * from "./SyncStatusPill";
 export * from "./BodyCompositionFigure";
+export * from "./ScreenBackdrop";

@@ -100,7 +100,7 @@ export function WorkoutScreen() {
   const { colors } = useTheme();
   const { workouts, activeWorkoutId, createWorkout, createFromTemplate, addExercise, removeExercise, addSet, updateSet, removeSet, completeWorkout } = useWorkout();
   const { templates } = useTemplateStore();
-  const { addXP } = useGamificationStore();
+  const { recordActivity, addXP } = useGamificationStore();
 
   const workout = workouts.find((w) => w.id === activeWorkoutId) ?? null;
   const summary = workout ? summarizeWorkout(workout) : null;
@@ -294,7 +294,9 @@ export function WorkoutScreen() {
           <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
             <AppButton label="Finalizar Treino" onPress={() => {
               completeWorkout(workout.id);
-              addXP(250);
+              // Duolingo-like: ação principal dá XP e conta para missões/liga
+              recordActivity("workout", 1);
+              addXP(80, { source: "workout" });
               router.back();
             }} variant="brand" />
             <AppButton label="Adicionar exercício" onPress={() => router.push("/exercises")} variant="secondary" />

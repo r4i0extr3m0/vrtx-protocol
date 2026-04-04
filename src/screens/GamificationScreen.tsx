@@ -1,5 +1,5 @@
-import { useMemo, useEffect } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { useMemo, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View, Pressable, Alert } from "react-native";
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -24,7 +24,24 @@ const BADGES_INFO: Record<string, { title: string; description: string; icon: st
 
 export function GamificationScreen() {
   const { colors } = useTheme();
-  const { streak, totalXP, level, badges } = useGamificationStore();
+  const {
+    streak,
+    totalXP,
+    level,
+    badges,
+    dailyMissions,
+    league,
+    weekId,
+    recordActivity,
+    claimMission,
+  } = useGamificationStore();
+
+  const [tab, setTab] = useState<"missions" | "league" | "badges">("missions");
+
+  useEffect(() => {
+    // Check-in 1x por dia (conta para missão e streak)
+    recordActivity("checkin", 1);
+  }, []);
 
   const nextLevelXP = Math.pow(level, 2) * 100;
   const currentLevelXP = Math.pow(level - 1, 2) * 100;
@@ -49,7 +66,9 @@ export function GamificationScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>Evolução</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Sua jornada para a melhor versão.</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Missões diárias, liga semanal e conquistas.
+          </Text>
         </View>
 
         <View style={styles.statsRow}>
@@ -76,6 +95,27 @@ export function GamificationScreen() {
           </Animated.View>
         </View>
 
+        <View style={[styles.tabs, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => setTab("missions")}
+            style={[styles.tabBtn, tab === "missions" && { backgroundColor: colors.surface }]}
+          >
+            <Text style={[styles.tabText, { color: tab === "missions" ? colors.foreground : colors.muted }]}>Missões</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setTab("league")}
+            style={[styles.tabBtn, tab === "league" && { backgroundColor: colors.surface }]}
+          >
+            <Text style={[styles.tabText, { color: tab === "league" ? colors.foreground : colors.muted }]}>Liga</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setTab("badges")}
+            style={[styles.tabBtn, tab === "badges" && { backgroundColor: colors.surface }]}
+          >
+            <Text style={[styles.tabText, { color: tab === "badges" ? colors.foreground : colors.muted }]}>Conquistas</Text>
+          </Pressable>
+        </View>
+
         <SectionCard 
           title={`Nível ${level}`} 
           subtitle={`${totalXP} / ${nextLevelXP} XP para o próximo nível`}
@@ -93,44 +133,138 @@ export function GamificationScreen() {
           </View>
         </SectionCard>
 
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Conquistas</Text>
-        
-        <View style={styles.badgesGrid}>
-          {Object.entries(BADGES_INFO).map(([id, info], index) => {
-            const isUnlocked = badges.includes(id);
-            return (
-              <Animated.View
-                key={id}
-                entering={FadeInDown.delay(400 + index * 100)}
-                style={{ width: "47%" }}
-              >
-                <Pressable
-                  onPress={handleBadgePress}
-                  style={[
-                    styles.badgeCard,
-                    { 
-                      backgroundColor: colors.surface, 
-                      borderColor: isUnlocked ? colors.primary : colors.border,
-                      opacity: isUnlocked ? 1 : 0.6 
-                    },
-                    shadows.card
-                  ]}
-                >
-                  <View style={[styles.badgeIconWrapper, { backgroundColor: isUnlocked ? colors.primary + "10" : "rgba(255,255,255,0.05)" }]}>
-                    <Text style={[styles.badgeIcon, { opacity: isUnlocked ? 1 : 0.4 }]}>{info.icon}</Text>
-                  </View>
-                  <Text style={[styles.badgeTitle, { color: colors.foreground }]}>{info.title}</Text>
-                  <Text style={[styles.badgeDesc, { color: colors.muted }]}>{info.description}</Text>
-                  {!isUnlocked && (
-                    <View style={styles.lockOverlay}>
-                      <Text style={{ fontSize: 10 }}>🔒</Text>
+        {tab === "missions" ? (
+          <SectionCard title="Missões de hoje" subtitle="Complete, colete e suba na liga." delay={380}>
+            <View style={{ gap: spacing.md }}>
+              {dailyMissions.map((m) => {
+                const done = m.progress >= m.target;
+                const claimed = Boolean(m.claimedAt);
+                const pct = Math.min(1, m.progress / m.target);
+                return (
+                  <View
+                    key={m.id}
+                    style={[
+                      styles.missionRow,
+                      { borderColor: colors.border, backgroundColor: colors.surfaceAlt },
+                    ]}
+                  >
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Text style={{ color: colors.foreground, fontWeight: "900" }}>{m.title}</Text>
+                      <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 12 }}>{m.description}</Text>
+                      <View style={[styles.missionBarBg, { backgroundColor: colors.border }]}>
+                        <View style={[styles.missionBarFill, { width: `${pct * 100}%`, backgroundColor: done ? colors.success : colors.primary }]} />
+                      </View>
+                      <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 11 }}>
+                        {m.progress}/{m.target} • +{m.rewardXp} XP
+                      </Text>
                     </View>
-                  )}
-                </Pressable>
-              </Animated.View>
-            );
-          })}
-        </View>
+
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        const res = claimMission(m.id);
+                        if (!res.ok) Alert.alert("Missões", res.message ?? "Não foi possível coletar.");
+                      }}
+                      disabled={!done || claimed}
+                      style={[
+                        styles.claimBtn,
+                        {
+                          backgroundColor: done ? (claimed ? colors.surface : colors.primary) : colors.surface,
+                          borderColor: done ? (claimed ? colors.border : colors.primary) : colors.border,
+                          opacity: done ? 1 : 0.6,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: done ? (claimed ? colors.muted : "#000") : colors.muted, fontWeight: "900" }}>
+                        {claimed ? "Coletado" : done ? "Coletar" : "Fazer"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </SectionCard>
+        ) : null}
+
+        {tab === "league" ? (
+          <SectionCard
+            title={`Liga ${league.tier}`}
+            subtitle={`Semana ${weekId ?? ""} • rank #${league.rank}`}
+            delay={380}
+          >
+            <View style={{ gap: spacing.md }}>
+              <View style={[styles.leagueRow, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>XP nesta semana</Text>
+                  <Text style={{ color: colors.foreground, fontWeight: "900", fontSize: 28, letterSpacing: -1.2 }}>
+                    {league.xpThisWeek}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>Zona</Text>
+                  <Text style={{ color: league.rank <= league.promotionCutoff ? colors.success : league.rank >= league.demotionCutoff ? colors.error : colors.foreground, fontWeight: "900" }}>
+                    {league.rank <= league.promotionCutoff
+                      ? "Promoção"
+                      : league.rank >= league.demotionCutoff
+                        ? "Rebaixamento"
+                        : "Segura"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>
+                  Meta rápida (hoje): complete 1 missão + finalize 1 treino.
+                </Text>
+                <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 12 }}>
+                  Top {league.promotionCutoff} sobe • #{league.demotionCutoff}+ cai
+                </Text>
+              </View>
+            </View>
+          </SectionCard>
+        ) : null}
+
+        {tab === "badges" ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Conquistas</Text>
+            <View style={styles.badgesGrid}>
+              {Object.entries(BADGES_INFO).map(([id, info], index) => {
+                const isUnlocked = badges.includes(id);
+                return (
+                  <Animated.View
+                    key={id}
+                    entering={FadeInDown.delay(240 + index * 90)}
+                    style={{ width: "47%" }}
+                  >
+                    <Pressable
+                      onPress={handleBadgePress}
+                      style={[
+                        styles.badgeCard,
+                        { 
+                          backgroundColor: colors.surface, 
+                          borderColor: isUnlocked ? colors.primary : colors.border,
+                          opacity: isUnlocked ? 1 : 0.6 
+                        },
+                        shadows.card
+                      ]}
+                    >
+                      <View style={[styles.badgeIconWrapper, { backgroundColor: isUnlocked ? colors.primary + "10" : "rgba(255,255,255,0.05)" }]}>
+                        <Text style={[styles.badgeIcon, { opacity: isUnlocked ? 1 : 0.4 }]}>{info.icon}</Text>
+                      </View>
+                      <Text style={[styles.badgeTitle, { color: colors.foreground }]}>{info.title}</Text>
+                      <Text style={[styles.badgeDesc, { color: colors.muted }]}>{info.description}</Text>
+                      {!isUnlocked && (
+                        <View style={styles.lockOverlay}>
+                          <Text style={{ fontSize: 10 }}>🔒</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </ScreenContainer>
   );
@@ -157,6 +291,25 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     gap: spacing.md,
+  },
+  tabs: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 999,
+    padding: 4,
+    gap: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.2,
   },
   statCard: {
     flex: 1,
@@ -207,6 +360,40 @@ const styles = StyleSheet.create({
   badgesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  missionRow: {
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "center",
+  },
+  missionBarBg: {
+    height: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+    marginTop: 6,
+  },
+  missionBarFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  claimBtn: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  leagueRow: {
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
   },
   badgeCard: {

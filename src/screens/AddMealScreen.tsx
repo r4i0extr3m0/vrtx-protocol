@@ -22,7 +22,7 @@ const INITIAL_FOODS: Food[] = [
 export function AddMealScreen() {
   const { colors } = useTheme();
   const { addMeal, foods: customFoods } = useDietStore();
-  const { addXP } = useGamificationStore();
+  const { recordActivity } = useGamificationStore();
 
   const [mealType, setMealType] = useState<"breakfast" | "lunch" | "dinner" | "snack">("lunch");
   const [items, setItems] = useState<MealItem[]>([]);
@@ -78,7 +78,7 @@ export function AddMealScreen() {
       totalFat: totals.fat,
     });
 
-    addXP(10); // XP por registrar refeição
+    recordActivity("diet", 1);
     router.back();
   };
 

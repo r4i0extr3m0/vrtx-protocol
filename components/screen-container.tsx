@@ -3,6 +3,7 @@ import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { cn } from "@/lib/utils";
+import { ScreenBackdrop } from "@/src/components/ScreenBackdrop";
 
 export interface ScreenContainerProps extends ViewProps {
   /**
@@ -45,13 +46,14 @@ export function ScreenContainer({
       )}
       {...props}
     >
+      <ScreenBackdrop />
       <SafeAreaView
         edges={edges}
         className={cn("flex-1", safeAreaClassName)}
         style={style}
       >
         <Animated.View 
-          entering={FadeIn.duration(400)}
+          entering={FadeIn.duration(450)}
           className={cn("flex-1", className)}
         >
           {children}

@@ -119,6 +119,27 @@ export interface GamificationData {
   level: number;
   badges: string[];
   lastActivityDate?: string;
+  // v2: missões + liga (MVP local)
+  dailyId?: string; // YYYY-MM-DD
+  dailyMissions?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    target: number;
+    progress: number;
+    rewardXp: number;
+    completedAt?: string; // ISO
+    claimedAt?: string; // ISO
+    kind: "workout" | "diet" | "water" | "checkin";
+  }>;
+  weekId?: string; // ex: 2026-W14
+  league?: {
+    tier: "Bronze" | "Prata" | "Ouro" | "Safira" | "Rubi" | "Esmeralda" | "Diamante";
+    xpThisWeek: number;
+    rank: number;
+    promotionCutoff: number;
+    demotionCutoff: number;
+  };
 }
 
 export interface SyncQueueOperation<TData = object> {
