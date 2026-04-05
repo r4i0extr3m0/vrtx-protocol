@@ -1,0 +1,17 @@
+name: E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: E2E status
+        run: |
+          echo "Detox E2E permanece separado do merge gate."
+          echo "Execute este pipeline somente quando houver runner Android estável no CI."

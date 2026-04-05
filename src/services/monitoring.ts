@@ -5,6 +5,25 @@ let crashlyticsAvailable = false;
 let monitoringInitialized = false;
 let firebaseInitialized = false;
 
+let analyticsModulePromise: Promise<typeof import('@react-native-firebase/analytics')> | null = null;
+let crashlyticsModulePromise: Promise<typeof import('@react-native-firebase/crashlytics')> | null = null;
+
+const getAnalyticsModule = () => {
+  if (!analyticsModulePromise) {
+    analyticsModulePromise = import('@react-native-firebase/analytics');
+  }
+
+  return analyticsModulePromise;
+};
+
+const getCrashlyticsModule = () => {
+  if (!crashlyticsModulePromise) {
+    crashlyticsModulePromise = import('@react-native-firebase/crashlytics');
+  }
+
+  return crashlyticsModulePromise;
+};
+
 export const initMonitoring = () => {
   if (monitoringInitialized) {
     return;
@@ -21,7 +40,7 @@ export const initMonitoring = () => {
   console.log('[Monitoring] Initialized');
 };
 
-export const initFirebase = () => {
+export const initFirebase = async () => {
   if (firebaseInitialized) {
     return;
   }
@@ -30,9 +49,9 @@ export const initFirebase = () => {
     // Firebase is initialized automatically by the plugin
     // This function is kept for explicit initialization if needed
     
-    // Try to load Firebase modules dynamically
     try {
-      const crashlytics = require('@react-native-firebase/crashlytics').default;
+      const crashlyticsModule = await getCrashlyticsModule();
+      const crashlytics = crashlyticsModule.default;
       crashlytics().setCrashlyticsCollectionEnabled(true);
       crashlyticsAvailable = true;
       console.log('[Firebase] Crashlytics enabled');
@@ -41,7 +60,7 @@ export const initFirebase = () => {
     }
 
     try {
-      require('@react-native-firebase/analytics');
+      await getAnalyticsModule();
       analyticsAvailable = true;
       console.log('[Firebase] Analytics available');
     } catch (e) {
@@ -65,12 +84,15 @@ export const captureError = (error: any, context?: Record<string, any>) => {
   
   // Also log to Firebase Crashlytics if available
   if (crashlyticsAvailable) {
-    try {
-      const crashlytics = require('@react-native-firebase/crashlytics').default;
-      crashlytics().recordError(error);
-    } catch (e) {
-      console.error('[Crashlytics] Error logging:', e);
-    }
+    void getCrashlyticsModule()
+      .then((crashlyticsModule) => {
+        const crashlytics = crashlyticsModule.default;
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        crashlytics().recordError(normalizedError);
+      })
+      .catch((e) => {
+        console.error('[Crashlytics] Error logging:', e);
+      });
   }
 };
 
@@ -79,16 +101,16 @@ export const logBreadcrumb = (message: string, category?: string, level?: string
   Sentry.captureMessage(message, level as Sentry.SeverityLevel || 'info');
 };
 
-export const logAnalyticsEvent = (eventName: string, params?: Record<string, any>) => {
+export const logAnalyticsEvent = async (eventName: string, params?: Record<string, any>) => {
   if (!analyticsAvailable) {
     console.log(`[Analytics] Not available, skipping event: ${eventName}`);
     return;
   }
 
   try {
-    const { getAnalytics, logEvent } = require('@react-native-firebase/analytics');
-    const analytics = getAnalytics();
-    logEvent(analytics, eventName, params);
+    const analyticsModule = await getAnalyticsModule();
+    const analytics = analyticsModule.default;
+    await analytics().logEvent(eventName, params);
     console.log(`[Analytics] Event logged: ${eventName}`, params);
   } catch (error) {
     console.error('[Analytics] Error logging event:', error);

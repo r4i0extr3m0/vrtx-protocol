@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/react-native";
 import { PostHogProvider } from "posthog-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
@@ -20,14 +21,14 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
+import { getAuthRedirect } from "@/src/navigation/authGate";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { initializeMMKV } from "@/src/infra/mmkv";
 import { useAuth } from "@/src/hooks";
 import { spacing } from "@/src/theme";
-import { initMonitoring, initFirebase } from "@/src/services/monitoring";
+import { initMonitoring } from "@/src/services/monitoring";
 import { identifyUser } from "@/src/services/analytics";
 import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/services/revenuecat";
-import { useOnboardingStore } from "@/src/store/onboardingStore";
 
 // Storybook Integration
 const SHOW_STORYBOOK = process.env.EXPO_PUBLIC_STORYBOOK === "true";
@@ -49,33 +50,27 @@ export const unstable_settings = {
 };
 
 function AuthGate() {
-  const { status, isAuthenticated, user, hasHydrated, hydrateAuth } = useAuth();
-  const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
-  const onboardingHydrated = useOnboardingStore((s) => s.hasHydrated);
+  const { status, isAuthenticated, user, hasHydrated, hydrateAuth, setGuestMode } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [bootCompleted, setBootCompleted] = useState(false);
-  const shouldBypassAuthInDev = __DEV__ && !hasSupabaseEnv();
 
   useEffect(() => {
     initializeMMKV();
     void configureRevenueCat();
 
-    if (!onboardingHydrated) {
-      return;
-    }
-
     let isMounted = true;
 
     if (!hasSupabaseEnv()) {
-      console.log("[AuthGate] Supabase não configurado, pulando hydration");
-      void hydrateAuth().finally(() => {
-        if (isMounted) {
-          setBootCompleted(true);
-        }
-        void SplashScreen.hideAsync();
-      });
-      return;
+      console.log("[AuthGate] Supabase não configurado -> guest mode");
+      setGuestMode();
+      if (isMounted) {
+        setBootCompleted(true);
+      }
+      void SplashScreen.hideAsync();
+      return () => {
+        isMounted = false;
+      };
     }
 
     const hydrationTimeout = setTimeout(() => {
@@ -102,7 +97,7 @@ function AuthGate() {
       isMounted = false;
       clearTimeout(hydrationTimeout);
     };
-  }, [hydrateAuth, onboardingHydrated]);
+  }, [hydrateAuth, setGuestMode]);
 
   // Analytics: Identificar usuário quando autenticado
   useEffect(() => {
@@ -114,76 +109,32 @@ function AuthGate() {
     }
   }, [isAuthenticated, user]);
 
-  const isPublicRoute =
-    pathname === "/onboarding" ||
-    pathname === "/login" ||
-    pathname === "/signup-wizard" ||
-    pathname === "/email-pending" ||
-    pathname === "/forgot-password" ||
-    pathname === "/terms-and-privacy" ||
-    pathname === "/oauth/callback";
-
   useEffect(() => {
-    if (!onboardingHydrated || !hasHydrated || !bootCompleted || status === "loading") {
+    if (!hasHydrated || !bootCompleted || status === "loading") {
       return;
     }
 
-    if (shouldBypassAuthInDev && !isAuthenticated) {
-      if (
-        pathname === "/login" ||
-        pathname === "/onboarding" ||
-        pathname === "/signup-wizard" ||
-        pathname === "/email-pending" ||
-        pathname === "/forgot-password" ||
-        pathname === "/terms-and-privacy" ||
-        pathname === "/oauth/callback"
-      ) {
-        router.replace("/");
-      }
+    const redirectPath = getAuthRedirect({
+      pathname,
+      status,
+      isAuthenticated,
+      userOnboardingCompleted: user?.onboardingCompleted,
+    });
 
-      return;
-    }
-
-    if (!isAuthenticated) {
-      if (!hasSeenOnboarding && pathname !== "/onboarding") {
-        router.replace("/onboarding");
-        return;
-      }
-
-      if (hasSeenOnboarding && !isPublicRoute) {
-        router.replace("/login");
-      }
-
-      return;
-    }
-
-    if (user && !user.onboardingCompleted && pathname !== "/signup-wizard") {
-      router.replace("/signup-wizard");
-      return;
-    }
-
-    if (
-      pathname === "/onboarding" ||
-      pathname === "/login" ||
-      (pathname === "/signup-wizard" && Boolean(user?.onboardingCompleted))
-    ) {
-      router.replace("/(tabs)");
+    if (redirectPath && redirectPath !== pathname) {
+      router.replace(redirectPath as Href);
     }
   }, [
     bootCompleted,
     hasHydrated,
-    hasSeenOnboarding,
     isAuthenticated,
-    isPublicRoute,
-    onboardingHydrated,
     pathname,
     router,
-    shouldBypassAuthInDev,
     status,
     user,
   ]);
 
-  if (!onboardingHydrated || !hasHydrated || !bootCompleted || status === "loading") {
+  if (!hasHydrated || !bootCompleted || status === "loading") {
     return null;
   }
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useTheme } from '@/src/hooks';
-import { spacing, typography, radius } from '@/src/theme';
+import { spacing, radius } from '@/src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppButton } from '@/src/components/AppButton';
@@ -16,7 +16,7 @@ import { useAuthStore } from '@/src/store/authStore';
 
 export function PremiumScreen() {
   const { colors } = useTheme();
-  const { isPremium, refreshAIUsage } = usePremiumStore();
+  const { refreshAIUsage } = usePremiumStore();
   const userId = useAuthStore((s) => s.user?.id ?? null);
 
   const features = [
@@ -40,7 +40,7 @@ export function PremiumScreen() {
         Alert.alert('Sucesso!', 'Premium ativado. A IA foi desbloqueada!');
         router.back();
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível abrir o paywall agora.');
     }
   };

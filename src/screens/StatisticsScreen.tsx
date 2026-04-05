@@ -13,7 +13,7 @@ import { LineChart } from "@/src/components/Charts/LineChart";
 import { calculateWorkoutVolume, findBestEstimatedOneRM } from "@/src/domain/strength";
 import { summarizeWorkout } from "@/src/domain/workout";
 import { useTheme, useWorkout } from "@/src/hooks";
-import { spacing, typography } from "@/src/theme";
+import { typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { AppIcon } from "@/src/components/AppIcon";
 

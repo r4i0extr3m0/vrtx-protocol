@@ -345,7 +345,7 @@ export const useAuthStore = create<AuthStoreState>()(
           const { error } = await client.auth.resetPasswordForEmail(email);
           if (error) return { success: false, message: error.message };
           return { success: true };
-        } catch (error) {
+        } catch {
           return { success: false, message: "Erro ao solicitar recuperação." };
         }
       },
@@ -367,7 +367,7 @@ export const useAuthStore = create<AuthStoreState>()(
           }
           await get().signOut();
           return { success: true };
-        } catch (error) {
+        } catch {
           return { success: false, message: "Erro ao excluir conta." };
         }
       }

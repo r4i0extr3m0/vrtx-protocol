@@ -42,9 +42,10 @@ O projeto e aderente a usuarios que desejam:
 - login por email e senha;
 - fluxo de criacao de conta;
 - fluxo de confirmacao de email;
-- onboarding inicial;
 - wizard complementar de cadastro/perfil;
+- onboarding dedicado removido temporariamente, com reconstrução prevista fora da branch principal;
 - suporte estrutural para autenticacao via Supabase;
+- modo guest/offline quando o Supabase nao esta configurado no build de desenvolvimento;
 - preparacao para biometria e fluxos de seguranca do dispositivo.
 
 ### 3.2 Treino
@@ -95,12 +96,13 @@ O projeto utiliza **Expo Router** com estrutura baseada em arquivos.
   - `index` (home);
   - `workout`;
   - `history`;
-  - `statistics`.
+  - `statistics`;
+  - `diet`;
+  - `profile`.
 
 ### 4.3 Rotas complementares
 
 - `login`;
-- `onboarding`;
 - `signup-wizard`;
 - `email-pending`;
 - `forgot-password`;
@@ -135,6 +137,12 @@ O repositorio contem uma camada de servidor em `server/` com:
 - **tRPC**;
 - modulos de contexto, cookies, sistema, oauth e integracoes;
 - estrutura preparada para recursos full-stack e rotas tipadas.
+
+### 5.2.1 Status de escopo
+
+- o backend do repositorio deve ser tratado como **camada opcional/evolutiva**;
+- o fluxo principal validado hoje e o app mobile com suporte local, guest mode e integracoes condicionais;
+- sync multi-dispositivo, auth full backend-first e expansao de schema em `drizzle/` devem ser considerados roadmap tecnico, nao premissa operacional obrigatoria.
 
 ### 5.3 Dados e autenticacao
 

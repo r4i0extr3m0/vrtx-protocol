@@ -87,7 +87,7 @@ export function AICoachScreen() {
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
     void refreshAIUsage(userId);
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, refreshAIUsage, userId]);
 
   useEffect(() => {
     void (async () => {

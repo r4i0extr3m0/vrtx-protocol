@@ -4,6 +4,23 @@
 
 ---
 
+## Documentos Canônicos
+
+- `docs/README.md`: índice operacional, setup, execução local, testes e links principais.
+- `docs/MASTER_DOCUMENTATION.md`: visão de produto, arquitetura, navegação e escopo funcional.
+
+## Documentos de Apoio
+
+- `docs/ARCHITECTURE.md`, `docs/FEATURES.md`, `docs/ROADMAP.md` e relatórios de auditoria servem como material complementar.
+- Arquivos de suporte históricos em `docs/` não devem ser tratados como fonte primária de verdade sem validação contra os dois documentos canônicos acima.
+
+## Escopo Atual
+
+- O app mobile offline-first é a superfície principal do produto.
+- A camada `server/` e `drizzle/` permanece opcional e preparada para expansão, mas não deve ser interpretada como backend obrigatório para o fluxo local/guest.
+
+---
+
 ## 🚀 Fase 4: Preparação para Mercado
 
 ### 1. Testes & Qualidade
@@ -45,10 +62,26 @@ EXPO_PUBLIC_POSTHOG_API_KEY=phc_your_key
 
 ### Guia de Build
 1. **Instalar dependências**: `pnpm install`
-2. **Rodar em desenvolvimento**: `pnpm dev`
-3. **Rodar testes unitários**: `pnpm test`
-4. **Rodar testes E2E (Android)**: `pnpm detox build -c android.debug.release && pnpm detox test -c android.debug.release`
-5. **Gerar build de produção (EAS)**: `eas build --platform android`
+2. **Rodar backend local**: `pnpm dev:server`
+3. **Rodar Metro para dev client mobile**: `pnpm dev:metro`
+4. **Rodar stack completa local**: `pnpm dev`
+5. **Rodar testes unitários/stores**: `pnpm test` ou `pnpm test:unit`
+6. **Rodar testes E2E (Detox/Android)**: `pnpm detox build -c android.debug.release && pnpm test:e2e`
+
+### CI Recomendada
+
+- `typecheck`: `pnpm typecheck`
+- `lint`: `pnpm lint`
+- `unit`: `pnpm test:unit`
+- `e2e`: execução separada/manual até o ambiente Android de CI ficar estável
+- Checks recomendados para bloqueio de merge hoje: `typecheck` e `unit`
+- `lint` permanece separado como pipeline consultiva enquanto os warnings históricos são reduzidos
+7. **Gerar build de produção (EAS)**: `eas build --platform android`
+
+### Desenvolvimento Mobile
+- O fluxo principal usa **Expo Dev Client**, não `expo start --web`.
+- O script `pnpm dev:metro` sobe o Metro em `LAN` na porta `8082`, adequado para abrir o app no dispositivo físico.
+- Em builds sem variáveis do Supabase, o app entra em **guest mode** e permite navegação local/offline sem bloquear em login.
 
 ---
 

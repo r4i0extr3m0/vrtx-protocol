@@ -8,6 +8,8 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     mockReset: true,
+    include: ["tests/**/*.{test,spec}.{ts,tsx,js,jsx}"],
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
   },
   resolve: {
     alias: {

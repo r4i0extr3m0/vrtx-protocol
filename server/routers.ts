@@ -17,7 +17,7 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
+  // Optional extension point: register feature routers here when server-backed flows become active.
   // todo: router({
   //   list: protectedProcedure.query(({ ctx }) =>
   //     db.getUserTodos(ctx.user.id)

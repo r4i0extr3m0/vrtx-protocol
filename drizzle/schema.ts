@@ -25,4 +25,4 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// Optional extension point: add product tables here when multi-device sync moves into Drizzle.

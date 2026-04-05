@@ -16,7 +16,6 @@ export * from "./SyncStatusScreen";
 export * from "./TemplatesScreen";
 export * from "./WorkoutScreen";
 export * from "./SignupWizardScreen";
-export * from "./OnboardingScreen";
 export * from "./NotificationSettingsScreen";
 export * from "./ReportScreen";
 export * from "./PremiumScreen";

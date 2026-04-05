@@ -1,14 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
-  Modal,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
-  Platform,
 } from "react-native";
-import { router } from "expo-router";
 import Animated, { 
   FadeInDown, 
   useAnimatedStyle, 
@@ -26,14 +22,13 @@ import {
   NeonButton, 
   CircularTimer, 
   BadgeMetal,
-  InputGlass
 } from "../components/ui";
 import { AppIcon } from "@/src/components/AppIcon";
 import { createExerciseEntry, createExerciseSet, summarizeWorkout } from "@/src/domain/workout";
 import { useTheme, useWorkout } from "@/src/hooks";
 import { useTemplateStore } from "@/src/store/templateStore";
-import { radius, spacing, typography } from "@/src/theme";
-import { createId, formatVolume } from "@/src/utils";
+import { radius, typography } from "@/src/theme";
+import { formatVolume } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { VoiceCoach } from "@/src/services/voiceCoach";
 
@@ -52,7 +47,7 @@ export function WorkoutScreen() {
   const prScale = useSharedValue(0);
   const prOpacity = useSharedValue(0);
 
-  const triggerPRAnimation = useCallback(() => {
+  const triggerPRAnimation = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     VoiceCoach.speak("Novo recorde pessoal atingido! Parabéns!");
     trackEvent(ANALYTICS_EVENTS.PR_ACHIEVED, { workout_id: activeWorkoutId });
@@ -66,7 +61,7 @@ export function WorkoutScreen() {
       withSpring(1),
       withTiming(0, { duration: 500 })
     );
-  }, [activeWorkoutId]);
+  };
 
   const handleToggleSetCompleted = (exerciseId: string, setEntry: any, index: number) => {
     if (!workout) return;
@@ -121,7 +116,7 @@ export function WorkoutScreen() {
 
         <NeonButton 
           label="INICIAR_SESSÃO_LIMPA" 
-          onPress={() => createWorkout("Protocolo de Execução")} 
+          onPress={() => { void createWorkout("Protocolo de Execução"); }} 
           variant="primary" 
           style={styles.mainBtn}
         />

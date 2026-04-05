@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, Pressable, Dimensions } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { 
   ScreenWrapper, 
@@ -13,24 +13,20 @@ import {
 import { AppIcon } from "@/src/components/AppIcon";
 import { useWorkout, useTheme } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
-import { spacing, typography, radius } from "@/src/theme";
+import { typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { fetchAIRecommendations } from "@/src/services/AIInsights";
 import { useAuthStore } from "@/src/store/authStore";
-import { usePremiumStore } from "@/src/store/premiumStore";
-import { useDietStore } from "@/src/store/dietStore";
 import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 
 export function HomeScreen() {
   const { colors } = useTheme();
-  const { workouts, createWorkout, isLoading: workoutsLoading } = useWorkout();
-  const meals = useDietStore((s) => s.meals);
+  const { workouts, createWorkout } = useWorkout();
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const refreshAIUsage = usePremiumStore((s) => s.refreshAIUsage);
   
   const latestWorkout = workouts[0] ?? null;
   const summary = latestWorkout ? summarizeWorkout(latestWorkout) : null;
@@ -57,7 +53,7 @@ export function HomeScreen() {
 
   useEffect(() => {
     const run = async () => {
-      if (workouts.length === 0 || !isAuthenticated || !userId) return;
+      if (!latestWorkout || !isAuthenticated || !userId) return;
       setAiLoading(true);
       try {
         const res = await fetchAIRecommendations({
@@ -74,7 +70,7 @@ export function HomeScreen() {
       }
     };
     void run();
-  }, [userId, isAuthenticated, last7Summary]);
+  }, [isAuthenticated, last7Summary, latestWorkout, userId]);
 
   const handleNewWorkout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

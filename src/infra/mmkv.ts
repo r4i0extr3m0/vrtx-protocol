@@ -37,6 +37,7 @@ function createNativeMMKVStorage(): StorageLike {
   try {
     // react-native-mmkv v4: MMKV class JS não existe mais, use createMMKV()
     // https://github.com/greg-schrammel/react-native-mmkv/blob/main/docs/V4_UPGRADE_GUIDE.md
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createMMKV } = require("react-native-mmkv");
     const encryptionKey = "vrtxprotocol-secure-key-2026";
     const mmkvInstance = createMMKV({

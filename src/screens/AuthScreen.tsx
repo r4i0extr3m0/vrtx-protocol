@@ -12,14 +12,12 @@ import {
   BadgeMetal 
 } from "../components/ui";
 import { useAuth, useTheme } from "@/src/hooks";
-import { useOnboardingStore } from "@/src/store/onboardingStore";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
   const { colors } = useTheme();
-  const { signIn, signUp, status, isAuthenticated } = useAuth();
-  const hasSeenOnboarding = useOnboardingStore((s) => s.hasSeenOnboarding);
+  const { signIn, signUp, status, isAuthenticated, setGuestMode } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,16 +27,31 @@ export function AuthScreen() {
   const supabaseReady = useMemo(() => hasSupabaseEnv(), []);
 
   useEffect(() => {
+    if (status === "guest") {
+      router.replace("/(tabs)");
+      return;
+    }
+
     if (isAuthenticated) {
       router.replace("/");
       return;
     }
-    if (!hasSeenOnboarding) {
-      router.replace("/onboarding");
-    }
-  }, [hasSeenOnboarding, isAuthenticated]);
+
+  }, [isAuthenticated, status, supabaseReady]);
+
+  const handleContinueOffline = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setGuestMode();
+    router.replace("/(tabs)");
+  };
 
   const handleLogin = async () => {
+    if (!supabaseReady) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert("LOGIN INDISPONIVEL", "Este build está em modo offline. Use 'Continuar offline'.");
+      return;
+    }
+
     if (!email.trim() || !password) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("ACESSO NEGADO", "Verifique suas coordenadas (E-mail/Senha).");
@@ -61,6 +74,12 @@ export function AuthScreen() {
   };
 
   const handleSignUp = async () => {
+    if (!supabaseReady) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert("REGISTRO INDISPONIVEL", "Este build está em modo offline. Use 'Continuar offline'.");
+      return;
+    }
+
     if (!email.trim() || !password) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("DADOS INCOMPLETOS", "Preencha os campos obrigatórios para o registro.");
@@ -113,6 +132,12 @@ export function AuthScreen() {
                   <Text style={[styles.offlineText, { color: colors.muted, fontFamily: typography.family.mono }]}>
                     O sistema está operando em modo de isolamento. Os dados serão salvos localmente.
                   </Text>
+                  <NeonButton
+                    label="CONTINUAR_OFFLINE"
+                    onPress={handleContinueOffline}
+                    variant="primary"
+                    style={{ width: '100%' }}
+                  />
                   <NeonButton
                     label="Termos e Privacidade"
                     onPress={() => router.push("/terms-and-privacy" as never)}
