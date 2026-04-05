@@ -1,323 +1,281 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from 'react';
 import { 
+  StyleSheet, 
   View, 
   Text, 
+  FlatList, 
   Dimensions, 
-  StyleSheet, 
-  NativeScrollEvent, 
-  NativeSyntheticEvent 
-} from "react-native";
-import { router } from "expo-router";
-import { useTheme } from "@/src/hooks";
-import { useOnboardingStore } from "@/src/store/onboardingStore";
-import { spacing, typography, radius } from "@/src/theme";
-import Animated, {
-  Extrapolate,
+  Platform,
+  NativeSyntheticEvent,
+  NativeScrollEvent
+} from 'react-native';
+import { router } from 'expo-router';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedScrollHandler, 
   FadeIn,
   FadeInDown,
-  interpolate,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { useTheme } from '@/src/hooks';
+import { typography } from '@/src/theme';
+import { AppIcon } from '@/src/components/AppIcon';
 import { 
   ScreenWrapper, 
-  GlassCard, 
-  NeonButton, 
-  BadgeMetal 
-} from "../components/ui";
-import { AppIcon, IconName } from "../components/AppIcon";
+  GlassCardLiquid, 
+  ParallaxLayer, 
+  TiltCard3D, 
+  LiquidProgress,
+  NeonButton 
+} from '../components/ui';
 
-const { width } = Dimensions.get("window");
-const SCREEN_WIDTH = width;
+const { width, height } = Dimensions.get('window');
 
-interface OnboardingStep {
+interface OnboardingSlide {
   id: string;
   title: string;
   subtitle: string;
-  description: string;
-  icon: IconName;
-  status: string;
+  icon: string;
+  iconColor: string;
 }
 
-const ONBOARDING_STEPS: OnboardingStep[] = [
+const SLIDES: OnboardingSlide[] = [
   {
-    id: "hardware",
-    title: "HARDWARE_CHECK",
-    subtitle: "Sincronização de Sensores",
-    description: "Conecte-se ao protocolo via biometria e sensores de movimento. Redundância total de dados local.",
-    icon: "Cpu",
-    status: "STATUS: CALIBRANDO",
+    id: '1',
+    title: 'VRTX PROTOCOL',
+    subtitle: 'Inicializando protocolo de performance humana de elite.',
+    icon: 'Cpu',
+    iconColor: '#3B82F6',
   },
   {
-    id: "biometrics",
-    title: "BIOMETRIA_ANALYSIS",
-    subtitle: "Reconhecimento de Performance",
-    description: "Algoritmos avançados analisam sua biomecânica e progressão de carga em tempo real.",
-    icon: "Fingerprint",
-    status: "STATUS: ENCRYPTED",
+    id: '2',
+    title: 'COMMAND CENTER',
+    subtitle: 'Treino, nutrição, IA preditiva e gamificação em um único protocolo.',
+    icon: 'LayoutGrid',
+    iconColor: '#3B82F6',
   },
   {
-    id: "telemetry",
-    title: "TELEMETRIA_CORE",
-    subtitle: "Métricas de Alta Precisão",
-    description: "Logs técnicos de volume, 1RM e fadiga. Visualização de dados estilo Command Center.",
-    icon: "Activity",
-    status: "STATUS: OPERACIONAL",
+    id: '3',
+    title: 'ELITE PERFORMANCE',
+    subtitle: 'Projetado para atletas e profissionais de alto nível. Precisão industrial.',
+    icon: 'Zap',
+    iconColor: '#3B82F6',
   },
   {
-    id: "protocol",
-    title: "PROTOCOLO_VRTX",
-    subtitle: "Iniciação do Sistema",
-    description: "Você está prestes a entrar no ambiente de elite. Prepare seu hardware para a primeira missão.",
-    icon: "Zap",
-    status: "STATUS: PRONTO",
+    id: '4',
+    title: 'READY TO EXECUTE?',
+    subtitle: 'Sistema calibrado. Protocolo pronto para ativação imediata.',
+    icon: 'Activity',
+    iconColor: '#3B82F6',
   },
 ];
 
 export function OnboardingScreen() {
   const { colors } = useTheme();
-  const { markOnboardingComplete } = useOnboardingStore();
-
-  const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
-  const [currentStep, setCurrentStep] = useState(0);
-  const isLastStep = currentStep === ONBOARDING_STEPS.length - 1;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollX.value = event.contentOffset.x;
-    },
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollX.value = event.contentOffset.x;
   });
 
-  const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (idx !== currentStep) {
-      setCurrentStep(idx);
+  const onMomentumScrollEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / width);
+    if (index !== currentIndex) {
+      setCurrentIndex(index);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+  }, [currentIndex]);
+
+  const handleFinish = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // TODO: Integrar com navegação existente após onboarding
+    router.replace('/login' as any);
   };
 
-  const handleNext = () => {
-    if (isLastStep) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      markOnboardingComplete();
-      router.replace("/signup-wizard");
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const next = currentStep + 1;
-      scrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, y: 0, animated: true });
-      setCurrentStep(next);
-    }
+  const renderItem = ({ item, index }: { item: OnboardingSlide; index: number }) => {
+    const isLast = index === SLIDES.length - 1;
+
+    return (
+      <View style={[styles.slide, { width }]}>
+        <View style={styles.layersContainer}>
+          {/* Layer 1: Floating Icon with Parallax */}
+          <ParallaxLayer 
+            scrollX={scrollX} 
+            index={index} 
+            width={width} 
+            speed={0.4}
+            style={styles.iconLayer}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.05)' }]}>
+              <AppIcon name={item.icon as any} size={80} color={item.iconColor} />
+              <View style={[styles.iconGlow, { backgroundColor: item.iconColor }]} />
+            </View>
+          </ParallaxLayer>
+
+          {/* Layer 2: Main Content Card with 3D Tilt */}
+          <TiltCard3D scrollX={scrollX} index={index} width={width} style={styles.cardLayer}>
+            <GlassCardLiquid intensity={40} style={styles.card}>
+              <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+                <Text style={[
+                  styles.title, 
+                  { 
+                    color: colors.foreground, 
+                    fontFamily: typography.family.heading,
+                    letterSpacing: -1.5,
+                  }
+                ]}>
+                  {item.title}
+                </Text>
+                
+                <Text style={[
+                  styles.subtitle, 
+                  { 
+                    color: colors.foregroundMuted, 
+                    fontFamily: typography.family.mono 
+                  }
+                ]}>
+                  {item.subtitle.toUpperCase()}
+                </Text>
+
+                {isLast && (
+                  <Animated.View entering={FadeIn.delay(600)} style={styles.buttonContainer}>
+                    <NeonButton 
+                      label="ENTRAR NO SISTEMA" 
+                      onPress={handleFinish} 
+                      variant="primary"
+                      style={styles.finishButton}
+                    />
+                  </Animated.View>
+                )}
+              </Animated.View>
+            </GlassCardLiquid>
+          </TiltCard3D>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <ScreenWrapper withPadding={false}>
-      <View style={styles.header}>
-        <Animated.View entering={FadeIn.delay(200)} style={styles.progressContainer}>
-          {ONBOARDING_STEPS.map((_, index) => (
-            <ProgressIndicator key={index} index={index} scrollX={scrollX} />
-          ))}
-        </Animated.View>
-        <BadgeMetal label="VRTX v2.0" variant="metal" />
-      </View>
-
-      <Animated.ScrollView
-        ref={scrollRef}
+    <ScreenWrapper withSafeArea={false} withPadding={false} style={styles.container}>
+      <Animated.FlatList
+        ref={flatListRef}
+        data={SLIDES}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         scrollEventThrottle={16}
-        onMomentumScrollEnd={onMomentumEnd}
-        contentContainerStyle={styles.carousel}
-      >
-        {ONBOARDING_STEPS.map((step, index) => (
-          <OnboardingSlide
-            key={step.id}
-            index={index}
-            step={step}
-            scrollX={scrollX}
-          />
-        ))}
-      </Animated.ScrollView>
+        snapToInterval={width}
+        decelerationRate="fast"
+        bounces={false}
+      />
 
+      {/* Footer Navigation */}
       <View style={styles.footer}>
-        <NeonButton 
-          label={isLastStep ? "INICIAR_PROTOCOLO" : "PRÓXIMO_PASSO"} 
-          onPress={handleNext}
-          variant={isLastStep ? "primary" : "glass"}
-          style={styles.button}
+        <LiquidProgress 
+          progress={(currentIndex + 1) / SLIDES.length} 
+          count={SLIDES.length} 
+          width={width * 0.4}
         />
-        <Text style={[styles.version, { color: colors.muted, fontFamily: typography.family.mono }]}>
-          SYSTEM_BOOT_SEQUENCE // REDUNDANCY_ACTIVE
-        </Text>
+        
+        {currentIndex < SLIDES.length - 1 && (
+          <Text style={[
+            styles.footerText, 
+            { color: colors.muted, fontFamily: typography.family.mono }
+          ]}>
+            DESLIZE_PARA_CALIBRAR
+          </Text>
+        )}
       </View>
     </ScreenWrapper>
   );
 }
 
-function ProgressIndicator({ index, scrollX }: { index: number, scrollX: Animated.SharedValue<number> }) {
-  const { colors } = useTheme();
-  
-  const style = useAnimatedStyle(() => {
-    const input = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
-    const width = interpolate(scrollX.value, input, [8, 24, 8], Extrapolate.CLAMP);
-    const opacity = interpolate(scrollX.value, input, [0.3, 1, 0.3], Extrapolate.CLAMP);
-    
-    return { width, opacity };
-  });
-
-  return (
-    <Animated.View style={[
-      styles.indicator, 
-      { backgroundColor: colors.primary },
-      style
-    ]} />
-  );
-}
-
-function OnboardingSlide({
-  index,
-  step,
-  scrollX,
-}: {
-  index: number;
-  step: OnboardingStep;
-  scrollX: Animated.SharedValue<number>;
-}) {
-  const { colors } = useTheme();
-
-  const iconStyle = useAnimatedStyle(() => {
-    const x = scrollX.value - index * SCREEN_WIDTH;
-    const translateX = interpolate(x, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [-100, 0, 100], Extrapolate.CLAMP);
-    const scale = interpolate(x, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [0.6, 1, 0.6], Extrapolate.CLAMP);
-    const rotate = interpolate(x, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [-20, 0, 20], Extrapolate.CLAMP);
-    
-    return {
-      transform: [{ translateX }, { scale }, { rotate: `${rotate}deg` }],
-    };
-  });
-
-  const textStyle = useAnimatedStyle(() => {
-    const x = scrollX.value - index * SCREEN_WIDTH;
-    const opacity = interpolate(x, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [0, 1, 0], Extrapolate.CLAMP);
-    const translateY = interpolate(x, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [20, 0, 20], Extrapolate.CLAMP);
-    
-    return { opacity, transform: [{ translateY }] };
-  });
-
-  return (
-    <View style={styles.slide}>
-      <Animated.View style={[styles.iconContainer, iconStyle]}>
-        <View style={[styles.iconGlow, { backgroundColor: colors.primary + '20' }]} />
-        <AppIcon name={step.icon} size={80} color={colors.primary} strokeWidth={1.5} />
-      </Animated.View>
-
-      <Animated.View style={[styles.content, textStyle]}>
-        <BadgeMetal label={step.status} variant={index === 3 ? "primary" : "metal"} style={styles.statusBadge} />
-        <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-          {step.title}
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.primary, fontFamily: typography.family.mono }]}>
-          {step.subtitle.toUpperCase()}
-        </Text>
-        
-        <GlassCard style={styles.descCard} intensity={10}>
-          <Text style={[styles.description, { color: colors.muted }]}>
-            {step.description}
-          </Text>
-        </GlassCard>
-      </Animated.View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    height: 60,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  indicator: {
-    height: 4,
-    borderRadius: 2,
-  },
-  carousel: {
-    flexGrow: 1,
+  container: {
+    flex: 1,
+    backgroundColor: '#0D0D0D',
   },
   slide: {
-    width: SCREEN_WIDTH,
     flex: 1,
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 30,
+  },
+  layersContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconLayer: {
+    position: 'absolute',
+    top: height * 0.15,
   },
   iconContainer: {
-    width: 200,
-    height: 200,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   iconGlow: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    filter: Platform.OS === 'ios' ? 'blur(30px)' : undefined,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    opacity: 0.1,
   },
-  content: {
-    alignItems: 'center',
+  cardLayer: {
     width: '100%',
+    paddingHorizontal: 20,
+    marginTop: height * 0.2,
   },
-  statusBadge: {
-    marginBottom: 16,
+  card: {
+    width: '100%',
+    minHeight: 280,
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '900',
+    marginBottom: 16,
     textAlign: 'center',
-    letterSpacing: -1,
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2,
-    marginBottom: 24,
-  },
-  descCard: {
-    width: '100%',
-    padding: 0,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 11,
+    lineHeight: 18,
     textAlign: 'center',
-    fontWeight: '500',
+    opacity: 0.8,
+    letterSpacing: 1,
+  },
+  buttonContainer: {
+    marginTop: 32,
+    width: '100%',
+  },
+  finishButton: {
+    width: '100%',
+    height: 56,
   },
   footer: {
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    gap: 16,
   },
-  button: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  version: {
+  footerText: {
     fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-    opacity: 0.5,
+    fontWeight: '800',
+    letterSpacing: 2,
+    opacity: 0.4,
   },
 });
