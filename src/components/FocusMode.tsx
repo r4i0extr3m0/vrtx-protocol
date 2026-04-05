@@ -3,8 +3,7 @@ import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import Animated, { 
   FadeIn, 
   FadeOut, 
-  SlideInBottom, 
-  SlideOutBottom 
+  FadeInUp
 } from 'react-native-reanimated';
 import { BlurView } from './BlurView';
 import { useTheme } from '@/src/hooks';
@@ -75,7 +74,7 @@ export function FocusMode({
           </View>
 
           <Animated.View 
-            entering={SlideInBottom.delay(300)} 
+            entering={FadeInUp.delay(300)} 
             style={[styles.footer, { backgroundColor: colors.surface }]}
           >
             <Text style={[styles.footerText, { color: colors.muted }]}>

@@ -1,70 +1,38 @@
-import React from 'react';
-import { StyleSheet, ViewStyle } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  interpolate, 
-  Extrapolation 
-} from 'react-native-reanimated';
+import type { PropsWithChildren } from "react";
+import type { StyleProp, ViewStyle } from "react-native";
+import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 
-interface ParallaxLayerProps {
-  children: React.ReactNode;
-  scrollX: Animated.SharedValue<number>;
+interface ParallaxLayerProps extends PropsWithChildren {
   index: number;
-  width: number;
-  speed?: number; // Parallax speed multiplier (default: 0.5)
-  style?: ViewStyle;
+  progress: SharedValue<number>;
+  intensity?: number;
+  verticalIntensity?: number;
+  style?: StyleProp<ViewStyle>;
 }
 
-/**
- * ParallaxLayer - Multi-layer depth component for 2026 spatial design.
- * Moves content at different speeds relative to scroll position.
- */
-export function ParallaxLayer({ 
-  children, 
-  scrollX, 
-  index, 
-  width, 
-  speed = 0.5, 
-  style 
+export function ParallaxLayer({
+  children,
+  index,
+  progress,
+  intensity = 28,
+  verticalIntensity = 10,
+  style,
 }: ParallaxLayerProps) {
   const animatedStyle = useAnimatedStyle(() => {
-    const translateX = interpolate(
-      scrollX.value,
-      [(index - 1) * width, index * width, (index + 1) * width],
-      [width * speed, 0, -width * speed],
-      Extrapolation.CLAMP
-    );
-
-    const opacity = interpolate(
-      scrollX.value,
-      [(index - 0.5) * width, index * width, (index + 0.5) * width],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-
-    const scale = interpolate(
-      scrollX.value,
-      [(index - 1) * width, index * width, (index + 1) * width],
-      [0.8, 1, 0.8],
-      Extrapolation.CLAMP
-    );
+    const delta = index - progress.value;
 
     return {
-      transform: [{ translateX }, { scale }],
-      opacity,
+      transform: [
+        {
+          translateX: interpolate(delta, [-1, 0, 1], [-intensity, 0, intensity], Extrapolation.CLAMP),
+        },
+        {
+          translateY: interpolate(Math.abs(delta), [0, 1], [0, verticalIntensity], Extrapolation.CLAMP),
+        },
+      ],
+      opacity: interpolate(Math.abs(delta), [0, 1], [1, 0.72], Extrapolation.CLAMP),
     };
   });
 
-  return (
-    <Animated.View style={[styles.container, animatedStyle, style]}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

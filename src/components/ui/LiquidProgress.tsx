@@ -1,109 +1,82 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withSpring, 
-  interpolateColor 
-} from 'react-native-reanimated';
-import { useTheme } from '@/src/hooks';
-import { radius } from '@/src/theme';
+import { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+
+import { useTheme } from "@/src/hooks";
+import { radius } from "@/src/theme";
 
 interface LiquidProgressProps {
-  progress: number; // 0 to 1
-  count: number;
-  height?: number;
-  width?: number;
-  style?: ViewStyle;
+  current: number;
+  total: number;
 }
 
-/**
- * LiquidProgress - Refractive liquid indicator for 2026 onboarding.
- * Features: Soft glow, liquid fill animation, and refractive dots.
- */
-export function LiquidProgress({ 
-  progress, 
-  count, 
-  height = 4, 
-  width = 120, 
-  style 
-}: LiquidProgressProps) {
+export function LiquidProgress({ current, total }: LiquidProgressProps) {
   const { colors } = useTheme();
-  const fillWidth = useSharedValue(0);
+  const progress = useSharedValue(total <= 1 ? 1 : current / (total - 1));
 
   useEffect(() => {
-    fillWidth.value = withSpring(progress, { damping: 20, stiffness: 100 });
-  }, [progress]);
+    const next = total <= 1 ? 1 : current / (total - 1);
+    progress.value = withTiming(next, { duration: 420 });
+  }, [current, progress, total]);
 
   const fillStyle = useAnimatedStyle(() => ({
-    width: `${fillWidth.value * 100}%`,
-    backgroundColor: interpolateColor(
-      fillWidth.value,
-      [0, 1],
-      [colors.primary, colors.primaryStrong || colors.primary]
-    ),
+    width: `${Math.max(0.08, progress.value) * 100}%`,
   }));
 
   return (
-    <View style={[styles.container, { width, height, backgroundColor: 'rgba(255, 255, 255, 0.05)' }, style]}>
-      {/* Liquid Fill */}
-      <Animated.View style={[styles.fill, fillStyle]}>
-        {/* Subtle Glow at the edge */}
-        <View style={[styles.glow, { backgroundColor: colors.primary }]} />
-      </Animated.View>
-
-      {/* Refractive Dots */}
-      <View style={styles.dotsContainer}>
-        {Array.from({ length: count }).map((_, i) => (
-          <View 
-            key={i} 
-            style={[
-              styles.dot, 
-              { 
-                backgroundColor: i / (count - 1) <= progress ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)' 
-              }
-            ]} 
+    <View style={styles.wrapper}>
+      <View style={[styles.track, { backgroundColor: "rgba(255,255,255,0.08)", borderColor: colors.border }]}>
+        <Animated.View style={[styles.fill, fillStyle]}>
+          <LinearGradient
+            colors={["rgba(59,130,246,0.72)", "rgba(255,255,255,0.26)", "rgba(59,130,246,0.88)"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.fillGradient}
           />
-        ))}
+          <View style={styles.bubbleRow}>
+            <View style={styles.bubble} />
+            <View style={[styles.bubble, styles.bubbleSoft]} />
+            <View style={styles.bubble} />
+          </View>
+        </Animated.View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: radius.pill || 100,
-    overflow: 'hidden',
-    position: 'relative',
-    justifyContent: 'center',
+  wrapper: {
+    width: "100%",
+  },
+  track: {
+    height: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    overflow: "hidden",
   },
   fill: {
-    height: '100%',
-    borderRadius: radius.pill || 100,
-    position: 'relative',
+    height: "100%",
+    borderRadius: radius.pill,
+    overflow: "hidden",
+    justifyContent: "center",
   },
-  glow: {
-    position: 'absolute',
-    right: -2,
-    top: 0,
-    bottom: 0,
-    width: 10,
-    opacity: 0.4,
-    shadowColor: '#FFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-  },
-  dotsContainer: {
+  fillGradient: {
     ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10,
   },
-  dot: {
-    width: 2,
-    height: 2,
-    borderRadius: 1,
+  bubbleRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 5,
+    paddingRight: 10,
+  },
+  bubble: {
+    width: 4,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.68)",
+  },
+  bubbleSoft: {
+    backgroundColor: "rgba(255,255,255,0.34)",
   },
 });

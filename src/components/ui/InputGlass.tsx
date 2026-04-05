@@ -14,7 +14,7 @@ import Animated, {
   withSpring,
   interpolateColor,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../BlurView';
 import { useTheme } from '@/src/hooks';
 import { radius, spacing, typography, animations } from '@/src/theme';
 
@@ -36,7 +36,7 @@ export function InputGlass({
   rightIcon, 
   onFocus, 
   onBlur, 
-  style,
+  style: inputStyle,
   ...props 
 }: InputGlassProps) {
   const { colors } = useTheme();
@@ -108,7 +108,6 @@ export function InputGlass({
           styles.inputWrapper, 
           containerStyle,
           { height: dynamicHeight, borderRadius: radius.md },
-          style
         ]}
       >
         {Platform.OS !== 'web' && (
@@ -129,7 +128,8 @@ export function InputGlass({
               fontSize: 14 * fontScale,
               fontFamily: typography.family.mono,
             },
-            Platform.OS === 'web' && { outlineStyle: 'none' } as any
+            Platform.OS === 'web' && { outlineStyle: 'none' } as any,
+            inputStyle as any
           ]}
           placeholderTextColor="rgba(255, 255, 255, 0.2)"
           onFocus={handleFocus}

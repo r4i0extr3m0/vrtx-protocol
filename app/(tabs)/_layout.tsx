@@ -1,9 +1,9 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Platform, StyleSheet, View } from "react-native";
-import { BlurView } from "expo-blur";
 
 import { HapticTab } from "@/components/haptic-tab";
+import { BlurView } from "@/src/components/BlurView";
 import { AppIcon } from "@/src/components/AppIcon";
 import { useTheme } from "@/src/hooks";
 import { typography } from "@/src/theme";

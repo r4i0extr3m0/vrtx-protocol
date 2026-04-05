@@ -50,7 +50,7 @@ export function RestTimer({ onFinish }: RestTimerProps) {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
@@ -72,7 +72,9 @@ export function RestTimer({ onFinish }: RestTimerProps) {
       resetTimer();
     }
 
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isActive, timeLeft, onFinish, resetTimer, restTimerDefault, progress, hapticFeedbackEnabled]);
 
   const formatTime = (seconds: number) => {

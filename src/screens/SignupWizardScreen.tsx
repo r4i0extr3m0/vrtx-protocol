@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Alert, View, Text, TextInput, Pressable, StyleSheet, Dimensions, KeyboardAvoidingView, Platform } from "react-native";
+import { Alert, View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import { useAuth, useTheme } from "@/src/hooks";
 import { spacing, typography, radius } from "@/src/theme";
-import Animated, { FadeInRight, FadeOutLeft, useAnimatedStyle, withSpring } from "react-native-reanimated";
+import Animated, { FadeInRight, FadeOutLeft } from "react-native-reanimated";
 import { AppButton } from "@/src/components/AppButton";
 import * as Haptics from "expo-haptics";
-
-const { width } = Dimensions.get("window");
 
 type Step = "account" | "profile" | "goals";
 
@@ -45,15 +43,6 @@ export function SignupWizardScreen() {
     const result = await signUp(email, password, name);
     setLoading(false);
     if (result.success) {
-      if (result.requiresEmailConfirmation) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        Alert.alert(
-          "Confirme seu e-mail",
-          result.message ?? "Enviamos um link de confirmação para seu e-mail. Depois disso, faça login no app."
-        );
-        router.replace("/login");
-        return;
-      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep("profile");
     } else {

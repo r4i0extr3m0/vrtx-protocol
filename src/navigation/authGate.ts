@@ -1,4 +1,4 @@
-export type AuthStatus = "idle" | "loading" | "authenticated" | "guest" | "pending_confirmation";
+export type AuthStatus = "idle" | "loading" | "authenticated" | "guest";
 
 export interface AuthRedirectInput {
   pathname: string;
@@ -8,9 +8,9 @@ export interface AuthRedirectInput {
 }
 
 export const PUBLIC_ROUTES = new Set([
+  "/onboarding",
   "/login",
   "/signup-wizard",
-  "/email-pending",
   "/forgot-password",
   "/terms-and-privacy",
   "/oauth/callback",
@@ -19,7 +19,6 @@ export const PUBLIC_ROUTES = new Set([
 export const GUEST_REDIRECT_ROUTES = new Set([
   "/login",
   "/signup-wizard",
-  "/email-pending",
   "/forgot-password",
   "/oauth/callback",
 ]);
@@ -39,7 +38,7 @@ export function getAuthRedirect({
   }
 
   if (!isAuthenticated) {
-    return isPublicRoute(pathname) ? null : "/login";
+    return isPublicRoute(pathname) ? null : "/onboarding";
   }
 
   if (!userOnboardingCompleted) {
@@ -47,6 +46,7 @@ export function getAuthRedirect({
   }
 
   if (
+    pathname === "/onboarding" ||
     pathname === "/login" ||
     pathname === "/signup-wizard"
   ) {

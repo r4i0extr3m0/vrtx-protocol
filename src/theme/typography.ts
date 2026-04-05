@@ -60,11 +60,13 @@ export const typography = {
 
   // Legacy compatibility mapping
   hero: 32,
+  title: 24,
   title1: 32,
   title2: 24,
   title3: 20,
   section: 16,
   body: 15,
+  bodySm: 14,
   subhead: 14,
   caption: 12,
   number: 48,

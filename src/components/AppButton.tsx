@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, Platform, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, Platform, View, useWindowDimensions, ActivityIndicator } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import Animated, { 
   useAnimatedStyle, 
@@ -15,9 +15,10 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface AppButtonProps {
   label: string;
-  onPress: () => void;
-  variant?: "primary" | "secondary" | "ghost" | "success" | "brand";
+  onPress: () => void | Promise<void>;
+  variant?: "primary" | "secondary" | "ghost" | "success" | "brand" | "default";
   disabled?: boolean;
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   accessibilityHint?: string;
@@ -28,6 +29,7 @@ export function AppButton({
   onPress,
   variant = "primary",
   disabled = false,
+  loading = false,
   style,
   accessibilityLabel,
   accessibilityHint,
@@ -38,7 +40,7 @@ export function AppButton({
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity: disabled ? 0.4 : 1,
+    opacity: disabled || loading ? 0.4 : 1,
   }));
 
   const handlePressIn = () => {
@@ -50,7 +52,7 @@ export function AppButton({
   };
 
   const handlePress = () => {
-    if (disabled) return;
+    if (disabled || loading) return;
     
     if (variant === "brand" || variant === "success") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -67,6 +69,7 @@ export function AppButton({
       case "success": return { bg: undefined, grad: colors.successGradient, text: "#fff", border: "transparent" };
       case "secondary": return { bg: "rgba(255,255,255,0.05)", grad: undefined, text: colors.foreground, border: colors.border };
       case "ghost": return { bg: "transparent", grad: undefined, text: colors.muted, border: "transparent" };
+      case "default": return { bg: colors.surface, grad: undefined, text: colors.foreground, border: colors.border };
       default: return { bg: colors.surface, grad: undefined, text: colors.foreground, border: colors.border };
     }
   };
@@ -80,7 +83,7 @@ export function AppButton({
       accessibilityLabel={accessibilityLabel || label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled }}
-      disabled={disabled}
+      disabled={disabled || loading}
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
@@ -103,21 +106,27 @@ export function AppButton({
           style={StyleSheet.absoluteFill}
         >
           <View style={styles.contentWrapper}>
-            <Text 
-              allowFontScaling={true}
-              style={[styles.label, { color: config.text, fontSize: 13 * fontScale }]}
-            >
-              {label.toUpperCase()}
-            </Text>
+            <View style={styles.inlineContent}>
+              {loading ? <ActivityIndicator color={config.text} size="small" /> : null}
+              <Text 
+                allowFontScaling={true}
+                style={[styles.label, { color: config.text, fontSize: 13 * fontScale }]}
+              >
+                {label.toUpperCase()}
+              </Text>
+            </View>
           </View>
         </LinearGradient>
       ) : (
-        <Text 
-          allowFontScaling={true}
-          style={[styles.label, { color: config.text, fontSize: 13 * fontScale }]}
-        >
-          {label.toUpperCase()}
-        </Text>
+        <View style={styles.inlineContent}>
+          {loading ? <ActivityIndicator color={config.text} size="small" /> : null}
+          <Text 
+            allowFontScaling={true}
+            style={[styles.label, { color: config.text, fontSize: 13 * fontScale }]}
+          >
+            {label.toUpperCase()}
+          </Text>
+        </View>
       )}
     </AnimatedPressable>
   );
@@ -136,6 +145,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  inlineContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
   },
   label: {
     fontWeight: "900",

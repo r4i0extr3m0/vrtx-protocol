@@ -13,6 +13,7 @@ interface ProgressBarProps {
   progress: number; // 0 to 1
   height?: number;
   color?: string;
+  glow?: boolean;
   style?: any;
 }
 
@@ -24,6 +25,7 @@ export function ProgressBarGlow({
   progress, 
   height = 4, 
   color, 
+  glow: _glow,
   style 
 }: ProgressBarProps) {
   const { colors } = useTheme();

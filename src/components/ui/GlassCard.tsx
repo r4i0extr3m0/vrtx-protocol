@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { BlurView } from '../BlurView';
 import { useTheme } from '@/src/hooks';
 import { radius, spacing } from '@/src/theme';
 

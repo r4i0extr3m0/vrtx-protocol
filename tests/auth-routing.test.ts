@@ -33,14 +33,24 @@ describe("getAuthRedirect", () => {
     expect(redirect).toBeNull();
   });
 
-  it("leva para login quando onboarding ja foi concluido e a rota e protegida", () => {
+  it("mantem onboarding acessivel para visitante nao autenticado", () => {
+    const redirect = getAuthRedirect({
+      pathname: "/onboarding",
+      status: "idle",
+      isAuthenticated: false,
+    });
+
+    expect(redirect).toBeNull();
+  });
+
+  it("leva para onboarding quando visitante tenta abrir rota protegida", () => {
     const redirect = getAuthRedirect({
       pathname: "/(tabs)",
       status: "idle",
       isAuthenticated: false,
     });
 
-    expect(redirect).toBe("/login");
+    expect(redirect).toBe("/onboarding");
   });
 
   it("leva para signup wizard quando o usuario autenticado ainda nao concluiu onboarding", () => {
@@ -63,5 +73,27 @@ describe("getAuthRedirect", () => {
     });
 
     expect(redirect).toBe("/(tabs)");
+  });
+
+  it("leva para tabs quando usuario autenticado com onboarding concluido tenta abrir onboarding", () => {
+    const redirect = getAuthRedirect({
+      pathname: "/onboarding",
+      status: "authenticated",
+      isAuthenticated: true,
+      userOnboardingCompleted: true,
+    });
+
+    expect(redirect).toBe("/(tabs)");
+  });
+
+  it("mantem signup wizard acessivel para usuario autenticado com onboarding incompleto", () => {
+    const redirect = getAuthRedirect({
+      pathname: "/signup-wizard",
+      status: "authenticated",
+      isAuthenticated: true,
+      userOnboardingCompleted: false,
+    });
+
+    expect(redirect).toBeNull();
   });
 });

@@ -36,6 +36,7 @@ export interface UserProfile {
   id: string;
   email: string;
   name?: string;
+  emailVerified?: boolean;
   biometricsEnabled?: boolean;
   onboardingCompleted?: boolean;
   weight?: number;
@@ -72,9 +73,13 @@ export interface Template {
 }
 
 export interface MealItem {
-  id: string;
-  foodName: string;
-  quantity: number; // em gramas
+  id?: string;
+  foodId?: string;
+  foodName?: string;
+  name?: string;
+  quantity?: number; // em gramas
+  amount?: number;
+  unit?: string;
   calories: number;
   protein: number;
   carbs: number;
@@ -85,12 +90,13 @@ export interface Meal {
   id: string;
   userId?: string;
   date: string; // YYYY-MM-DD
-  mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  mealType: "breakfast" | "lunch" | "dinner" | "snack" | "water";
   items: MealItem[];
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
   syncStatus: "local" | "pending" | "synced" | "failed";
@@ -110,6 +116,13 @@ export interface Food {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  servingSize?: number;
+  servingUnit?: string;
+  category?: string;
   syncStatus: "local" | "pending" | "synced" | "failed";
 }
 
@@ -121,7 +134,7 @@ export interface GamificationData {
   lastActivityDate?: string;
   // v2: missões + liga (MVP local)
   dailyId?: string; // YYYY-MM-DD
-  dailyMissions?: Array<{
+  dailyMissions?: {
     id: string;
     title: string;
     description: string;
@@ -131,7 +144,7 @@ export interface GamificationData {
     completedAt?: string; // ISO
     claimedAt?: string; // ISO
     kind: "workout" | "diet" | "water" | "checkin";
-  }>;
+  }[];
   weekId?: string; // ex: 2026-W14
   league?: {
     tier: "Bronze" | "Prata" | "Ouro" | "Safira" | "Rubi" | "Esmeralda" | "Diamante";

@@ -1,7 +1,8 @@
 export type AuthErrorCode =
-  | "EMAIL_NOT_CONFIRMED"
   | "INVALID_EMAIL"
   | "INVALID_CREDENTIALS"
+  | "USER_ALREADY_EXISTS"
+  | "WEAK_PASSWORD"
   | "RATE_LIMIT"
   | "NETWORK"
   | "UNKNOWN";
@@ -19,15 +20,6 @@ export interface TranslatedError {
  */
 export function translateAuthError(rawMessage: string | undefined): TranslatedError {
   const msg = (rawMessage ?? "").toLowerCase();
-
-  if (msg.includes("email not confirmed") || (msg.includes("email") && msg.includes("confirmed"))) {
-    return {
-      code: "EMAIL_NOT_CONFIRMED",
-      title: "PROTOCOLO_PENDENTE",
-      message: "Seu protocolo está quase pronto. Verifique o link de ativação no seu e-mail.",
-      actionLabel: "VERIFICAR_INBOX",
-    };
-  }
 
   if (
     msg.includes("invalid email") ||
@@ -50,6 +42,27 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
       code: "INVALID_CREDENTIALS",
       title: "ACESSO_NEGADO",
       message: "Acesso negado. Verifique suas coordenadas (E-mail/Senha).",
+    };
+  }
+
+  if (msg.includes("user already registered") || msg.includes("already exists") || msg.includes("user_already_exists")) {
+    return {
+      code: "USER_ALREADY_EXISTS",
+      title: "CONTA_JÁ_EXISTENTE",
+      message: "Este e-mail já possui cadastro. Entre com sua senha ou use recuperação de acesso.",
+      actionLabel: "Entrar",
+    };
+  }
+
+  if (
+    msg.includes("password should be at least") ||
+    msg.includes("password is too weak") ||
+    msg.includes("weak password")
+  ) {
+    return {
+      code: "WEAK_PASSWORD",
+      title: "SENHA_INSUFICIENTE",
+      message: "Use uma senha mais forte, com pelo menos 6 caracteres.",
     };
   }
 

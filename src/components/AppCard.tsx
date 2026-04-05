@@ -147,7 +147,6 @@ export function AppCard({
       accessibilityLabel={accessibilityLabel || title}
       accessibilityHint={accessibilityHint || subtitle}
       accessibilityState={{ disabled: false }}
-      allowFontScaling={true}
     >
       {content}
     </AnimatedPressable>

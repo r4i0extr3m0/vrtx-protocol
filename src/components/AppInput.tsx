@@ -32,7 +32,7 @@ export function AppInput({
   rightIcon, 
   onFocus, 
   onBlur, 
-  style,
+  style: inputStyle,
   accessibilityHint,
   ...props 
 }: AppInputProps) {
@@ -92,7 +92,6 @@ export function AppInput({
           styles.inputWrapper, 
           containerStyle,
           { height: dynamicHeight },
-          style
         ]}
       >
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
@@ -105,7 +104,8 @@ export function AppInput({
               fontSize: 14 * fontScale,
               fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
             },
-            Platform.OS === 'web' && { outlineStyle: 'none' } as any
+            Platform.OS === 'web' && { outlineStyle: 'none' } as any,
+            inputStyle as any
           ]}
           placeholderTextColor="rgba(255,255,255,0.2)"
           onFocus={handleFocus}

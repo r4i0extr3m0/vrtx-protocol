@@ -1,84 +1,36 @@
-import React from 'react';
-import { StyleSheet, ViewStyle, Platform } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  interpolate, 
-  Extrapolation 
-} from 'react-native-reanimated';
+import type { PropsWithChildren } from "react";
+import type { StyleProp, ViewStyle } from "react-native";
+import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 
-interface TiltCard3DProps {
-  children: React.ReactNode;
-  scrollX: Animated.SharedValue<number>;
+interface TiltCard3DProps extends PropsWithChildren {
   index: number;
-  width: number;
-  style?: ViewStyle;
+  progress: SharedValue<number>;
+  style?: StyleProp<ViewStyle>;
 }
 
-/**
- * TiltCard3D - Spatial 3D effect for cards/slides in 2026 design.
- * Uses perspective + rotateY based on scroll position.
- */
-export function TiltCard3D({ 
-  children, 
-  scrollX, 
-  index, 
-  width, 
-  style 
-}: TiltCard3DProps) {
+export function TiltCard3D({ children, index, progress, style }: TiltCard3DProps) {
   const animatedStyle = useAnimatedStyle(() => {
-    // 3D Rotation (Spatial Tilt)
-    const rotateY = interpolate(
-      scrollX.value,
-      [(index - 1) * width, index * width, (index + 1) * width],
-      [45, 0, -45], // Degrees
-      Extrapolation.CLAMP
-    );
-
-    // Depth Scaling
-    const scale = interpolate(
-      scrollX.value,
-      [(index - 1) * width, index * width, (index + 1) * width],
-      [0.85, 1, 0.85],
-      Extrapolation.CLAMP
-    );
-
-    // Depth TranslateZ (Simulated with Scale + Opacity)
-    const opacity = interpolate(
-      scrollX.value,
-      [(index - 0.5) * width, index * width, (index + 0.5) * width],
-      [0.6, 1, 0.6],
-      Extrapolation.CLAMP
-    );
+    const delta = index - progress.value;
 
     return {
       transform: [
-        { perspective: 1000 },
-        { rotateY: `${rotateY}deg` },
-        { scale },
+        { perspective: 1100 },
+        {
+          rotateY: `${interpolate(delta, [-1, 0, 1], [12, 0, -12], Extrapolation.CLAMP)}deg`,
+        },
+        {
+          rotateX: `${interpolate(Math.abs(delta), [0, 1], [0, 4], Extrapolation.CLAMP)}deg`,
+        },
+        {
+          translateY: interpolate(Math.abs(delta), [0, 1], [0, 18], Extrapolation.CLAMP),
+        },
+        {
+          scale: interpolate(Math.abs(delta), [0, 1], [1, 0.94], Extrapolation.CLAMP),
+        },
       ],
-      opacity,
+      opacity: interpolate(Math.abs(delta), [0, 1], [1, 0.68], Extrapolation.CLAMP),
     };
   });
 
-  return (
-    <Animated.View style={[styles.container, animatedStyle, style]}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Extra shadow for depth when tilted
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-      },
-    }),
-  },
-});

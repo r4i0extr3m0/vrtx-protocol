@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleSheet, View, Dimensions } from "react-native";
-import { RadialGradient } from "react-native-image-filter-kit"; // Note: expo-linear-gradient doesn't support radial well, using linear as fallback or svg
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Defs, Pattern, Circle, Path, Rect } from "react-native-svg";
 

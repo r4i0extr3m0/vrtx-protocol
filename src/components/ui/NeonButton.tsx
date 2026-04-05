@@ -4,6 +4,7 @@ import {
   Text, 
   Pressable, 
   ActivityIndicator, 
+  View,
   ViewStyle, 
   TextStyle,
   Platform

@@ -12,11 +12,11 @@ import { createId, toIsoDate, toIsoTimestamp } from "@/src/utils";
 import type { MealItem, Food } from "@/src/types";
 
 const INITIAL_FOODS: Food[] = [
-  { id: "f1", name: "Arroz Branco", caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3, syncStatus: "synced" },
-  { id: "f2", name: "Feijão Carioca", caloriesPer100g: 76, proteinPer100g: 4.8, carbsPer100g: 14, fatPer100g: 0.5, syncStatus: "synced" },
-  { id: "f3", name: "Frango Grelhado", caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6, syncStatus: "synced" },
-  { id: "f4", name: "Ovo Cozido", caloriesPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, syncStatus: "synced" },
-  { id: "f5", name: "Banana Prata", caloriesPer100g: 89, proteinPer100g: 1.1, carbsPer100g: 23, fatPer100g: 0.3, syncStatus: "synced" },
+  { id: "f1", name: "Arroz Branco", caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3, calories: 130, protein: 2.7, carbs: 28, fat: 0.3, servingSize: 100, servingUnit: "g", syncStatus: "synced" },
+  { id: "f2", name: "Feijão Carioca", caloriesPer100g: 76, proteinPer100g: 4.8, carbsPer100g: 14, fatPer100g: 0.5, calories: 76, protein: 4.8, carbs: 14, fat: 0.5, servingSize: 100, servingUnit: "g", syncStatus: "synced" },
+  { id: "f3", name: "Frango Grelhado", caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6, calories: 165, protein: 31, carbs: 0, fat: 3.6, servingSize: 100, servingUnit: "g", syncStatus: "synced" },
+  { id: "f4", name: "Ovo Cozido", caloriesPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, calories: 155, protein: 13, carbs: 1.1, fat: 11, servingSize: 100, servingUnit: "g", syncStatus: "synced" },
+  { id: "f5", name: "Banana Prata", caloriesPer100g: 89, proteinPer100g: 1.1, carbsPer100g: 23, fatPer100g: 0.3, calories: 89, protein: 1.1, carbs: 23, fat: 0.3, servingSize: 100, servingUnit: "g", syncStatus: "synced" },
 ];
 
 export function AddMealScreen() {

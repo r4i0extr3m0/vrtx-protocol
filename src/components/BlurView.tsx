@@ -1,14 +1,22 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 interface BlurViewProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   intensity?: number;
+  tint?: 'dark' | 'light' | 'default' | string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function BlurView({ children }: BlurViewProps) {
+export function BlurView({ children, intensity = 20, style }: BlurViewProps) {
   return (
-    <View style={[styles.container, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: `rgba(0,0,0,${Math.min(Math.max(intensity / 100, 0.08), 0.35)})` },
+        style,
+      ]}
+    >
       {children}
     </View>
   );

@@ -22,7 +22,7 @@ export function useTheme(): IronTheme {
         ...baseColors,
         primary: accentHex,
         brandGradient: [accentHex, baseColors.primaryStrong] as [string, string],
-      },
+      } as ThemeColors,
     };
   }, [colorScheme, accentColor]);
 }

@@ -26,6 +26,11 @@ export const animations = {
       stiffness: 300,
       mass: 0.8,
     } as WithSpringConfig,
+    tight: {
+      damping: 12,
+      stiffness: 220,
+      mass: 0.9,
+    } as WithSpringConfig,
     
     // Smooth Transition
     smooth: {

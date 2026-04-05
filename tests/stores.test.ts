@@ -100,6 +100,108 @@ describe("authStore", () => {
     expect(useAuthStore.getState().status).toBe("authenticated");
     expect(refreshAIUsage).toHaveBeenCalledWith("user-1");
   });
+
+  it("updates profile via auth metadata when profiles table is unavailable", async () => {
+    const storage = createMemoryJsonStorage();
+    const updateUser = vi.fn().mockResolvedValue({ error: null });
+    const upsert = vi.fn().mockResolvedValue({
+      error: {
+        code: "PGRST205",
+        message: "Could not find the table 'public.profiles' in the schema cache",
+      },
+    });
+    const from = vi.fn().mockReturnValue({ upsert });
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getSupabaseClient: vi.fn(() => ({
+        auth: { updateUser },
+        from,
+      })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium: vi.fn() }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    useAuthStore.setState({
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Victor",
+      },
+      isAuthenticated: true,
+      status: "authenticated",
+      hasHydrated: true,
+    });
+
+    const result = await useAuthStore.getState().updateProfile({
+      weight: 82,
+      onboardingCompleted: true,
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(updateUser).toHaveBeenCalledWith({
+      data: {
+        weight: 82,
+        onboardingCompleted: true,
+      },
+    });
+    expect(from).toHaveBeenCalledWith("profiles");
+    expect(useAuthStore.getState().user).toMatchObject({
+      id: "user-1",
+      email: "user@example.com",
+      weight: 82,
+      onboardingCompleted: true,
+    });
+  });
+
+  it("translates thrown duplicate signup errors instead of using the generic fallback", async () => {
+    const storage = createMemoryJsonStorage();
+    const signUp = vi.fn().mockRejectedValue({
+      code: "user_already_exists",
+      message: "User already registered",
+    });
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getSupabaseClient: vi.fn(() => ({
+        auth: { signUp },
+      })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium: vi.fn() }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    const result = await useAuthStore.getState().signUp("user@example.com", "Test123456!", "Victor");
+
+    expect(result).toMatchObject({
+      success: false,
+      code: "USER_ALREADY_EXISTS",
+      message: "Este e-mail já possui cadastro. Entre com sua senha ou use recuperação de acesso.",
+    });
+  });
 });
 
 describe("workoutStore", () => {

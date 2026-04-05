@@ -8,11 +8,13 @@ import type { AuthSession, UserProfile } from "@/src/types";
 import { usePremiumStore } from "@/src/store/premiumStore";
 import { translateAuthError } from "@/src/utils";
 
+let profilesTableUnavailable = false;
+
 interface AuthStoreState {
   isAuthenticated: boolean;
   user: UserProfile | null;
   session: AuthSession | null;
-  status: "idle" | "loading" | "authenticated" | "guest" | "pending_confirmation";
+  status: "idle" | "loading" | "authenticated" | "guest";
   hasHydrated: boolean;
   setGuestMode: () => void;
   hydrateAuth: () => Promise<void>;
@@ -20,9 +22,8 @@ interface AuthStoreState {
     email: string,
     password: string,
     name?: string
-  ) => Promise<{ success: boolean; message?: string; code?: string; requiresEmailConfirmation?: boolean }>;
+  ) => Promise<{ success: boolean; message?: string; code?: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string; code?: string }>;
-  resendConfirmation: (email: string) => Promise<{ success: boolean; message?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; message?: string }>;
   enableBiometrics: (enabled: boolean) => void;
@@ -43,10 +44,19 @@ function mapSession(session: any): AuthSession | null {
 }
 
 type ProfileRecord = Partial<UserProfile> & {
+  email_verified?: boolean;
   biometrics_enabled?: boolean;
   onboarding_completed?: boolean;
   activity_level?: UserProfile["activityLevel"];
 };
+
+function isMissingProfilesTableError(error: unknown): boolean {
+  const code = typeof error === "object" && error && "code" in error ? String((error as any).code) : "";
+  const message =
+    typeof error === "object" && error && "message" in error ? String((error as any).message).toLowerCase() : "";
+
+  return code === "PGRST205" || message.includes("could not find the table 'public.profiles'");
+}
 
 function getOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -82,6 +92,7 @@ function normalizeProfile(profile: any): Partial<UserProfile> {
   return {
     email: getOptionalString(profile.email),
     name: getOptionalString(profile.name),
+    emailVerified: getOptionalBoolean(profile.emailVerified ?? profile.email_verified),
     biometricsEnabled: getOptionalBoolean(profile.biometricsEnabled ?? profile.biometrics_enabled),
     onboardingCompleted: getOptionalBoolean(profile.onboardingCompleted ?? profile.onboarding_completed),
     weight: getOptionalNumber(profile.weight),
@@ -91,33 +102,62 @@ function normalizeProfile(profile: any): Partial<UserProfile> {
   };
 }
 
+function serializeAuthMetadata(updates: Partial<UserProfile>): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {};
+
+  if ("name" in updates) metadata.name = updates.name ?? null;
+  if ("biometricsEnabled" in updates) metadata.biometricsEnabled = updates.biometricsEnabled ?? null;
+  if ("onboardingCompleted" in updates) metadata.onboardingCompleted = updates.onboardingCompleted ?? null;
+  if ("weight" in updates) metadata.weight = updates.weight ?? null;
+  if ("height" in updates) metadata.height = updates.height ?? null;
+  if ("goal" in updates) metadata.goal = updates.goal ?? null;
+  if ("activityLevel" in updates) metadata.activityLevel = updates.activityLevel ?? null;
+
+  return metadata;
+}
+
+function getAuthErrorInput(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (typeof error === "object" && error) {
+    const code = "code" in error ? String((error as any).code ?? "") : "";
+    const message = "message" in error ? String((error as any).message ?? "") : "";
+    return `${code} ${message}`.trim();
+  }
+
+  return "unknown";
+}
+
 function mapUser(user: any, profile?: ProfileRecord | null): UserProfile | null {
   if (!user || !user.email) {
     return null;
   }
 
   const normalizedProfile = normalizeProfile(profile);
-  const metadata = user.user_metadata ?? {};
+  const normalizedMetadata = normalizeProfile(user.user_metadata ?? {});
+  const emailVerified =
+    normalizedProfile.emailVerified ??
+    normalizedMetadata.emailVerified ??
+    Boolean(user.email_confirmed_at ?? user.confirmed_at);
 
   return {
     id: user.id,
     email: normalizedProfile.email ?? user.email,
-    name: normalizedProfile.name ?? getOptionalString(metadata.name),
-    biometricsEnabled:
-      normalizedProfile.biometricsEnabled ??
-      getOptionalBoolean(metadata.biometricsEnabled ?? metadata.biometrics_enabled),
-    onboardingCompleted:
-      normalizedProfile.onboardingCompleted ??
-      getOptionalBoolean(metadata.onboardingCompleted ?? metadata.onboarding_completed),
-    weight: normalizedProfile.weight,
-    height: normalizedProfile.height,
-    goal: normalizedProfile.goal,
-    activityLevel: normalizedProfile.activityLevel,
+    name: normalizedProfile.name ?? normalizedMetadata.name,
+    emailVerified,
+    biometricsEnabled: normalizedProfile.biometricsEnabled ?? normalizedMetadata.biometricsEnabled,
+    onboardingCompleted: normalizedProfile.onboardingCompleted ?? normalizedMetadata.onboardingCompleted,
+    weight: normalizedProfile.weight ?? normalizedMetadata.weight,
+    height: normalizedProfile.height ?? normalizedMetadata.height,
+    goal: normalizedProfile.goal ?? normalizedMetadata.goal,
+    activityLevel: normalizedProfile.activityLevel ?? normalizedMetadata.activityLevel,
   };
 }
 
 async function fetchProfile(userId: string): Promise<Partial<UserProfile> | null> {
-  if (!hasSupabaseEnv()) {
+  if (!hasSupabaseEnv() || profilesTableUnavailable) {
     return null;
   }
 
@@ -126,6 +166,9 @@ async function fetchProfile(userId: string): Promise<Partial<UserProfile> | null
     const { data, error } = await client.from("profiles").select("*").eq("id", userId).maybeSingle();
 
     if (error) {
+      if (isMissingProfilesTableError(error)) {
+        profilesTableUnavailable = true;
+      }
       console.warn("[authStore.fetchProfile]", error.message);
       return null;
     }
@@ -145,6 +188,26 @@ async function resolveMappedUser(user: any, shouldFetchProfile = true): Promise<
 
   const profile = await fetchProfile(baseUser.id);
   return mapUser(user, profile);
+}
+
+async function syncProfileRecord(client: any, payload: Record<string, unknown>) {
+  if (profilesTableUnavailable) {
+    return { success: false, missingTable: true, error: null as any };
+  }
+
+  const { error } = await client.from("profiles").upsert(payload);
+
+  if (!error) {
+    return { success: true, missingTable: false, error: null as any };
+  }
+
+  if (isMissingProfilesTableError(error)) {
+    profilesTableUnavailable = true;
+    console.warn("[authStore.syncProfileRecord]", error.message);
+    return { success: false, missingTable: true, error };
+  }
+
+  return { success: false, missingTable: false, error };
 }
 
 export const useAuthStore = create<AuthStoreState>()(
@@ -170,42 +233,53 @@ export const useAuthStore = create<AuthStoreState>()(
           const result = await client.auth.signUp({
             email,
             password,
-            options: { data: { name: name ?? "" } },
+            options: {
+              data: { name: name ?? "" },
+            },
           });
           if (result.error) {
-            const t = translateAuthError(result.error.message);
+            const t = translateAuthError(getAuthErrorInput(result.error));
             return { success: false, message: t.message, code: t.code };
           }
           
-          const isPending = !result.data.session && result.data.user;
-
           if (result.data.user) {
-            await client.from("profiles").upsert({
+            const profileSync = await syncProfileRecord(client, {
               id: result.data.user.id,
               email,
               name: name ?? "",
               created_at: new Date().toISOString(),
             });
+
+            if (!profileSync.success && !profileSync.missingTable) {
+              console.warn("[authStore.signUp.profile]", profileSync.error?.message ?? profileSync.error);
+            }
           }
 
-          const mappedUser = await resolveMappedUser(result.data.user, Boolean(result.data.session));
+          const mappedUser = mapUser(result.data.user);
+          const hasSession = Boolean(result.data.session && result.data.user);
           set({
-            isAuthenticated: Boolean(result.data.session && result.data.user),
+            isAuthenticated: hasSession,
             session: mapSession(result.data.session),
-            user: mappedUser,
-            status: isPending ? "pending_confirmation" : (result.data.session ? "authenticated" : "idle"),
+            user: hasSession ? mappedUser : null,
+            status: hasSession ? "authenticated" : "idle",
             hasHydrated: true,
           });
+
+          if (!hasSession) {
+            return {
+              success: false,
+              message:
+                "A conta foi criada, mas a sessão não iniciou automaticamente. Tente entrar com seu e-mail e senha.",
+            };
+          }
+
           return {
             success: true,
-            requiresEmailConfirmation: Boolean(isPending),
-            message: isPending
-              ? "Enviamos um link de confirmação para seu e-mail. Confirme sua conta para continuar."
-              : undefined,
           };
         } catch (error) {
           console.error("[authStore.signUp]", error);
-          return { success: false, message: "Não foi possível criar a conta agora." };
+          const t = translateAuthError(getAuthErrorInput(error));
+          return { success: false, message: t.message, code: t.code };
         }
       },
       hydrateAuth: async () => {
@@ -249,17 +323,21 @@ export const useAuthStore = create<AuthStoreState>()(
           const result = await client.auth.signInWithPassword({ email, password });
 
           if (result.error) {
-            const t = translateAuthError(result.error.message);
+            const t = translateAuthError(getAuthErrorInput(result.error));
             return { success: false, message: t.message, code: t.code };
           }
 
           if (result.data.user) {
-            await client.from("profiles").upsert({
+            const profileSync = await syncProfileRecord(client, {
               id: result.data.user.id,
               email: result.data.user.email ?? email,
               name: result.data.user.user_metadata?.name ?? "",
               updated_at: new Date().toISOString(),
             });
+
+            if (!profileSync.success && !profileSync.missingTable) {
+              console.warn("[authStore.signIn.profile]", profileSync.error?.message ?? profileSync.error);
+            }
           }
           const mappedUser = await resolveMappedUser(result.data.user, Boolean(result.data.session));
           set({
@@ -278,22 +356,8 @@ export const useAuthStore = create<AuthStoreState>()(
         } catch (error) {
           console.error("[authStore.signIn]", error);
           set({ isAuthenticated: false, user: null, session: null, status: "idle", hasHydrated: true });
-          const t = translateAuthError(String((error as any)?.message ?? "network"));
+          const t = translateAuthError(getAuthErrorInput(error));
           return { success: false, message: t.message, code: t.code };
-        }
-      },
-      resendConfirmation: async (email: string) => {
-        try {
-          if (!hasSupabaseEnv()) return { success: false, message: "Supabase não configurado." };
-          const client = getSupabaseClient();
-          const { error } = await client.auth.resend({ type: "signup", email });
-          if (error) {
-            const t = translateAuthError(error.message);
-            return { success: false, message: t.message };
-          }
-          return { success: true };
-        } catch {
-          return { success: false, message: "Não foi possível reenviar agora." };
         }
       },
       signOut: async () => {
@@ -319,12 +383,27 @@ export const useAuthStore = create<AuthStoreState>()(
         try {
           if (hasSupabaseEnv()) {
             const client = getSupabaseClient();
-            const { error } = await client.from("profiles").upsert({
+            const metadata = serializeAuthMetadata(updates);
+            let authMetadataError: any = null;
+
+            if (Object.keys(metadata).length > 0) {
+              const { error } = await client.auth.updateUser({ data: metadata });
+              authMetadataError = error;
+            }
+
+            const profileSync = await syncProfileRecord(client, {
               id: user.id,
               ...updates,
               updated_at: new Date().toISOString(),
             });
-            if (error) throw error;
+
+            if (authMetadataError && !profileSync.success) {
+              throw authMetadataError;
+            }
+
+            if (!profileSync.success && !profileSync.missingTable) {
+              console.warn("[authStore.updateProfile.profile]", profileSync.error?.message ?? profileSync.error);
+            }
           }
           return { success: true };
         } catch (error) {

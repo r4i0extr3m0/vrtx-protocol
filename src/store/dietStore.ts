@@ -107,7 +107,10 @@ export const useDietStore = create<DietStoreState>()(
         enqueueDietOperation("meal", "create", meal);
         
         if (meal.mealType === "water") {
-          const totalWater = meal.items.reduce((acc, item) => acc + item.amount, 0);
+          const totalWater = meal.items.reduce(
+            (acc, item) => acc + (item.amount ?? item.quantity ?? 0),
+            0,
+          );
           get().addWater(totalWater);
         }
         
@@ -140,8 +143,19 @@ export const useDietStore = create<DietStoreState>()(
       addFood: (foodData) => {
         const validated = foodSchema.parse(foodData);
         const food: Food = {
-          ...validated,
           id: createId("food"),
+          name: validated.name,
+          calories: validated.calories,
+          protein: validated.protein,
+          carbs: validated.carbs,
+          fat: validated.fat,
+          caloriesPer100g: validated.calories,
+          proteinPer100g: validated.protein,
+          carbsPer100g: validated.carbs,
+          fatPer100g: validated.fat,
+          servingSize: validated.servingSize,
+          servingUnit: validated.servingUnit,
+          category: validated.category,
           syncStatus: "pending",
         };
         set((state) => ({ foods: [food, ...state.foods] }));
@@ -166,6 +180,10 @@ export const useDietStore = create<DietStoreState>()(
               protein: 10,
               carbs: 20,
               fat: 2,
+              caloriesPer100g: 100,
+              proteinPer100g: 10,
+              carbsPer100g: 20,
+              fatPer100g: 2,
               servingSize: 100,
               servingUnit: "g",
               syncStatus: "synced"
@@ -184,6 +202,10 @@ export const useDietStore = create<DietStoreState>()(
               protein: product.nutriments?.proteins_100g || 0,
               carbs: product.nutriments?.carbohydrates_100g || 0,
               fat: product.nutriments?.fat_100g || 0,
+              caloriesPer100g: product.nutriments?.["energy-kcal_100g"] || 0,
+              proteinPer100g: product.nutriments?.proteins_100g || 0,
+              carbsPer100g: product.nutriments?.carbohydrates_100g || 0,
+              fatPer100g: product.nutriments?.fat_100g || 0,
               servingSize: 100,
               servingUnit: "g",
               syncStatus: "pending"
