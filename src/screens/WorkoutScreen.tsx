@@ -100,7 +100,9 @@ export function WorkoutScreen() {
   const { colors } = useTheme();
   const { workouts, activeWorkoutId, createWorkout, createFromTemplate, removeExercise, addSet, updateSet, completeWorkout } = useWorkout();
   const { templates } = useTemplateStore();
-  const { recordActivity, addXP } = useGamificationStore();
+  const recordActivity = useGamificationStore((state) => state.recordActivity);
+  const addXP = useGamificationStore((state) => state.addXP);
+  const streak = useGamificationStore((state) => state.streak);
 
   const workout = workouts.find((w) => w.id === activeWorkoutId) ?? null;
   const summary = workout ? summarizeWorkout(workout) : null;
@@ -305,11 +307,14 @@ export function WorkoutScreen() {
         ListFooterComponent={() => (
           <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
             <AppButton label="Finalizar treino" onPress={() => {
+              const streakBonus = streak > 0 ? 20 : 0;
               completeWorkout(workout.id);
-              // Duolingo-like: ação principal dá XP e conta para missões/liga
+              // XP simples para o MVP: base fixa por treino e bonus se o usuario ja vinha em streak.
               recordActivity("workout", 1);
-              addXP(80, { source: "workout" });
-              router.back();
+              if (streakBonus > 0) {
+                addXP(streakBonus, { source: "workout" });
+              }
+              router.replace("/statistics?source=workout_complete" as never);
             }} variant="brand" />
             <AppButton label="Adicionar exercicio" onPress={() => router.push("/exercises")} variant="secondary" />
           </View>

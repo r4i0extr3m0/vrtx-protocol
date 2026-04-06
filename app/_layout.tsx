@@ -5,6 +5,7 @@ import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import type { ComponentType } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -24,7 +25,7 @@ import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/se
 const SHOW_STORYBOOK = process.env.EXPO_PUBLIC_STORYBOOK === "true";
 const StorybookUIRoot = SHOW_STORYBOOK
   ? lazy(async () => {
-      const module = await import("../.storybook");
+      const module = (await import("../.storybook")) as { default?: ComponentType };
       return {
         default: module.default ?? (() => null),
       };

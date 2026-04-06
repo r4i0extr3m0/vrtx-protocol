@@ -1,178 +1,123 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
+import React, { useMemo } from "react";
+import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
-import { MetricCard } from "@/src/components/MetricCard";
-import { SectionCard } from "@/src/components/SectionCard";
 import { SyncStatusPill } from "@/src/components/SyncStatusPill";
-import { AppIcon, IconName } from "@/src/components/AppIcon";
+import { AppIcon } from "@/src/components/AppIcon";
 import { useWorkout, useTheme } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
 import { spacing, typography, radius, shadows } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
-import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
-import { HapticFeedback } from "@/src/services/haptics";
-import { useDietStore } from "@/src/store/dietStore";
-import { fetchAIRecommendations, sendAIFeedback, translateAIError, AIApiError } from "@/src/services/AIInsights";
-import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
-import { useAuthStore } from "@/src/store/authStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
+import { useGamificationStore } from "@/src/store/gamificationStore";
+
+function getCurrentWeekStartMs(): number {
+  const date = new Date();
+  const day = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - day);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getTime();
+}
 
 export function HomeScreen() {
   const { colors } = useTheme();
-  const { workouts, createWorkout } = useWorkout();
-  const { widgets } = useDashboardStore();
-  const meals = useDietStore((s) => s.meals);
-  const userId = useAuthStore((s) => s.user?.id ?? null);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const refreshAIUsage = usePremiumStore((s) => s.refreshAIUsage);
-  
-  const latestWorkout = workouts[0] ?? null;
-  const summary = latestWorkout ? summarizeWorkout(latestWorkout) : null;
+  const { workouts, activeWorkoutId, createWorkout } = useWorkout();
+  const streak = useGamificationStore((state) => state.streak);
+  const totalXP = useGamificationStore((state) => state.totalXP);
+  const isPremium = usePremiumStore((state) => state.isPremium);
 
-  const [objective] = useState<FitnessObjective>("hypertrophy");
-  const [level] = useState<TrainingLevel>("intermediate");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiData, setAiData] = useState<AIAnalyzeResponse | null>(null);
-  const [aiFeedback, setAiFeedback] = useState<-1 | 0 | 1>(0);
+  const today = new Date().toISOString().slice(0, 10);
+  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId) ?? null;
+  const completedWorkouts = useMemo(
+    () => workouts.filter((workout) => Boolean(workout.completedAt)),
+    [workouts],
+  );
+  const todayCompletedWorkout = completedWorkouts.find((workout) => workout.date === today) ?? null;
+  const last7WorkoutCount = useMemo(() => {
+    const windowStart = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return completedWorkouts.filter((workout) => {
+      const timestamp = Date.parse(workout.completedAt ?? workout.startedAt ?? workout.date);
+      return Number.isFinite(timestamp) && timestamp >= windowStart;
+    }).length;
+  }, [completedWorkouts]);
+  const currentWeekVolume = useMemo(() => {
+    const currentWeekStartMs = getCurrentWeekStartMs();
+    return completedWorkouts.reduce((acc, workout) => {
+      const completedAtMs = Date.parse(workout.completedAt ?? workout.startedAt ?? workout.date);
+      if (!Number.isFinite(completedAtMs) || completedAtMs < currentWeekStartMs) {
+        return acc;
+      }
 
-  const last7Summary = useMemo(() => {
-    const now = Date.now();
-    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-
-    const lastWorkouts = workouts.filter((w) => {
-      const ts = Date.parse(w.startedAt || w.date);
-      return Number.isFinite(ts) && ts >= sevenDaysAgo;
-    });
-
-    const totalVolumeKg = lastWorkouts.reduce((acc, w) => {
-      const workoutVolume = w.exercises.reduce((wAcc, ex) => {
-        const exVol = ex.sets.reduce((sAcc, set) => sAcc + set.reps * set.weightKg, 0);
-        return wAcc + exVol;
-      }, 0);
-      return acc + workoutVolume;
+      return acc + summarizeWorkout(workout).totalVolume;
     }, 0);
-
-    const lastMeals = meals.filter((m) => Date.parse(m.createdAt) >= sevenDaysAgo);
-    const caloriesAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalCalories, 0) / 7);
-    const proteinGAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalProtein, 0) / 7);
-
-    return {
-      workoutCount: lastWorkouts.length,
-      totalVolumeKg,
-      caloriesAvg: Number.isFinite(caloriesAvg) ? caloriesAvg : undefined,
-      proteinGAvg: Number.isFinite(proteinGAvg) ? proteinGAvg : undefined,
-    };
-  }, [meals, workouts]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      // só tenta buscar quando há pelo menos algum dado
-      if (workouts.length === 0 && meals.length === 0) return;
-      if (!isAuthenticated || !userId) return;
-
-      // Atualiza uso (server-side) e faz gate antes de chamar /analyze
-      await refreshAIUsage(userId);
-      const latestUsage = usePremiumStore.getState().aiUsage;
-      const remaining = latestUsage?.analyze?.remaining ?? null;
-      const isPremium = latestUsage?.is_premium ?? false;
-      if (!isPremium && remaining !== null && remaining <= 0) {
-        setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
-        return;
-      }
-
-      setAiLoading(true);
-      setAiError(null);
-      try {
-        const res = await fetchAIRecommendations({
-          userId,
-          objective,
-          level,
-          last7Days: last7Summary,
-        });
-        if (!cancelled) setAiData(res);
-      } catch (e) {
-        if (cancelled) return;
-        if (e instanceof AIApiError && e.status === 403 && e.code === "daily_limit") {
-          setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
-          return;
-        }
-        setAiError(translateAIError(e).message);
-      } finally {
-        if (!cancelled) setAiLoading(false);
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [level, meals.length, objective, workouts.length, last7Summary, isAuthenticated, refreshAIUsage, userId]);
+  }, [completedWorkouts]);
 
   const handleNewWorkout = () => {
     const draft = createWorkout("Treino rápido");
-    trackEvent(ANALYTICS_EVENTS.WORKOUT_STARTED, { workout_id: draft.id });
     router.push({ pathname: "/workout/[id]", params: { id: draft.id } } as never);
   };
 
-  const renderWidget = (widget: WidgetConfig, index: number) => {
-    if (!widget.visible) return null;
-
-    switch (widget.type) {
-      case 'volume':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="Volume Total" 
-            value={summary ? formatVolume(summary.totalVolume) : "0 kg"} 
-            icon="Dumbbell"
-            trend="+12%" 
-            delay={300 + index * 100} 
-          />
-        );
-      case 'streak':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="Streak" 
-            value="7" 
-            icon="Flame"
-            hint="dias seguidos" 
-            color={colors.warning}
-            delay={300 + index * 100} 
-          />
-        );
-      case 'pr':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="1RM Máximo" 
-            value={summary ? `${summary.bestOneRM.toFixed(1)} kg` : "0 kg"} 
-            icon="Trophy"
-            hint="Supino Reto" 
-            delay={300 + index * 100} 
-          />
-        );
-      case 'sessions':
-        return (
-          <MetricCard 
-            key={widget.id}
-            label="Sessões" 
-            value={String(workouts.length)} 
-            icon="Calendar"
-            hint="Total histórico" 
-            delay={300 + index * 100} 
-          />
-        );
-      default:
-        return null;
+  const handlePrimaryAction = () => {
+    if (activeWorkout) {
+      router.push({ pathname: "/workout/[id]", params: { id: activeWorkout.id } } as never);
+      return;
     }
+
+    if (todayCompletedWorkout) {
+      router.push("/statistics" as never);
+      return;
+    }
+
+    handleNewWorkout();
+  };
+
+  const todayTitle = activeWorkout
+    ? "Retomar treino"
+    : todayCompletedWorkout
+      ? "Treino concluido"
+      : "Comecar treino";
+  const todaySubtitle = activeWorkout
+    ? `${activeWorkout.name} em andamento. Continue de onde voce parou.`
+    : todayCompletedWorkout
+      ? "Seu treino de hoje ja contou para o streak. Abra o Status para ver o resumo."
+      : "Entre, registre e feche o loop diario em poucos toques.";
+  const nextActionTitle = activeWorkout
+    ? "Finalize a sessao atual"
+    : todayCompletedWorkout
+      ? isPremium
+        ? "Abrir recuperacao de hoje"
+        : "Desbloquear recuperacao Pro"
+      : "Registrar o treino do dia";
+  const nextActionDescription = activeWorkout
+    ? "Volte para o treino e conclua as series pendentes."
+    : todayCompletedWorkout
+      ? isPremium
+        ? "Veja sinais simples de carga e descanso usando seu proprio log."
+        : "Tracking continua livre. O plano Pro libera a leitura de recuperacao e insights."
+      : "Seu loop ideal e: Hoje, treino concluido, Status atualizado e streak mantido.";
+  const nextActionButtonLabel = activeWorkout
+    ? "Retomar agora"
+    : todayCompletedWorkout
+      ? isPremium
+        ? "Abrir Status"
+        : "Ver Premium"
+      : "Comecar treino";
+  const handleNextAction = () => {
+    if (activeWorkout) {
+      router.push({ pathname: "/workout/[id]", params: { id: activeWorkout.id } } as never);
+      return;
+    }
+
+    if (todayCompletedWorkout) {
+      router.push((isPremium ? "/statistics" : "/premium") as never);
+      return;
+    }
+
+    handleNewWorkout();
   };
 
   return (
@@ -183,17 +128,15 @@ export function HomeScreen() {
             <Text style={[styles.eyebrow, { color: colors.foregroundMuted }]}>Painel de hoje</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>VRTX Protocol</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>
-              Acompanhe seu ritmo, retome seu treino e veja o que merece atencao agora.
+              Command Center do MVP: abrir, treinar, fechar o dia e acompanhar progresso real.
             </Text>
           </View>
           <SyncStatusPill />
         </Animated.View>
 
-        {/* Bento Grid Layout com Widgets Dinâmicos */}
-        <View style={styles.bentoGrid}>
-          {/* Main Action Card */}
-          <Animated.View entering={FadeInUp.delay(200)} style={styles.span2}>
-            <Pressable onPress={handleNewWorkout}>
+        <View style={styles.stack}>
+          <Animated.View entering={FadeInUp.delay(200)}>
+            <Pressable onPress={handlePrimaryAction}>
               <LinearGradient
                 colors={colors.brandGradient}
                 start={{ x: 0, y: 0 }}
@@ -201,10 +144,10 @@ export function HomeScreen() {
                 style={[styles.mainActionCard, shadows.card]}
               >
                 <View style={styles.mainActionContent}>
-                  <Text style={styles.mainActionEyebrow}>Treino do dia</Text>
-                  <Text style={styles.mainActionTitle}>Comecar treino</Text>
+                  <Text style={styles.mainActionEyebrow}>Hoje</Text>
+                  <Text style={styles.mainActionTitle}>{todayTitle}</Text>
                   <Text style={styles.mainActionSubtitle}>
-                    {latestWorkout ? `Ultimo treino: ${latestWorkout.name}` : "Toque para iniciar uma nova sessao"}
+                    {todaySubtitle}
                   </Text>
                 </View>
                 <View style={styles.mainActionIcon}>
@@ -214,135 +157,80 @@ export function HomeScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Renderização Dinâmica de Widgets com Animação de Layout */}
-          <View style={styles.widgetsContainer}>
-            {widgets.map((widget, index) => (
-              <Animated.View 
-                key={widget.id} 
-                layout={Layout.duration(220)}
-                style={widget.type === 'volume' || widget.type === 'streak' || widget.type === 'pr' || widget.type === 'sessions' ? styles.widgetHalf : styles.span2}
-              >
-                {renderWidget(widget, index)}
-              </Animated.View>
-            ))}
-          </View>
-
-          {/* Quick Library Scroll */}
-          <View style={styles.span2}>
-             <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Atalhos</Text>
-                <Pressable onPress={() => {
-                  HapticFeedback.selection();
-                  // Abriria modal de customização do dashboard
-                }}>
-                  <AppIcon name="Settings" size={20} color={colors.muted} />
-                </Pressable>
-             </View>
-             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.libraryScroll}>
-                {[
-                  { label: "Exercícios", icon: "Dumbbell" as IconName, path: "/exercises" },
-                  { label: "Templates", icon: "ClipboardList" as IconName, path: "/templates" },
-                  { label: "Dieta", icon: "Apple" as IconName, path: "/diet" },
-                  { label: "Progresso", icon: "TrendingUp" as IconName, path: "/gamification" },
-                  { label: "Coach IA", icon: "psychology" as IconName, path: "/ai-coach" },
-                  { label: "Perfil", icon: "User" as IconName, path: "/profile" },
-                ].map((item, i) => (
-                  <Animated.View key={item.label} entering={FadeInDown.delay(700 + i * 100)}>
-                    <Pressable 
-                      onPress={() => router.push(item.path as never)}
-                      style={[styles.libraryItem, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
-                    >
-                      <View style={[styles.libraryIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
-                        <AppIcon name={item.icon} size={20} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.libraryLabel, { color: colors.foreground }]}>{item.label}</Text>
-                    </Pressable>
-                  </Animated.View>
-                ))}
-             </ScrollView>
-          </View>
-
-          {/* Recent Activity / Insights */}
-          <View style={styles.span2}>
-            <SectionCard title="Sugestoes da IA" subtitle="Leitura dos seus ultimos 7 dias para destacar prioridades.">
-              {aiLoading ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                  <ActivityIndicator />
-                  <Text style={[styles.insightText, { color: colors.muted }]}>Preparando sugestoes personalizadas...</Text>
-                </View>
-              ) : aiError ? (
-                <View style={{ gap: spacing.sm }}>
-                  <Text style={[styles.insightText, { color: colors.muted }]}>{aiError}</Text>
-                  {aiError.includes("Assine") ? (
-                    <AppButton label="Ver Premium" onPress={() => router.push("/premium" as never)} />
-                  ) : null}
-                </View>
-              ) : aiData ? (
-                <View style={{ gap: spacing.sm }}>
-                  <Text style={[styles.insightText, { color: colors.foreground }]}>{aiData.summary}</Text>
-                  {aiData.nextBestActions?.slice(0, 2).map((a) => (
-                    <View key={a} style={styles.insightRow}>
-                      <View style={[styles.insightIcon, { backgroundColor: colors.primary + "15" }]}>
-                        <AppIcon name="psychology" size={20} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.insightText, { color: colors.foreground }]}>{a}</Text>
-                    </View>
-                  ))}
-                  <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
-                    <Pressable
-                      onPress={() => {
-                        HapticFeedback.selection();
-                        setAiFeedback(1);
-                        void sendAIFeedback({
-                          kind: "analyze",
-                          rating: 1,
-                          userId: userId ?? undefined,
-                          cacheKey: aiData.meta?.cacheKey,
-                        }).catch(() => undefined);
-                      }}
-                      style={[
-                        styles.feedbackBtn,
-                        {
-                          backgroundColor: aiFeedback === 1 ? colors.success + "20" : colors.surface,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <AppIcon name="thumb-up" size={18} color={aiFeedback === 1 ? colors.success : colors.muted} />
-                      <Text style={[styles.feedbackText, { color: aiFeedback === 1 ? colors.success : colors.foregroundMuted }]}>Util</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        HapticFeedback.selection();
-                        setAiFeedback(-1);
-                        void sendAIFeedback({
-                          kind: "analyze",
-                          rating: -1,
-                          userId: userId ?? undefined,
-                          cacheKey: aiData.meta?.cacheKey,
-                        }).catch(() => undefined);
-                      }}
-                      style={[
-                        styles.feedbackBtn,
-                        {
-                          backgroundColor: aiFeedback === -1 ? colors.error + "18" : colors.surface,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <AppIcon name="thumb-down" size={18} color={aiFeedback === -1 ? colors.error : colors.muted} />
-                      <Text style={[styles.feedbackText, { color: aiFeedback === -1 ? colors.error : colors.foregroundMuted }]}>Nao curti</Text>
-                    </Pressable>
-                  </View>
-                  <AppButton label="Abrir AI Coach" onPress={() => router.push("/ai-coach" as never)} />
-                </View>
-              ) : (
-                <Text style={[styles.insightText, { color: colors.muted }]}>
-                  Registre treinos e refeicoes para receber sugestoes mais uteis por aqui.
+          <Animated.View entering={FadeInUp.delay(280)} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIcon, { backgroundColor: colors.primary + "15" }]}>
+                <AppIcon name="BarChart" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.cardHeaderText}>
+                <Text style={[styles.cardEyebrow, { color: colors.foregroundMuted }]}>Status</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Performance e consistencia</Text>
+              </View>
+            </View>
+            <View style={styles.statusGrid}>
+              <View style={[styles.statusItem, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.statusValue, { color: colors.foreground }]}>{streak}</Text>
+                <Text style={[styles.statusLabel, { color: colors.muted }]}>dias de streak</Text>
+              </View>
+              <View style={[styles.statusItem, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.statusValue, { color: colors.foreground }]}>{totalXP}</Text>
+                <Text style={[styles.statusLabel, { color: colors.muted }]}>XP total</Text>
+              </View>
+              <View style={[styles.statusItem, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.statusValue, { color: colors.foreground }]}>{completedWorkouts.length}</Text>
+                <Text style={[styles.statusLabel, { color: colors.muted }]}>treinos concluidos</Text>
+              </View>
+              <View style={[styles.statusItem, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.statusValue, { color: colors.foreground }]}>
+                  {formatVolume(currentWeekVolume)}
                 </Text>
-              )}
-            </SectionCard>
-          </View>
+                <Text style={[styles.statusLabel, { color: colors.muted }]}>volume semana</Text>
+              </View>
+            </View>
+            <Text style={[styles.cardBody, { color: colors.muted }]}>
+              {isPremium
+                ? "Abra o Status para acompanhar performance e recuperacao usando apenas o seu log."
+                : "Free mostra progresso basico. O Pro libera a aba de recuperacao e leituras mais profundas."}
+            </Text>
+            <AppButton
+              label={isPremium ? "Abrir Status" : "Abrir Status basico"}
+              onPress={() => router.push("/statistics" as never)}
+            />
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.delay(360)} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIcon, { backgroundColor: colors.warning + "15" }]}>
+                <AppIcon name="Zap" size={20} color={colors.warning} />
+              </View>
+              <View style={styles.cardHeaderText}>
+                <Text style={[styles.cardEyebrow, { color: colors.foregroundMuted }]}>Proxima acao</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>{nextActionTitle}</Text>
+              </View>
+            </View>
+            <Text style={[styles.cardBody, { color: colors.foreground }]}>
+              {nextActionDescription}
+            </Text>
+            <View style={styles.actionHighlights}>
+              <View style={styles.actionHighlight}>
+                <AppIcon name="Check" size={16} color={colors.success} />
+                <Text style={[styles.actionText, { color: colors.muted }]}>
+                  {todayCompletedWorkout ? "Dia contado no streak" : "Loop diario em 30-90 segundos"}
+                </Text>
+              </View>
+              <View style={styles.actionHighlight}>
+                <AppIcon name="Calendar" size={16} color={colors.primary} />
+                <Text style={[styles.actionText, { color: colors.muted }]}>
+                  {last7WorkoutCount} treino{last7WorkoutCount !== 1 ? "s" : ""} nos ultimos 7 dias
+                </Text>
+              </View>
+            </View>
+            <AppButton
+              label={nextActionButtonLabel}
+              onPress={handleNextAction}
+              variant={todayCompletedWorkout && !isPremium ? "secondary" : "brand"}
+            />
+          </Animated.View>
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -385,31 +273,49 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 22,
   },
-  bentoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  stack: {
     gap: spacing.md,
   },
-  feedbackBtn: {
+  card: {
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.xl,
+    gap: spacing.xs,
+  },
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-  },
-  widgetsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.md,
-    width: '100%',
+    marginBottom: spacing.md,
   },
-  widgetHalf: {
-    width: '47.5%', // Aproximadamente metade com gap
+  cardHeaderText: {
+    flex: 1,
+    gap: spacing.md,
   },
-  span2: {
-    width: '100%',
+  cardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardEyebrow: {
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  cardTitle: {
+    fontFamily: typography.family.heading,
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  cardBody: {
+    fontFamily: typography.family.body,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 22,
   },
   mainActionCard: {
     flexDirection: 'row',
@@ -454,68 +360,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
+  statusGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
   },
-  sectionTitle: {
+  statusItem: {
+    width: "47.5%",
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    gap: 4,
+  },
+  statusValue: {
     fontFamily: typography.family.heading,
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 22,
+    fontWeight: "900",
     letterSpacing: -0.5,
   },
-  libraryScroll: {
-    gap: spacing.md,
-    paddingRight: spacing.xl,
-    paddingBottom: spacing.sm,
-  },
-  libraryItem: {
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    alignItems: 'center',
-    minWidth: 118,
-    gap: spacing.sm,
-  },
-  libraryIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  libraryLabel: {
+  statusLabel: {
     fontFamily: typography.family.body,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: -0.2,
-    lineHeight: 16,
-    textAlign: 'center',
   },
-  insightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+  actionHighlights: {
+    gap: spacing.sm,
   },
-  insightIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+  actionHighlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
-  insightText: {
-    flex: 1,
-    fontFamily: typography.family.body,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  feedbackText: {
+  actionText: {
     fontFamily: typography.family.body,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
   },
 });

@@ -49,7 +49,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Inicio",
+          title: "Home",
           tabBarIcon: ({ color }) => <AppIcon name="Home" size={24} color={color} />,
         }}
       />
@@ -61,6 +61,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="statistics"
+        options={{
+          title: "Status",
+          tabBarIcon: ({ color }) => <AppIcon name="BarChart" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="history"
         options={{
           title: "Historico",
@@ -68,10 +75,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="statistics"
+        name="profile"
         options={{
-          title: "Progresso",
-          tabBarIcon: ({ color }) => <AppIcon name="BarChart" size={24} color={color} />,
+          title: "Perfil",
+          tabBarIcon: ({ color }) => <AppIcon name="User" size={24} color={color} />,
         }}
       />
     </Tabs>
