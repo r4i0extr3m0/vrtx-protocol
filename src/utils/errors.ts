@@ -15,8 +15,7 @@ export interface TranslatedError {
 }
 
 /**
- * Traduz erros “crus” (Supabase/HTTP) para mensagens de produto (sem vazamento de abstração).
- * Estética "Engineering Command Center" / "Industrial Premium".
+ * Traduz erros brutos (Supabase/HTTP) para mensagens claras e amigaveis.
  */
 export function translateAuthError(rawMessage: string | undefined): TranslatedError {
   const msg = (rawMessage ?? "").toLowerCase();
@@ -28,8 +27,8 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
   ) {
     return {
       code: "INVALID_EMAIL",
-      title: "COORDENADA_INVÁLIDA",
-      message: "O e-mail informado não é válido. Revise o endereço e tente novamente.",
+      title: "E-mail invalido",
+      message: "O e-mail informado nao parece valido. Revise o endereco e tente novamente.",
     };
   }
 
@@ -40,16 +39,16 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
   ) {
     return {
       code: "INVALID_CREDENTIALS",
-      title: "ACESSO_NEGADO",
-      message: "Acesso negado. Verifique suas coordenadas (E-mail/Senha).",
+      title: "Nao foi possivel entrar",
+      message: "E-mail ou senha incorretos. Confira os dados e tente novamente.",
     };
   }
 
   if (msg.includes("user already registered") || msg.includes("already exists") || msg.includes("user_already_exists")) {
     return {
       code: "USER_ALREADY_EXISTS",
-      title: "CONTA_JÁ_EXISTENTE",
-      message: "Este e-mail já possui cadastro. Entre com sua senha ou use recuperação de acesso.",
+      title: "Conta ja existente",
+      message: "Este e-mail ja esta cadastrado. Entre com sua senha ou recupere o acesso.",
       actionLabel: "Entrar",
     };
   }
@@ -61,7 +60,7 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
   ) {
     return {
       code: "WEAK_PASSWORD",
-      title: "SENHA_INSUFICIENTE",
+      title: "Senha muito fraca",
       message: "Use uma senha mais forte, com pelo menos 6 caracteres.",
     };
   }
@@ -69,8 +68,8 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
   if (msg.includes("rate limit") || msg.includes("too many requests") || msg.includes("429")) {
     return {
       code: "RATE_LIMIT",
-      title: "LIMITE_DE_REQUISIÇÕES",
-      message: "Muitas tentativas detectadas. Sistema em cooldown para proteção da conta.",
+      title: "Muitas tentativas",
+      message: "Voce tentou varias vezes em pouco tempo. Aguarde um momento e tente de novo.",
     };
   }
 
@@ -82,14 +81,14 @@ export function translateAuthError(rawMessage: string | undefined): TranslatedEr
   ) {
     return {
       code: "NETWORK",
-      title: "ERRO_DE_TELEMETRIA",
-      message: "Falha na conexão com o servidor. Verifique seu sinal de rede.",
+      title: "Problema de conexao",
+      message: "Nao foi possivel falar com o servidor. Verifique sua internet e tente novamente.",
     };
   }
 
   return {
     code: "UNKNOWN",
-    title: "ERRO_SISTÊMICO",
-    message: "Ocorreu uma falha inesperada no processamento. Tente novamente.",
+    title: "Algo deu errado",
+    message: "Ocorreu uma falha inesperada. Tente novamente em instantes.",
   };
 }

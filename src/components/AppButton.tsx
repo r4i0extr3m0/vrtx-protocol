@@ -8,7 +8,7 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/src/hooks";
-import { radius, spacing, typography, shadows } from "@/src/theme";
+import { radius, spacing } from "@/src/theme";
 import * as Haptics from "expo-haptics";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);

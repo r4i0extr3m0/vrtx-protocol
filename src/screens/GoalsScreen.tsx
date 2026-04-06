@@ -23,10 +23,13 @@ export function GoalsScreen() {
     const cb = parseInt(carbs, 10) || 0;
     const f = parseInt(fat, 10) || 0;
 
-    if (c <= 0) { Alert.alert("Calorias inválidas"); return; }
+    if (c <= 0) {
+      Alert.alert("Meta invalida", "Defina um valor de calorias maior que zero para continuar.");
+      return;
+    }
 
     setDailyGoals({ calories: c, protein: p, carbs: cb, fat: f });
-    Alert.alert("Metas atualizadas", "Suas novas metas nutricionais foram salvas.");
+    Alert.alert("Metas atualizadas", "Suas metas nutricionais ja foram salvas.");
     router.back();
   };
 
@@ -39,11 +42,13 @@ export function GoalsScreen() {
     <ScreenContainer className="px-5 py-5">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Metas Diárias</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Configure seus objetivos nutricionais diários.</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Metas diarias</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Ajuste seus objetivos do dia para manter a alimentacao alinhada com sua rotina.
+          </Text>
         </View>
 
-        <SectionCard title="Calorias" subtitle="Meta total de energia por dia.">
+        <SectionCard title="Calorias" subtitle="Escolha a meta total de energia que voce quer atingir ao longo do dia.">
           <TextInput
             keyboardType="number-pad"
             onChangeText={setCalories}
@@ -52,9 +57,9 @@ export function GoalsScreen() {
           />
         </SectionCard>
 
-        <SectionCard title="Macronutrientes" subtitle="Distribuição de proteínas, carboidratos e gorduras.">
+        <SectionCard title="Macronutrientes" subtitle="Defina a distribuicao de proteina, carbo e gordura da forma que fizer mais sentido para voce.">
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>Proteína (g)</Text>
+            <Text style={[styles.label, { color: colors.muted }]}>Proteina (g)</Text>
             <TextInput
               keyboardType="number-pad"
               onChangeText={setProtein}
@@ -82,7 +87,7 @@ export function GoalsScreen() {
           </View>
         </SectionCard>
 
-        <AppButton label="Salvar Metas" onPress={handleSave} />
+        <AppButton label="Salvar metas" onPress={handleSave} />
       </ScrollView>
     </ScreenContainer>
   );
@@ -102,6 +107,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: typography.body,
+    lineHeight: 24,
+    fontWeight: "500",
   },
   inputGroup: {
     gap: spacing.xs,
@@ -110,7 +117,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: "700",
-    textTransform: "uppercase",
   },
   input: {
     minHeight: 52,

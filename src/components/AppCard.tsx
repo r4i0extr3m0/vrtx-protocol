@@ -6,8 +6,7 @@ import {
   Pressable, 
   ViewStyle, 
   StyleProp,
-  Platform,
-  useWindowDimensions
+  Platform
 } from 'react-native';
 import Animated, { 
   FadeInDown, 
@@ -16,7 +15,7 @@ import Animated, {
   withSpring 
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/hooks';
-import { radius, spacing, typography, shadows } from '@/src/theme';
+import { radius, spacing, shadows } from '@/src/theme';
 import * as Haptics from 'expo-haptics';
 
 interface AppCardProps {
@@ -32,6 +31,7 @@ interface AppCardProps {
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const supportsHaptics = Platform.OS === 'ios' || Platform.OS === 'android';
 
 export function AppCard({ 
   children, 
@@ -45,7 +45,6 @@ export function AppCard({
   accessibilityHint
 }: AppCardProps) {
   const { colors } = useTheme();
-  const { fontScale } = useWindowDimensions();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -66,7 +65,7 @@ export function AppCard({
 
   const handlePress = () => {
     if (onPress) {
-      if (Platform.OS !== 'web') {
+      if (supportsHaptics) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
       onPress();
@@ -105,7 +104,6 @@ export function AppCard({
                 styles.title, 
                 { 
                   color: colors.foreground,
-                  fontSize: 18 * fontScale
                 }
               ]}
               accessibilityRole="header"
@@ -120,7 +118,6 @@ export function AppCard({
                 styles.subtitle, 
                 { 
                   color: colors.muted,
-                  fontSize: 13 * fontScale
                 }
               ]}
             >
@@ -162,14 +159,18 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.md,
+    gap: spacing.xs,
   },
   title: {
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: -0.5,
+    lineHeight: 24,
   },
   subtitle: {
-    fontWeight: '600',
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 19,
   },
   content: {
     flex: 1,

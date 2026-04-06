@@ -1,20 +1,22 @@
-import { useMemo } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable, Platform } from "react-native";
+import { useMemo, useEffect } from "react";
+import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withSpring,
+  FadeInDown,
+  FadeInUp
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
-import { 
-  ScreenWrapper, 
-  GlassCard, 
-  NeonButton, 
-  ProgressBarGlow, 
-  CircularTimer, 
-  BadgeMetal 
-} from "../components/ui";
+import { ScreenContainer } from "@/components/screen-container";
+import { AppButton } from "@/src/components/AppButton";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
+import { AppCard } from "@/src/components/AppCard";
 import { useTheme } from "@/src/hooks";
 import { useDietStore } from "@/src/store/dietStore";
-import { spacing, typography, radius } from "@/src/theme";
+import { radius, spacing, shadows } from "@/src/theme";
 import * as Haptics from "expo-haptics";
 import { toIsoDate } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
@@ -45,8 +47,16 @@ export function DietLogScreen() {
     );
   }, [todayMeals]);
 
-  const calProgress = Math.min(totals.calories / dailyGoals.calories, 1);
-  const waterProgress = Math.min(waterIntake / 2500, 1);
+  const progressValue = useSharedValue(0);
+  const progress = Math.min(totals.calories / dailyGoals.calories, 1);
+
+  useEffect(() => {
+    progressValue.value = withSpring(progress, { damping: 15, stiffness: 100 });
+  }, [progress, progressValue]);
+
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progressValue.value * 100}%`,
+  }));
 
   const handleAddWater = (amount: number) => {
     addWater(amount);
@@ -55,354 +65,353 @@ export function DietLogScreen() {
   };
 
   return (
-    <ScreenWrapper withSafeArea={false}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScreenContainer className="px-5">
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-          <View>
-            <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-              NUTRIÇÃO_CORE
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.muted, fontFamily: typography.family.mono }]}>
-              STATUS: BALANÇO_CALÓRICO_ATIVO
+          <View style={styles.headerText}>
+            <Text style={[styles.title, { color: colors.foreground }]}>Nutrição</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>
+              Veja sua alimentacao do dia com mais clareza e ajuste o que faltar.
             </Text>
           </View>
-          <BadgeMetal label="BIO_SYNC" variant="metal" />
         </Animated.View>
 
-        {/* AI Scanner Banner */}
-        <Animated.View entering={FadeInUp.delay(200)} style={styles.aiBannerSection}>
+        <Animated.View entering={FadeInUp.delay(200)}>
           <Pressable onPress={() => {
             trackEvent(ANALYTICS_EVENTS.PURCHASE_STARTED, { feature: 'ai_camera' });
             router.push("/camera" as never);
           }}>
-            <GlassCard style={styles.aiCard} intensity={40}>
+            <LinearGradient
+              colors={colors.brandGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.aiBanner, shadows.card]}
+            >
               <View style={styles.aiInfo}>
-                <BadgeMetal label="IA_RECOGNITION" variant="primary" style={styles.aiBadge} />
-                <Text style={[styles.aiTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                  RECONHECIMENTO_VISUAL
-                </Text>
-                <Text style={[styles.aiDesc, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                  ANALISE_MACROS_VIA_HARDWARE_ÓPTICO
-                </Text>
+                <Text style={styles.aiTitle}>Escanear refeicao</Text>
+                <Text style={styles.aiDesc}>Tire uma foto e receba uma estimativa rapida da sua refeicao.</Text>
               </View>
-              <View style={[styles.aiIconWrapper, { backgroundColor: colors.primary }]}>
+              <View style={styles.aiIconWrapper}>
                 <AppIcon name="Camera" size={24} color="#000" strokeWidth={2.5} />
               </View>
-            </GlassCard>
+            </LinearGradient>
           </Pressable>
         </Animated.View>
 
-        {/* Main Stats Card */}
-        <GlassCard style={styles.mainStatsCard} intensity={20}>
-          <View style={styles.statsHeader}>
-            <Text style={[styles.statsTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-              RESUMO_CALÓRICO
-            </Text>
-            <Text style={[styles.statsValue, { color: colors.primary, fontFamily: typography.family.mono }]}>
-              {totals.calories} / {dailyGoals.calories} KCAL
-            </Text>
+        <AppCard 
+          title="Resumo do dia" 
+          subtitle={`${totals.calories} / ${dailyGoals.calories} kcal`}
+          delay={300}
+        >
+          <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceAlt }]}>
+            <Animated.View style={[styles.progressBarFill, animatedProgressStyle]}>
+              <LinearGradient
+                colors={colors.brandGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
           </View>
-          
-          <ProgressBarGlow progress={calProgress} height={10} color={colors.primary} glow style={styles.mainProgress} />
           
           <View style={styles.macroRow}>
             {[
-              { label: "PROT", value: totals.protein, target: dailyGoals.protein, color: colors.primary, icon: "Beef" as IconName },
-              { label: "CARB", value: totals.carbs, target: dailyGoals.carbs, color: "#F59E0B", icon: "Wheat" as IconName },
-              { label: "GORD", value: totals.fat, target: dailyGoals.fat, color: "#EF4444", icon: "Droplets" as IconName },
+              { label: "Proteina", value: totals.protein, target: dailyGoals.protein, color: colors.primary, icon: "Beef" as IconName },
+              { label: "Carbo", value: totals.carbs, target: dailyGoals.carbs, color: colors.warning, icon: "Wheat" as IconName },
+              { label: "Gordura", value: totals.fat, target: dailyGoals.fat, color: colors.error, icon: "Droplets" as IconName },
             ].map((macro) => (
               <View key={macro.label} style={styles.macroItem}>
-                <View style={[styles.macroIconWrapper, { backgroundColor: macro.color + '15' }]}>
+                <View style={[styles.macroIconWrapper, { backgroundColor: macro.color + '10' }]}>
                    <AppIcon name={macro.icon} size={14} color={macro.color} />
                 </View>
-                <Text style={[styles.macroValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>{macro.value}G</Text>
-                <Text style={[styles.macroLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>{macro.label}</Text>
-                <ProgressBarGlow progress={Math.min(macro.value / macro.target, 1)} height={4} color={macro.color} glow={false} />
+                <Text style={[styles.macroValue, { color: colors.foreground }]}>{macro.value}g</Text>
+                <Text style={[styles.macroLabel, { color: colors.muted }]}>{macro.label}</Text>
               </View>
             ))}
           </View>
-        </GlassCard>
+        </AppCard>
 
-        {/* Water Intake Section */}
-        <View style={styles.waterSection}>
-          <GlassCard style={styles.waterCard} intensity={15}>
-            <View style={styles.waterHeader}>
-              <View>
-                <Text style={[styles.waterTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>HIDRATAÇÃO</Text>
-                <Text style={[styles.waterMeta, { color: colors.muted, fontFamily: typography.family.mono }]}>META: 2500ML</Text>
-              </View>
-              <AppIcon name="Droplets" size={24} color={colors.primary} />
-            </View>
-            
+        <Animated.View entering={FadeInDown.delay(400)}>
+          <AppCard title="Hidratacao" subtitle="Meta do dia: 2500 ml">
             <View style={styles.waterContent}>
-              <CircularTimer 
-                progress={waterProgress} 
-                label={`${waterIntake}`} 
-                subLabel="ML" 
-                size={120} 
-                strokeWidth={8} 
-                color={colors.primary}
-              />
+              <View style={styles.waterMain}>
+                <View style={[styles.waterIconWrapper, { backgroundColor: colors.info + '15' }]}>
+                  <AppIcon name="Droplets" size={24} color={colors.info} />
+                </View>
+                <Text style={[styles.waterValueText, { color: colors.foreground }]}>{waterIntake}ml</Text>
+              </View>
               <View style={styles.waterActions}>
-                <NeonButton label="+200" onPress={() => handleAddWater(200)} variant="glass" style={styles.waterBtn} />
-                <NeonButton label="+500" onPress={() => handleAddWater(500)} variant="glass" style={styles.waterBtn} />
+                <Pressable onPress={() => handleAddWater(200)} style={[styles.waterBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                  <Text style={[styles.waterBtnText, { color: colors.primary }]}>+200</Text>
+                </Pressable>
+                <Pressable onPress={() => handleAddWater(500)} style={[styles.waterBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                  <Text style={[styles.waterBtnText, { color: colors.primary }]}>+500</Text>
+                </Pressable>
               </View>
             </View>
-          </GlassCard>
-        </View>
+          </AppCard>
+        </Animated.View>
 
-        {/* Meals List */}
         <View style={styles.mealsHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: typography.family.mono }]}>
-            LOGS_DE_REFEIÇÃO
-          </Text>
-          <NeonButton 
-            label="+ ADICIONAR" 
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Refeicoes</Text>
+          <AppButton 
+            label="Adicionar" 
             onPress={() => router.push("/diet/add-meal" as never)} 
-            variant="glass" 
+            variant="secondary" 
             style={styles.addBtn} 
           />
         </View>
 
         {todayMeals.length === 0 ? (
-          <GlassCard style={styles.emptyCard} intensity={10}>
-            <AppIcon name="Utensils" size={32} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted, fontFamily: typography.family.mono }]}>
-              NENHUM_REGISTRO_DETECTADO_HOJE
-            </Text>
-          </GlassCard>
+          <Animated.View entering={FadeInDown.delay(500)} style={styles.emptyContainer}>
+            <View style={[styles.emptyIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
+              <AppIcon name="Utensils" size={32} color={colors.muted} />
+            </View>
+            <Text style={[styles.empty, { color: colors.muted }]}>Nenhuma refeicao registrada hoje.</Text>
+          </Animated.View>
         ) : (
           todayMeals.map((meal, index) => (
             <Animated.View key={meal.id} entering={FadeInDown.delay(500 + index * 100)}>
-              <GlassCard style={styles.mealCard} intensity={15}>
-                <View style={[styles.mealIconWrapper, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-                  <AppIcon name={MEAL_ICONS[meal.mealType] || "Utensils"} size={20} color={colors.primary} />
+              <Pressable 
+                style={[styles.mealCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+              >
+                <View style={[styles.mealIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
+                  <AppIcon name={MEAL_ICONS[meal.mealType] || "Utensils"} size={22} color={colors.primary} />
                 </View>
                 <View style={styles.mealInfo}>
-                  <Text style={[styles.mealType, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                    {meal.mealType.toUpperCase()}
+                  <Text style={[styles.mealType, { color: colors.foreground }]}>
+                    {meal.mealType === "breakfast" ? "Cafe da manha" : 
+                     meal.mealType === "lunch" ? "Almoço" : 
+                     meal.mealType === "dinner" ? "Jantar" : "Lanche"}
                   </Text>
-                  <Text style={[styles.mealMeta, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                    {meal.items.length} ITENS_REGISTRADOS
+                  <Text style={[styles.mealMeta, { color: colors.muted }]}>
+                    {meal.items.length} item{meal.items.length !== 1 ? "s" : ""} registrado{meal.items.length !== 1 ? "s" : ""}
                   </Text>
                 </View>
                 <View style={styles.mealCaloriesWrapper}>
-                  <Text style={[styles.mealCalories, { color: colors.primary, fontFamily: typography.family.mono }]}>
-                    {meal.totalCalories}
-                  </Text>
-                  <Text style={[styles.mealUnit, { color: colors.muted, fontFamily: typography.family.mono }]}>KCAL</Text>
+                  <Text style={[styles.mealCalories, { color: colors.primary }]}>{meal.totalCalories}</Text>
+                  <Text style={[styles.mealUnit, { color: colors.muted }]}>kcal</Text>
                 </View>
-              </GlassCard>
+              </Pressable>
             </Animated.View>
           ))
         )}
 
-        <NeonButton 
-          label="CONFIGURAR_METAS_MACROS" 
+        <AppButton 
+          label="Ajustar metas" 
           onPress={() => router.push("/diet/goals" as never)} 
           variant="ghost" 
-          style={styles.goalsBtn}
+          style={{ marginTop: spacing.md }}
         />
       </ScrollView>
-    </ScreenWrapper>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    gap: 20,
+  content: {
+    gap: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.md,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.xs,
+  },
+  headerText: {
+    gap: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -1.5,
   },
   subtitle: {
-    fontSize: 9,
-    letterSpacing: 1,
-    opacity: 0.6,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 21,
   },
-  aiBannerSection: {
-    marginBottom: 10,
-  },
-  aiCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
+  aiBanner: {
+    flexDirection: "row",
+    padding: spacing.xl,
+    borderRadius: radius.xxl,
+    alignItems: "center",
+    gap: spacing.md,
   },
   aiInfo: {
     flex: 1,
-  },
-  aiBadge: {
-    marginBottom: 8,
+    gap: 4,
   },
   aiTitle: {
-    fontSize: 18,
+    color: "#000",
+    fontSize: 22,
     fontWeight: "900",
+    letterSpacing: -0.5,
   },
   aiDesc: {
-    fontSize: 9,
-    letterSpacing: 1,
-    opacity: 0.6,
+    color: "rgba(0,0,0,0.6)",
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
   },
   aiIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(0,0,0,0.1)",
     justifyContent: "center",
     alignItems: "center",
   },
-  mainStatsCard: {
-    padding: 20,
+  progressBarBg: {
+    height: 12,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginVertical: spacing.sm,
   },
-  statsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  statsTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  statsValue: {
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  mainProgress: {
-    marginBottom: 24,
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 6,
   },
   macroRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 12,
+    marginTop: spacing.md,
   },
   macroItem: {
+    alignItems: "center",
     flex: 1,
-    gap: 6,
+    gap: 4,
   },
   macroIconWrapper: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   macroValue: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "900",
+    letterSpacing: -0.5,
   },
   macroLabel: {
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  waterSection: {
-    marginBottom: 10,
-  },
-  waterCard: {
-    padding: 20,
-  },
-  waterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  waterTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  waterMeta: {
-    fontSize: 9,
-    opacity: 0.5,
+    fontSize: 11,
+    fontWeight: "700",
   },
   waterContent: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'space-around',
+  },
+  waterMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  waterIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waterValueText: {
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
   waterActions: {
-    gap: 12,
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   waterBtn: {
-    minWidth: 80,
-    minHeight: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  waterBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   mealsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: spacing.md,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    opacity: 0.5,
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.5,
   },
   addBtn: {
-    minHeight: 36,
-    paddingHorizontal: 12,
-  },
-  emptyCard: {
-    padding: 40,
-    alignItems: 'center',
-    gap: 16,
-  },
-  emptyText: {
-    fontSize: 10,
-    textAlign: 'center',
-    opacity: 0.5,
-  },
-  mealCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginBottom: 12,
-  },
-  mealIconWrapper: {
-    width: 40,
-    height: 40,
+    minHeight: 40,
+    paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: spacing.xxl,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    borderStyle: "dashed",
+    gap: spacing.md,
+  },
+  emptyIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+  },
+  empty: {
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 22,
+  },
+  mealCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  mealIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: spacing.md,
   },
   mealInfo: {
     flex: 1,
+    gap: 2,
   },
   mealType: {
-    fontSize: 14,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
   mealMeta: {
-    fontSize: 9,
-    opacity: 0.5,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
   },
   mealCaloriesWrapper: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   mealCalories: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: "900",
   },
   mealUnit: {
-    fontSize: 8,
-    opacity: 0.5,
-  },
-  goalsBtn: {
-    marginTop: 10,
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

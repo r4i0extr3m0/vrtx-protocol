@@ -6,8 +6,7 @@ import {
   ActivityIndicator, 
   View,
   ViewStyle, 
-  TextStyle,
-  Platform
+  TextStyle
 } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 

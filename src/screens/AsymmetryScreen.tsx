@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, ScrollView, TextInput, Pressable } from "react-native";
-import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
+import { StyleSheet, Text, View, ScrollView, TextInput } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { SectionCard } from "@/src/components/SectionCard";
@@ -41,7 +41,7 @@ export function AsymmetryScreen() {
   const renderMeasurementRow = (label: string, key: keyof BodyMeasurements, isPair: boolean = true) => {
     if (!isPair) return null;
     const m = measurements[key] as Measurement;
-    const { diff, percent } = calculateDiff(m);
+    const { percent } = calculateDiff(m);
     const isAsymmetric = parseFloat(percent) > 2;
 
     return (

@@ -1,10 +1,4 @@
-import { 
-  withSpring, 
-  withTiming, 
-  Easing,
-  WithSpringConfig,
-  WithTimingConfig
-} from "react-native-reanimated";
+import { Easing, WithSpringConfig, WithTimingConfig } from "react-native-reanimated";
 
 /**
  * VRTX Protocol Animation Presets

@@ -22,7 +22,7 @@ export function createExerciseSet(partial?: Partial<ExerciseSet>): ExerciseSet {
 export function createExerciseEntry(partial?: Partial<ExerciseEntry>): ExerciseEntry {
   return {
     id: partial?.id ?? createId("exercise"),
-    name: partial?.name ?? "NOVO_EXERCÍCIO",
+    name: partial?.name ?? "Novo exercicio",
     muscleGroup: partial?.muscleGroup ?? "Geral",
     sets: partial?.sets ?? [createExerciseSet()],
     notes: partial?.notes,
@@ -35,7 +35,7 @@ export function createWorkoutDraft(partial?: Partial<Workout>): Workout {
   return {
     id: partial?.id ?? createId("workout"),
     userId: partial?.userId,
-    name: partial?.name ?? "PROTOCOLO_DE_EXECUÇÃO",
+    name: partial?.name ?? "Novo treino",
     date: partial?.date ?? toIsoDate(now),
     startedAt: partial?.startedAt ?? toIsoTimestamp(now),
     completedAt: partial?.completedAt,

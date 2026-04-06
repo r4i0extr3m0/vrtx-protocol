@@ -104,7 +104,6 @@ O projeto utiliza **Expo Router** com estrutura baseada em arquivos.
 
 - `login`;
 - `signup-wizard`;
-- `email-pending`;
 - `forgot-password`;
 - `terms-and-privacy`;
 - `camera`;

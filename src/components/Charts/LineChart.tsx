@@ -32,8 +32,8 @@ export function LineChart({ data, title, unit = "", height = 200, color }: LineC
   const tooltipY = useSharedValue(0);
   const tooltipOpacity = useSharedValue(0);
 
-  const { min, max, points } = useMemo(() => {
-    if (!data || data.length === 0) return { min: 0, max: 0, points: [] };
+  const { points } = useMemo(() => {
+    if (!data || data.length === 0) return { points: [] };
     
     const values = data.map(d => d.value);
     const minVal = Math.min(...values) * 0.9;
@@ -46,7 +46,7 @@ export function LineChart({ data, title, unit = "", height = 200, color }: LineC
       return { x, y, value: d.value, label: d.label };
     });
 
-    return { min: minVal, max: maxVal, points: pts };
+    return { points: pts };
   }, [data, chartWidth, height]);
 
   const pathData = useMemo(() => {
@@ -78,7 +78,7 @@ export function LineChart({ data, title, unit = "", height = 200, color }: LineC
       setActiveIndex(null);
       tooltipOpacity.value = withSpring(0);
     }
-  }), [points, chartWidth, data, activeIndex]);
+  }), [activeIndex, chartWidth, data, padding, points, tooltipOpacity, tooltipX, tooltipY]);
 
   const animatedTooltipStyle = useAnimatedStyle(() => ({
     position: "absolute",

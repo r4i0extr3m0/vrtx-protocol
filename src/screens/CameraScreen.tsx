@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { 
   StyleSheet, 
   Text, 
@@ -17,7 +17,7 @@ import { SectionCard } from "@/src/components/SectionCard";
 import { useTheme } from "@/src/hooks";
 import { recognizeFood, FoodRecognitionResult } from "@/src/services/foodRecognition";
 import { useDietStore } from "@/src/store/dietStore";
-import { radius, spacing, typography } from "@/src/theme";
+import { radius, spacing } from "@/src/theme";
 import { toIsoDate } from "@/src/utils";
 
 export function CameraScreen() {
@@ -42,8 +42,8 @@ export function CameraScreen() {
     try {
       const data = await recognizeFood(capturedImage);
       setResults(data);
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível analisar a imagem agora.");
+    } catch {
+      Alert.alert("Nao foi possivel analisar", "Tente novamente em instantes ou escolha outra foto.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -73,10 +73,10 @@ export function CameraScreen() {
       totalProtein,
       totalCarbs,
       totalFat,
-      notes: "Adicionado via IA de Reconhecimento",
+      notes: "Registrado com ajuda da camera inteligente",
     });
 
-    Alert.alert("Sucesso", "Refeição adicionada à sua dieta!", [
+    Alert.alert("Refeicao salva", "Os alimentos identificados ja foram adicionados ao seu diario.", [
       { text: "OK", onPress: () => router.replace("/diet" as never) }
     ]);
   };
@@ -89,7 +89,7 @@ export function CameraScreen() {
           <Pressable onPress={() => router.back()} style={styles.closeBtn}>
             <Text style={{ color: "#fff", fontSize: 24 }}>✕</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>IA de Alimentos</Text>
+          <Text style={styles.headerTitle}>Camera inteligente</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -98,9 +98,9 @@ export function CameraScreen() {
             <Animated.View entering={ZoomIn} style={styles.cameraCircle}>
               <Text style={{ fontSize: 48 }}>📸</Text>
             </Animated.View>
-            <Text style={styles.placeholderText}>Aponte para sua refeição</Text>
+            <Text style={styles.placeholderText}>Fotografe sua refeicao para estimar os alimentos com mais rapidez.</Text>
             <AppButton 
-              label="Tirar Foto (Simular)" 
+              label="Usar foto de exemplo" 
               onPress={simulateCapture} 
               style={styles.captureBtn}
             />
@@ -116,28 +116,28 @@ export function CameraScreen() {
 
             {!results && !isAnalyzing && (
               <Animated.View entering={FadeInDown} style={styles.actionBox}>
-                <Text style={styles.actionTitle}>Imagem Capturada!</Text>
-                <Text style={styles.actionDesc}>Clique abaixo para identificar os alimentos e macros automaticamente.</Text>
-                <AppButton label="Analisar com IA" onPress={handleRecognize} />
+                <Text style={styles.actionTitle}>Foto pronta</Text>
+                <Text style={styles.actionDesc}>Analise a imagem para sugerir alimentos, calorias e macros automaticamente.</Text>
+                <AppButton label="Analisar foto" onPress={handleRecognize} />
               </Animated.View>
             )}
 
             {isAnalyzing && (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: "#fff" }]}>Analisando sua refeição...</Text>
+                <Text style={[styles.loadingText, { color: "#fff" }]}>Analisando sua refeicao...</Text>
               </View>
             )}
 
             {results && (
               <Animated.View entering={FadeInDown} style={styles.resultsContainer}>
-                <SectionCard title="Alimentos Detectados" subtitle="Resultados da análise visual">
+                <SectionCard title="Alimentos encontrados" subtitle="Veja a estimativa da analise antes de salvar.">
                   {results.foods.map((food, index) => (
                     <View key={index} style={[styles.resultItem, { borderBottomColor: colors.border }]}>
                       <View style={styles.resultMain}>
                         <Text style={[styles.foodName, { color: colors.foreground }]}>{food.name}</Text>
                         <Text style={[styles.confidence, { color: colors.success }]}>
-                          {Math.round(food.confidence * 100)}% de confiança
+                          {Math.round(food.confidence * 100)}% de confianca
                         </Text>
                       </View>
                       <Text style={[styles.foodCalories, { color: colors.primary }]}>
@@ -147,14 +147,14 @@ export function CameraScreen() {
                   ))}
                   
                   <View style={styles.totalBox}>
-                    <Text style={[styles.totalLabel, { color: colors.muted }]}>Total Estimado</Text>
+                    <Text style={[styles.totalLabel, { color: colors.muted }]}>Total estimado</Text>
                     <Text style={[styles.totalValue, { color: colors.foreground }]}>
                       {results.foods.reduce((acc, f) => acc + f.calories, 0)} kcal
                     </Text>
                   </View>
 
                   <AppButton 
-                    label="Confirmar e Adicionar" 
+                    label="Salvar refeicao" 
                     onPress={handleAddMeal} 
                     variant="success"
                     style={{ marginTop: spacing.md }}
@@ -184,6 +184,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "900",
+    letterSpacing: -0.3,
   },
   closeBtn: {
     width: 40,
@@ -209,8 +210,11 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: "rgba(255,255,255,0.6)",
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "500",
+    lineHeight: 24,
+    textAlign: "center",
+    paddingHorizontal: spacing.xl,
   },
   captureBtn: {
     minWidth: 200,
@@ -260,7 +264,7 @@ const styles = StyleSheet.create({
   actionDesc: {
     color: "rgba(255,255,255,0.6)",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
     marginBottom: spacing.md,
   },
   loadingBox: {
@@ -291,9 +295,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   confidence: {
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    fontSize: 12,
+    fontWeight: "600",
   },
   foodCalories: {
     fontSize: 18,
@@ -309,7 +312,6 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 14,
     fontWeight: "700",
-    textTransform: "uppercase",
   },
   totalValue: {
     fontSize: 22,

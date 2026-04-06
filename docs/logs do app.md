@@ -87,8 +87,6 @@ Leitura:
 ### Autenticacao
 
 - `useAuth` passou a expor `updateProfile`.
-- `authStore.signUp()` passou a retornar `requiresEmailConfirmation`.
-- `AuthScreen` passou a encaminhar corretamente para `email-pending` quando a conta exige confirmacao.
 - `SignupWizardScreen` recebeu tratamento de loading e erro no update de perfil.
 
 ### Interface

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ActivityIndicator, Platform } from "react-native";
+import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import type { ReactNode } from "react";
 import Animated, { 
   FadeInDown, 
@@ -7,7 +7,7 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/src/hooks";
-import { radius, spacing, typography, shadows } from "@/src/theme";
+import { radius, spacing, typography } from "@/src/theme";
 import { AppIcon, IconName } from "./AppIcon";
 
 interface SectionCardProps {
@@ -67,10 +67,10 @@ export function SectionCard({
               <AppIcon name={icon} size={12} color={colors.primary} strokeWidth={2.5} />
             </View>
           )}
-          <Text style={[styles.title, { color: colors.foreground }]}>{title.toUpperCase()}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
         </View>
         {subtitle ? (
-          <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle.toUpperCase()}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text>
         ) : null}
       </View>
 
@@ -78,12 +78,12 @@ export function SectionCard({
         {loading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator color={colors.primary} size="small" />
-            <Text style={[styles.loadingText, { color: colors.muted }]}>PROCESSANDO_DADOS...</Text>
+            <Text style={[styles.loadingText, { color: colors.muted }]}>Carregando...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContent}>
             <AppIcon name="AlertTriangle" size={20} color={colors.error} />
-            <Text style={[styles.errorText, { color: colors.error }]}>{error.toUpperCase()}</Text>
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
         ) : (
           children
@@ -117,16 +117,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 12,
+    fontFamily: typography.family.heading,
+    fontSize: 16,
     fontWeight: "900",
-    letterSpacing: 1,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 18,
   },
   content: {
     minHeight: 40,
@@ -139,14 +139,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 9,
+    fontFamily: typography.family.body,
+    fontSize: 12,
     fontWeight: "800",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   errorText: {
-    fontSize: 10,
+    fontFamily: typography.family.body,
+    fontSize: 12,
     fontWeight: "800",
     textAlign: 'center',
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    lineHeight: 18,
   },
 });

@@ -1,44 +1,35 @@
 import "../global.css";
 import * as Sentry from "@sentry/react-native";
-import { PostHogProvider } from "posthog-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
-import {
-  SafeAreaFrameContext,
-  SafeAreaInsetsContext,
-  SafeAreaProvider,
-  initialWindowMetrics,
-} from "react-native-safe-area-context";
-import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
-import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { getAuthRedirect } from "@/src/navigation/authGate";
-import { hasSupabaseEnv } from "@/src/constants/env";
 import { initializeMMKV } from "@/src/infra/mmkv";
 import { useAuth } from "@/src/hooks";
-import { spacing } from "@/src/theme";
 import { initMonitoring } from "@/src/services/monitoring";
 import { identifyUser } from "@/src/services/analytics";
 import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/services/revenuecat";
 
 // Storybook Integration
 const SHOW_STORYBOOK = process.env.EXPO_PUBLIC_STORYBOOK === "true";
-let StorybookUIRoot: any = null;
-if (SHOW_STORYBOOK) {
-  StorybookUIRoot = require("../.storybook").default;
-}
-
-const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
-const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
+const StorybookUIRoot = SHOW_STORYBOOK
+  ? lazy(async () => {
+      const module = await import("../.storybook");
+      return {
+        default: module.default ?? (() => null),
+      };
+    })
+  : null;
 
 // Inicializa Sentry
 initMonitoring();
@@ -50,7 +41,7 @@ export const unstable_settings = {
 };
 
 function AuthGate() {
-  const { status, isAuthenticated, user, hasHydrated, hydrateAuth, setGuestMode } = useAuth();
+  const { status, isAuthenticated, user, hasHydrated, hydrateAuth } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [bootCompleted, setBootCompleted] = useState(false);
@@ -60,18 +51,6 @@ function AuthGate() {
     void configureRevenueCat();
 
     let isMounted = true;
-
-    if (!hasSupabaseEnv()) {
-      console.log("[AuthGate] Supabase não configurado -> guest mode");
-      setGuestMode();
-      if (isMounted) {
-        setBootCompleted(true);
-      }
-      void SplashScreen.hideAsync();
-      return () => {
-        isMounted = false;
-      };
-    }
 
     const hydrationTimeout = setTimeout(() => {
       console.warn("[AuthGate] hydrateAuth timeout após 6s");
@@ -97,7 +76,7 @@ function AuthGate() {
       isMounted = false;
       clearTimeout(hydrationTimeout);
     };
-  }, [hydrateAuth, setGuestMode]);
+  }, [hydrateAuth]);
 
   // Analytics: Identificar usuário quando autenticado
   useEffect(() => {
@@ -157,27 +136,6 @@ function AuthGate() {
 }
 
 function RootLayout() {
-  const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
-  const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
-
-  const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
-  const [frame, setFrame] = useState<Rect>(initialFrame);
-
-  useEffect(() => {
-    initManusRuntime();
-  }, []);
-
-  const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
-    setInsets(metrics.insets);
-    setFrame(metrics.frame);
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    const unsubscribe = subscribeSafeAreaInsets(handleSafeAreaUpdate);
-    return () => unsubscribe();
-  }, [handleSafeAreaUpdate]);
-
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -192,7 +150,8 @@ function RootLayout() {
   const [trpcClient] = useState(() => createTRPCClient());
 
   const providerInitialMetrics = useMemo(() => {
-    const metrics = initialWindowMetrics ?? { insets: initialInsets, frame: initialFrame };
+    const metrics = initialWindowMetrics;
+    if (!metrics) return undefined;
     return {
       ...metrics,
       insets: {
@@ -201,49 +160,28 @@ function RootLayout() {
         bottom: Math.max(metrics.insets.bottom, 12),
       },
     };
-  }, [initialInsets, initialFrame]);
-
-  const posthogApiKey = process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
-  const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
-  const shouldEnablePostHog = Platform.OS === "web" && Boolean(posthogApiKey);
+  }, []);
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          {SHOW_STORYBOOK ? <StorybookUIRoot /> : <AuthGate />}
+          {SHOW_STORYBOOK && StorybookUIRoot ? (
+            <Suspense fallback={null}>
+              <StorybookUIRoot />
+            </Suspense>
+          ) : (
+            <AuthGate />
+          )}
           <StatusBar style="light" />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>
   );
 
-  const wrappedContent = shouldEnablePostHog ? (
-    <PostHogProvider
-      apiKey={posthogApiKey!}
-      options={{ host: posthogHost || "https://us.i.posthog.com" }}
-    >
-      {content}
-    </PostHogProvider>
-  ) : (
-    content
-  );
-
-  if (Platform.OS === "web") {
-    return (
-      <ThemeProvider>
-        <SafeAreaProvider initialMetrics={providerInitialMetrics}>
-          <SafeAreaFrameContext.Provider value={frame}>
-            <SafeAreaInsetsContext.Provider value={insets}>{wrappedContent}</SafeAreaInsetsContext.Provider>
-          </SafeAreaFrameContext.Provider>
-        </SafeAreaProvider>
-      </ThemeProvider>
-    );
-  }
-
   return (
     <ThemeProvider>
-      <SafeAreaProvider initialMetrics={providerInitialMetrics}>{wrappedContent}</SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
     </ThemeProvider>
   );
 }

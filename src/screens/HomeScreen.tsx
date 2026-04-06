@@ -1,46 +1,56 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable, Dimensions } from "react-native";
+import { ScrollView, StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
 
-import { 
-  ScreenWrapper, 
-  GlassCard, 
-  NeonButton, 
-  BadgeMetal, 
-  ProgressBarGlow 
-} from "../components/ui";
-import { AppIcon } from "@/src/components/AppIcon";
+import { ScreenContainer } from "@/components/screen-container";
+import { AppButton } from "@/src/components/AppButton";
+import { MetricCard } from "@/src/components/MetricCard";
+import { SectionCard } from "@/src/components/SectionCard";
+import { SyncStatusPill } from "@/src/components/SyncStatusPill";
+import { AppIcon, IconName } from "@/src/components/AppIcon";
 import { useWorkout, useTheme } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
-import { typography } from "@/src/theme";
+import { spacing, typography, radius, shadows } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
-import { fetchAIRecommendations } from "@/src/services/AIInsights";
+import { LinearGradient } from "expo-linear-gradient";
+import { useDashboardStore, WidgetConfig } from "@/src/store/dashboardStore";
+import { HapticFeedback } from "@/src/services/haptics";
+import { useDietStore } from "@/src/store/dietStore";
+import { fetchAIRecommendations, sendAIFeedback, translateAIError, AIApiError } from "@/src/services/AIInsights";
+import type { AIAnalyzeResponse, FitnessObjective, TrainingLevel } from "@/src/types/ai";
 import { useAuthStore } from "@/src/store/authStore";
-import * as Haptics from "expo-haptics";
-
-const { width } = Dimensions.get("window");
+import { usePremiumStore } from "@/src/store/premiumStore";
 
 export function HomeScreen() {
   const { colors } = useTheme();
   const { workouts, createWorkout } = useWorkout();
+  const { widgets } = useDashboardStore();
+  const meals = useDietStore((s) => s.meals);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const refreshAIUsage = usePremiumStore((s) => s.refreshAIUsage);
   
   const latestWorkout = workouts[0] ?? null;
   const summary = latestWorkout ? summarizeWorkout(latestWorkout) : null;
 
+  const [objective] = useState<FitnessObjective>("hypertrophy");
+  const [level] = useState<TrainingLevel>("intermediate");
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiData, setAiData] = useState<any>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiData, setAiData] = useState<AIAnalyzeResponse | null>(null);
+  const [aiFeedback, setAiFeedback] = useState<-1 | 0 | 1>(0);
 
   const last7Summary = useMemo(() => {
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
     const lastWorkouts = workouts.filter((w) => {
       const ts = Date.parse(w.startedAt || w.date);
       return Number.isFinite(ts) && ts >= sevenDaysAgo;
     });
+
     const totalVolumeKg = lastWorkouts.reduce((acc, w) => {
       const workoutVolume = w.exercises.reduce((wAcc, ex) => {
         const exVol = ex.sets.reduce((sAcc, set) => sAcc + set.reps * set.weightKg, 0);
@@ -48,348 +58,464 @@ export function HomeScreen() {
       }, 0);
       return acc + workoutVolume;
     }, 0);
-    return { workoutCount: lastWorkouts.length, totalVolumeKg };
-  }, [workouts]);
+
+    const lastMeals = meals.filter((m) => Date.parse(m.createdAt) >= sevenDaysAgo);
+    const caloriesAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalCalories, 0) / 7);
+    const proteinGAvg = Math.round(lastMeals.reduce((acc, m) => acc + m.totalProtein, 0) / 7);
+
+    return {
+      workoutCount: lastWorkouts.length,
+      totalVolumeKg,
+      caloriesAvg: Number.isFinite(caloriesAvg) ? caloriesAvg : undefined,
+      proteinGAvg: Number.isFinite(proteinGAvg) ? proteinGAvg : undefined,
+    };
+  }, [meals, workouts]);
 
   useEffect(() => {
+    let cancelled = false;
     const run = async () => {
-      if (!latestWorkout || !isAuthenticated || !userId) return;
+      // só tenta buscar quando há pelo menos algum dado
+      if (workouts.length === 0 && meals.length === 0) return;
+      if (!isAuthenticated || !userId) return;
+
+      // Atualiza uso (server-side) e faz gate antes de chamar /analyze
+      await refreshAIUsage(userId);
+      const latestUsage = usePremiumStore.getState().aiUsage;
+      const remaining = latestUsage?.analyze?.remaining ?? null;
+      const isPremium = latestUsage?.is_premium ?? false;
+      if (!isPremium && remaining !== null && remaining <= 0) {
+        setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
+        return;
+      }
+
       setAiLoading(true);
+      setAiError(null);
       try {
         const res = await fetchAIRecommendations({
           userId,
-          objective: "hypertrophy",
-          level: "intermediate",
+          objective,
+          level,
           last7Days: last7Summary,
         });
-        setAiData(res);
+        if (!cancelled) setAiData(res);
       } catch (e) {
-        console.error(e);
+        if (cancelled) return;
+        if (e instanceof AIApiError && e.status === 403 && e.code === "daily_limit") {
+          setAiError("Limite diário de IA atingido. Assine o Premium para continuar.");
+          return;
+        }
+        setAiError(translateAIError(e).message);
       } finally {
-        setAiLoading(false);
+        if (!cancelled) setAiLoading(false);
       }
     };
     void run();
-  }, [isAuthenticated, last7Summary, latestWorkout, userId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [level, meals.length, objective, workouts.length, last7Summary, isAuthenticated, refreshAIUsage, userId]);
 
   const handleNewWorkout = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const draft = createWorkout("Protocolo de Execução");
+    const draft = createWorkout("Treino rápido");
     trackEvent(ANALYTICS_EVENTS.WORKOUT_STARTED, { workout_id: draft.id });
     router.push({ pathname: "/workout/[id]", params: { id: draft.id } } as never);
   };
 
+  const renderWidget = (widget: WidgetConfig, index: number) => {
+    if (!widget.visible) return null;
+
+    switch (widget.type) {
+      case 'volume':
+        return (
+          <MetricCard 
+            key={widget.id}
+            label="Volume Total" 
+            value={summary ? formatVolume(summary.totalVolume) : "0 kg"} 
+            icon="Dumbbell"
+            trend="+12%" 
+            delay={300 + index * 100} 
+          />
+        );
+      case 'streak':
+        return (
+          <MetricCard 
+            key={widget.id}
+            label="Streak" 
+            value="7" 
+            icon="Flame"
+            hint="dias seguidos" 
+            color={colors.warning}
+            delay={300 + index * 100} 
+          />
+        );
+      case 'pr':
+        return (
+          <MetricCard 
+            key={widget.id}
+            label="1RM Máximo" 
+            value={summary ? `${summary.bestOneRM.toFixed(1)} kg` : "0 kg"} 
+            icon="Trophy"
+            hint="Supino Reto" 
+            delay={300 + index * 100} 
+          />
+        );
+      case 'sessions':
+        return (
+          <MetricCard 
+            key={widget.id}
+            label="Sessões" 
+            value={String(workouts.length)} 
+            icon="Calendar"
+            hint="Total histórico" 
+            delay={300 + index * 100} 
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <ScreenWrapper withSafeArea={false}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-      >
+    <ScreenContainer className="px-5">
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-          <View>
-            <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-              VRTX_COMMAND_CENTER
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.muted, fontFamily: typography.family.mono }]}>
-              STATUS: OPERACIONAL // OPERADOR: {userId?.slice(0, 8).toUpperCase()}
+          <View style={styles.headerText}>
+            <Text style={[styles.eyebrow, { color: colors.foregroundMuted }]}>Painel de hoje</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>VRTX Protocol</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>
+              Acompanhe seu ritmo, retome seu treino e veja o que merece atencao agora.
             </Text>
           </View>
-          <BadgeMetal label="REDUNDANCY_ON" variant="metal" />
+          <SyncStatusPill />
         </Animated.View>
 
-        {/* Hero Card: PRÓXIMA MISSÃO */}
-        <Animated.View entering={FadeInUp.delay(200)} style={styles.heroSection}>
-          <Pressable onPress={handleNewWorkout}>
-            <GlassCard style={styles.heroCard} intensity={40}>
-              <View style={styles.heroHeader}>
-                <BadgeMetal label="PRÓXIMA_MISSÃO" variant="primary" />
-                <View style={styles.pulseContainer}>
-                  <View style={[styles.pulse, { backgroundColor: colors.primary }]} />
-                </View>
-              </View>
-              <Text style={[styles.heroTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                PROTOCOLO_DE_EXECUÇÃO
-              </Text>
-              <Text style={[styles.heroDesc, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                {latestWorkout ? `ÚLTIMO_LOG: ${latestWorkout.name.toUpperCase()}` : "INICIAR_NOVO_LOG_DE_TREINO"}
-              </Text>
-              <NeonButton 
-                label="INICIAR_SESSÃO" 
-                onPress={handleNewWorkout} 
-                variant="primary" 
-                style={styles.heroButton}
-                icon={<AppIcon name="Zap" size={16} color="#000" />}
-              />
-            </GlassCard>
-          </Pressable>
-        </Animated.View>
-
-        {/* Bento Grid */}
+        {/* Bento Grid Layout com Widgets Dinâmicos */}
         <View style={styles.bentoGrid}>
-          <View style={styles.bentoRow}>
-            <GlassCard style={styles.bentoHalf} intensity={15}>
-              <View style={styles.bentoHeader}>
-                <AppIcon name="Dumbbell" size={14} color={colors.primary} />
-                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>VOLUME</Text>
-              </View>
-              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>
-                {summary ? formatVolume(summary.totalVolume) : "0KG"}
-              </Text>
-              <BadgeMetal label="+12%" variant="success" style={styles.bentoTrend} />
-            </GlassCard>
-
-            <GlassCard style={styles.bentoHalf} intensity={15}>
-              <View style={styles.bentoHeader}>
-                <AppIcon name="Flame" size={14} color="#F59E0B" />
-                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>STREAK</Text>
-              </View>
-              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>7</Text>
-              <Text style={[styles.bentoSub, { color: colors.muted, fontFamily: typography.family.mono }]}>DIAS_ATIVOS</Text>
-            </GlassCard>
-          </View>
-
-          <View style={styles.bentoRow}>
-            <GlassCard style={styles.bentoHalf} intensity={15}>
-              <View style={styles.bentoHeader}>
-                <AppIcon name="Trophy" size={14} color={colors.primaryGlow} />
-                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>1RM_MAX</Text>
-              </View>
-              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>
-                {summary ? `${summary.bestOneRM.toFixed(0)}KG` : "0KG"}
-              </Text>
-              <Text style={[styles.bentoSub, { color: colors.muted, fontFamily: typography.family.mono }]}>SUPINO_RETO</Text>
-            </GlassCard>
-
-            <GlassCard style={styles.bentoHalf} intensity={15}>
-              <View style={styles.bentoHeader}>
-                <AppIcon name="Calendar" size={14} color={colors.secondary} />
-                <Text style={[styles.bentoLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>SESSÕES</Text>
-              </View>
-              <Text style={[styles.bentoValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>
-                {workouts.length}
-              </Text>
-              <Text style={[styles.bentoSub, { color: colors.muted, fontFamily: typography.family.mono }]}>LOGS_TOTAIS</Text>
-            </GlassCard>
-          </View>
-        </View>
-
-        {/* AI Predictive Analysis Section */}
-        <Animated.View entering={FadeInDown.delay(400)} style={styles.aiSection}>
-          <GlassCard style={styles.aiCard} intensity={25}>
-            <View style={styles.aiHeader}>
-              <AppIcon name="Cpu" size={18} color={colors.primary} />
-              <Text style={[styles.aiTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                ANÁLISE_PREDITIVA_IA
-              </Text>
-            </View>
-            <View style={styles.aiDivider} />
-            {aiLoading ? (
-              <View style={styles.aiLoading}>
-                <ProgressBarGlow progress={0.6} color={colors.primary} glow />
-                <Text style={[styles.aiLoadingText, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                  PROCESSANDO_DADOS_TELEMETRIA...
-                </Text>
-              </View>
-            ) : (
-              <View>
-                <Text style={[styles.aiSummary, { color: colors.foregroundMuted }]}>
-                  {aiData?.summary || "Sincronize mais treinos para gerar insights preditivos de performance."}
-                </Text>
-                <View style={styles.aiTags}>
-                  <BadgeMetal label="HIPERTROFIA_OTIMIZADA" variant="metal" />
-                  <BadgeMetal label="RECUPERAÇÃO_72H" variant="metal" />
+          {/* Main Action Card */}
+          <Animated.View entering={FadeInUp.delay(200)} style={styles.span2}>
+            <Pressable onPress={handleNewWorkout}>
+              <LinearGradient
+                colors={colors.brandGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.mainActionCard, shadows.card]}
+              >
+                <View style={styles.mainActionContent}>
+                  <Text style={styles.mainActionEyebrow}>Treino do dia</Text>
+                  <Text style={styles.mainActionTitle}>Comecar treino</Text>
+                  <Text style={styles.mainActionSubtitle}>
+                    {latestWorkout ? `Ultimo treino: ${latestWorkout.name}` : "Toque para iniciar uma nova sessao"}
+                  </Text>
                 </View>
-              </View>
-            )}
-          </GlassCard>
-        </Animated.View>
-
-        {/* Small Navigation Cards */}
-        <View style={styles.navGrid}>
-          {[
-            { label: 'Exercícios', icon: 'Dumbbell', path: '/exercises' },
-            { label: 'Templates', icon: 'Copy', path: '/templates' },
-            { label: 'Dieta', icon: 'Apple', path: '/diet' },
-            { label: 'Progresso', icon: 'TrendingUp', path: '/evolution' },
-          ].map((item, i) => (
-            <Pressable 
-              key={item.label} 
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(item.path as any);
-              }}
-              style={styles.navItem}
-            >
-              <GlassCard style={styles.navCard} intensity={10}>
-                <AppIcon name={item.icon as any} size={20} color={colors.muted} />
-                <Text style={[styles.navLabel, { color: colors.foreground, fontFamily: typography.family.mono }]}>
-                  {item.label.toUpperCase()}
-                </Text>
-              </GlassCard>
+                <View style={styles.mainActionIcon}>
+                  <AppIcon name="Zap" size={24} color="#000" strokeWidth={2.5} />
+                </View>
+              </LinearGradient>
             </Pressable>
-          ))}
+          </Animated.View>
+
+          {/* Renderização Dinâmica de Widgets com Animação de Layout */}
+          <View style={styles.widgetsContainer}>
+            {widgets.map((widget, index) => (
+              <Animated.View 
+                key={widget.id} 
+                layout={Layout.duration(220)}
+                style={widget.type === 'volume' || widget.type === 'streak' || widget.type === 'pr' || widget.type === 'sessions' ? styles.widgetHalf : styles.span2}
+              >
+                {renderWidget(widget, index)}
+              </Animated.View>
+            ))}
+          </View>
+
+          {/* Quick Library Scroll */}
+          <View style={styles.span2}>
+             <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Atalhos</Text>
+                <Pressable onPress={() => {
+                  HapticFeedback.selection();
+                  // Abriria modal de customização do dashboard
+                }}>
+                  <AppIcon name="Settings" size={20} color={colors.muted} />
+                </Pressable>
+             </View>
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.libraryScroll}>
+                {[
+                  { label: "Exercícios", icon: "Dumbbell" as IconName, path: "/exercises" },
+                  { label: "Templates", icon: "ClipboardList" as IconName, path: "/templates" },
+                  { label: "Dieta", icon: "Apple" as IconName, path: "/diet" },
+                  { label: "Progresso", icon: "TrendingUp" as IconName, path: "/gamification" },
+                  { label: "Coach IA", icon: "psychology" as IconName, path: "/ai-coach" },
+                  { label: "Perfil", icon: "User" as IconName, path: "/profile" },
+                ].map((item, i) => (
+                  <Animated.View key={item.label} entering={FadeInDown.delay(700 + i * 100)}>
+                    <Pressable 
+                      onPress={() => router.push(item.path as never)}
+                      style={[styles.libraryItem, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+                    >
+                      <View style={[styles.libraryIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
+                        <AppIcon name={item.icon} size={20} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.libraryLabel, { color: colors.foreground }]}>{item.label}</Text>
+                    </Pressable>
+                  </Animated.View>
+                ))}
+             </ScrollView>
+          </View>
+
+          {/* Recent Activity / Insights */}
+          <View style={styles.span2}>
+            <SectionCard title="Sugestoes da IA" subtitle="Leitura dos seus ultimos 7 dias para destacar prioridades.">
+              {aiLoading ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                  <ActivityIndicator />
+                  <Text style={[styles.insightText, { color: colors.muted }]}>Preparando sugestoes personalizadas...</Text>
+                </View>
+              ) : aiError ? (
+                <View style={{ gap: spacing.sm }}>
+                  <Text style={[styles.insightText, { color: colors.muted }]}>{aiError}</Text>
+                  {aiError.includes("Assine") ? (
+                    <AppButton label="Ver Premium" onPress={() => router.push("/premium" as never)} />
+                  ) : null}
+                </View>
+              ) : aiData ? (
+                <View style={{ gap: spacing.sm }}>
+                  <Text style={[styles.insightText, { color: colors.foreground }]}>{aiData.summary}</Text>
+                  {aiData.nextBestActions?.slice(0, 2).map((a) => (
+                    <View key={a} style={styles.insightRow}>
+                      <View style={[styles.insightIcon, { backgroundColor: colors.primary + "15" }]}>
+                        <AppIcon name="psychology" size={20} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.insightText, { color: colors.foreground }]}>{a}</Text>
+                    </View>
+                  ))}
+                  <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+                    <Pressable
+                      onPress={() => {
+                        HapticFeedback.selection();
+                        setAiFeedback(1);
+                        void sendAIFeedback({
+                          kind: "analyze",
+                          rating: 1,
+                          userId: userId ?? undefined,
+                          cacheKey: aiData.meta?.cacheKey,
+                        }).catch(() => undefined);
+                      }}
+                      style={[
+                        styles.feedbackBtn,
+                        {
+                          backgroundColor: aiFeedback === 1 ? colors.success + "20" : colors.surface,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <AppIcon name="thumb-up" size={18} color={aiFeedback === 1 ? colors.success : colors.muted} />
+                      <Text style={[styles.feedbackText, { color: aiFeedback === 1 ? colors.success : colors.foregroundMuted }]}>Util</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        HapticFeedback.selection();
+                        setAiFeedback(-1);
+                        void sendAIFeedback({
+                          kind: "analyze",
+                          rating: -1,
+                          userId: userId ?? undefined,
+                          cacheKey: aiData.meta?.cacheKey,
+                        }).catch(() => undefined);
+                      }}
+                      style={[
+                        styles.feedbackBtn,
+                        {
+                          backgroundColor: aiFeedback === -1 ? colors.error + "18" : colors.surface,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <AppIcon name="thumb-down" size={18} color={aiFeedback === -1 ? colors.error : colors.muted} />
+                      <Text style={[styles.feedbackText, { color: aiFeedback === -1 ? colors.error : colors.foregroundMuted }]}>Nao curti</Text>
+                    </Pressable>
+                  </View>
+                  <AppButton label="Abrir AI Coach" onPress={() => router.push("/ai-coach" as never)} />
+                </View>
+              ) : (
+                <Text style={[styles.insightText, { color: colors.muted }]}>
+                  Registre treinos e refeicoes para receber sugestoes mais uteis por aqui.
+                </Text>
+              )}
+            </SectionCard>
+          </View>
         </View>
       </ScrollView>
-    </ScreenWrapper>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+  content: {
+    gap: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: spacing.xs,
+  },
+  headerText: {
+    flex: 1,
+    gap: spacing.xs,
+    paddingRight: spacing.md,
+  },
+  eyebrow: {
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   title: {
-    fontSize: 20,
+    fontFamily: typography.family.heading,
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: -1.5,
+    lineHeight: 38,
+  },
+  subtitle: {
+    fontFamily: typography.family.body,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 22,
+  },
+  bentoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  feedbackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+  },
+  widgetsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    width: '100%',
+  },
+  widgetHalf: {
+    width: '47.5%', // Aproximadamente metade com gap
+  },
+  span2: {
+    width: '100%',
+  },
+  mainActionCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.xl,
+    borderRadius: radius.xxl,
+    minHeight: 132,
+    gap: spacing.md,
+  },
+  mainActionContent: {
+    flex: 1,
+    gap: spacing.xs,
+    paddingRight: spacing.sm,
+  },
+  mainActionEyebrow: {
+    color: 'rgba(0,0,0,0.62)',
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  mainActionTitle: {
+    color: '#000',
+    fontFamily: typography.family.heading,
+    fontSize: 26,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 9,
-    letterSpacing: 1,
-    opacity: 0.6,
+  mainActionSubtitle: {
+    color: 'rgba(0,0,0,0.72)',
+    fontFamily: typography.family.body,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
-  heroSection: {
-    marginBottom: 20,
-  },
-  heroCard: {
-    padding: 24,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: -1,
-    marginBottom: 4,
-  },
-  heroDesc: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    marginBottom: 24,
-    opacity: 0.7,
-  },
-  heroButton: {
-    marginTop: 8,
-  },
-  pulseContainer: {
-    width: 12,
-    height: 12,
+  mainActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pulse: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    // Note: Animation would be added here for real pulse
-  },
-  bentoGrid: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  bentoRow: {
+  sectionHeader: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  bentoHalf: {
-    flex: 1,
-    padding: 16,
-    minHeight: 120,
     justifyContent: 'space-between',
-  },
-  bentoHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: spacing.md,
   },
-  bentoLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  bentoValue: {
-    fontSize: 28,
+  sectionTitle: {
+    fontFamily: typography.family.heading,
+    fontSize: 18,
     fontWeight: '900',
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
-  bentoSub: {
-    fontSize: 8,
-    letterSpacing: 1,
-    opacity: 0.5,
+  libraryScroll: {
+    gap: spacing.md,
+    paddingRight: spacing.xl,
+    paddingBottom: spacing.sm,
   },
-  bentoTrend: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-  },
-  aiSection: {
-    marginBottom: 20,
-  },
-  aiCard: {
-    padding: 20,
-  },
-  aiHeader: {
-    flexDirection: 'row',
+  libraryItem: {
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    minWidth: 118,
+    gap: spacing.sm,
   },
-  aiTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 1,
+  libraryIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  aiDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginBottom: 16,
-  },
-  aiLoading: {
-    gap: 12,
-    paddingVertical: 10,
-  },
-  aiLoadingText: {
-    fontSize: 9,
-    textAlign: 'center',
-    opacity: 0.5,
-  },
-  aiSummary: {
+  libraryLabel: {
+    fontFamily: typography.family.body,
     fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  aiTags: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  navGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  navItem: {
-    width: (width - 52) / 2,
-  },
-  navCard: {
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  navLabel: {
-    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: -0.2,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  insightIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  insightText: {
+    flex: 1,
+    fontFamily: typography.family.body,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  feedbackText: {
+    fontFamily: typography.family.body,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

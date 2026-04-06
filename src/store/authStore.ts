@@ -287,7 +287,8 @@ export const useAuthStore = create<AuthStoreState>()(
 
         try {
           if (!hasSupabaseEnv()) {
-            set({ isAuthenticated: false, user: null, session: null, status: "guest", hasHydrated: true });
+            // Preserve the explicit "continuar offline" path instead of auto-entering guest mode.
+            set({ isAuthenticated: false, user: null, session: null, status: "idle", hasHydrated: true });
             return;
           }
 

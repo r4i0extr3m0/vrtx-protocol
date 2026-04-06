@@ -34,6 +34,9 @@ export function getAuthRedirect({
   userOnboardingCompleted,
 }: AuthRedirectInput): string | null {
   if (status === "guest") {
+    if (pathname === "/" || pathname === "") {
+      return "/(tabs)";
+    }
     return GUEST_REDIRECT_ROUTES.has(pathname) ? "/(tabs)" : null;
   }
 

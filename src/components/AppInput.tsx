@@ -15,7 +15,7 @@ import Animated, {
   interpolateColor
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/hooks';
-import { radius, spacing, typography, shadows } from '@/src/theme';
+import { radius, spacing } from '@/src/theme';
 
 interface AppInputProps extends TextInputProps {
   label?: string;
@@ -104,7 +104,6 @@ export function AppInput({
               fontSize: 14 * fontScale,
               fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
             },
-            Platform.OS === 'web' && { outlineStyle: 'none' } as any,
             inputStyle as any
           ]}
           placeholderTextColor="rgba(255,255,255,0.2)"

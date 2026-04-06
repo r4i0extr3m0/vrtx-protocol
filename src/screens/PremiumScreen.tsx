@@ -20,10 +20,10 @@ export function PremiumScreen() {
   const userId = useAuthStore((s) => s.user?.id ?? null);
 
   const features = [
-    { icon: 'analytics', title: 'Relatórios Avançados', desc: 'Gráficos detalhados de volume e progresso.' },
-    { icon: 'cloud-upload', title: 'Backup em Nuvem', desc: 'Nunca perca seus dados de treino.' },
-    { icon: 'infinite', title: 'Templates Ilimitados', desc: 'Crie quantos templates de treino desejar.' },
-    { icon: 'star', title: 'Sem Anúncios', desc: 'Foco total no seu treino, sem interrupções.' },
+    { icon: 'analytics', title: 'Relatorios melhores', desc: 'Acompanhe volume, progresso e consistencia com mais clareza.' },
+    { icon: 'cloud-upload', title: 'Backup na nuvem', desc: 'Mantenha seus dados protegidos e acessiveis.' },
+    { icon: 'infinite', title: 'Modelos ilimitados', desc: 'Crie quantos modelos de treino quiser.' },
+    { icon: 'star', title: 'Experiencia limpa', desc: 'Mais foco no treino e menos distracoes.' },
   ];
 
   const handlePurchase = async () => {
@@ -37,11 +37,11 @@ export function PremiumScreen() {
         if (userId) {
           await refreshAIUsage(userId);
         }
-        Alert.alert('Sucesso!', 'Premium ativado. A IA foi desbloqueada!');
+        Alert.alert('Tudo certo', 'Seu Premium foi ativado e os recursos extras ja estao disponiveis.');
         router.back();
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível abrir o paywall agora.');
+      Alert.alert('Nao foi possivel continuar', 'Nao conseguimos abrir a tela de assinatura agora. Tente novamente em instantes.');
     }
   };
 
@@ -52,9 +52,9 @@ export function PremiumScreen() {
       if (userId) {
         await refreshAIUsage(userId);
       }
-      Alert.alert('Restaurar', 'Compras restauradas (se houver).');
+      Alert.alert('Compras restauradas', 'Se houver uma assinatura vinculada a esta conta, ela ja foi restaurada.');
     } catch {
-      Alert.alert('Restaurar', 'Não foi possível restaurar compras agora.');
+      Alert.alert('Nao foi possivel restaurar', 'Tente novamente daqui a pouco.');
     }
   };
 
@@ -66,8 +66,8 @@ export function PremiumScreen() {
           style={styles.headerGradient}
         >
           <Ionicons name="trophy" size={60} color="#fff" />
-          <Text style={styles.headerTitle}>VRTX Protocol Premium</Text>
-          <Text style={styles.headerSubtitle}>Desbloqueie todo o seu potencial</Text>
+          <Text style={styles.headerTitle}>Premium</Text>
+          <Text style={styles.headerSubtitle}>Mais recursos para treinar com consistencia e evoluir com mais clareza.</Text>
         </LinearGradient>
 
         <View style={styles.content}>
@@ -87,26 +87,26 @@ export function PremiumScreen() {
               onPress={() => { void handlePurchase(); }}
             >
               <View style={styles.bestValueBadge}>
-                <Text style={styles.bestValueText}>DESBLOQUEAR IA</Text>
+                <Text style={styles.bestValueText}>Mais completo</Text>
               </View>
               <View>
                 <Text style={[styles.planName, { color: colors.foreground }]}>Premium</Text>
-                <Text style={[styles.planPrice, { color: colors.primary }]}>IA Coach + Insights</Text>
-                <Text style={[styles.planSavings, { color: colors.muted }]}>Planos e preços definidos no RevenueCat</Text>
+                <Text style={[styles.planPrice, { color: colors.primary }]}>Coach com IA e recursos extras</Text>
+                <Text style={[styles.planSavings, { color: colors.muted }]}>Valores e opcoes aparecem na tela segura de assinatura.</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color={colors.muted} />
             </Pressable>
           </View>
 
           <AppButton 
-            label="Restaurar Compras" 
+            label="Restaurar compras" 
             onPress={() => { void handleRestore(); }}
             variant="ghost"
             style={{ marginTop: spacing.md }}
           />
           
           <Text style={[styles.terms, { color: colors.muted }]}>
-            Ao assinar, você concorda com nossos Termos de Uso e Política de Privacidade. A assinatura é renovada automaticamente, a menos que seja cancelada 24h antes do término do período atual.
+            Ao assinar, a renovacao pode acontecer automaticamente ate que voce cancele pelas configuracoes da loja. Os detalhes finais aparecem na etapa de compra.
           </Text>
         </View>
       </ScrollView>
@@ -134,6 +134,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 4,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   content: {
     padding: spacing.lg,
@@ -157,6 +159,7 @@ const styles = StyleSheet.create({
   },
   featureDesc: {
     fontSize: 12,
+    lineHeight: 18,
   },
   plansContainer: {
     gap: spacing.md,
@@ -181,7 +184,8 @@ const styles = StyleSheet.create({
   },
   planSavings: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 18,
     marginTop: 2,
   },
   bestValueBadge: {
@@ -199,9 +203,9 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   terms: {
-    fontSize: 10,
+    fontSize: 11,
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 17,
     marginTop: spacing.md,
   },
 });

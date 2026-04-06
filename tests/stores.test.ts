@@ -8,7 +8,7 @@ describe("authStore", () => {
     vi.clearAllMocks();
   });
 
-  it("falls back to guest mode when Supabase env is missing", async () => {
+  it("keeps the visitor idle when Supabase env is missing", async () => {
     const storage = createMemoryJsonStorage();
 
     vi.doMock("@/src/infra/mmkv", () => ({
@@ -26,8 +26,173 @@ describe("authStore", () => {
     const { useAuthStore } = await import("../src/store/authStore");
     await useAuthStore.getState().hydrateAuth();
 
-    expect(useAuthStore.getState().status).toBe("guest");
+    expect(useAuthStore.getState().status).toBe("idle");
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it("clears auth state and premium cache on sign out", async () => {
+    const storage = createMemoryJsonStorage();
+    const signOut = vi.fn().mockResolvedValue(undefined);
+    const resetPremium = vi.fn();
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getSupabaseClient: vi.fn(() => ({
+        auth: { signOut },
+      })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Victor",
+        onboardingCompleted: true,
+      },
+      session: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: 123456,
+      },
+      status: "authenticated",
+      hasHydrated: true,
+    });
+
+    await useAuthStore.getState().signOut();
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(resetPremium).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      session: null,
+      status: "guest",
+      hasHydrated: true,
+    });
+  });
+
+  it("clears local auth state even when remote sign out fails", async () => {
+    const storage = createMemoryJsonStorage();
+    const signOut = vi.fn().mockRejectedValue(new Error("network down"));
+    const resetPremium = vi.fn();
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getSupabaseClient: vi.fn(() => ({
+        auth: { signOut },
+      })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium }),
+      },
+    }));
+
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Victor",
+        onboardingCompleted: true,
+      },
+      session: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: 123456,
+      },
+      status: "authenticated",
+      hasHydrated: true,
+    });
+
+    await useAuthStore.getState().signOut();
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(resetPremium).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalled();
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      session: null,
+      status: "guest",
+      hasHydrated: true,
+    });
+  });
+
+  it("switches to guest mode explicitly without keeping auth residue", async () => {
+    const storage = createMemoryJsonStorage();
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getSupabaseClient: vi.fn(),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium: vi.fn() }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Victor",
+        onboardingCompleted: false,
+      },
+      session: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: 123456,
+      },
+      status: "authenticated",
+      hasHydrated: true,
+    });
+
+    useAuthStore.getState().setGuestMode();
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      session: null,
+      status: "guest",
+      hasHydrated: true,
+    });
   });
 
   it("hydrates session with profile fields from profiles table", async () => {
@@ -199,7 +364,7 @@ describe("authStore", () => {
     expect(result).toMatchObject({
       success: false,
       code: "USER_ALREADY_EXISTS",
-      message: "Este e-mail já possui cadastro. Entre com sua senha ou use recuperação de acesso.",
+      message: "Este e-mail ja esta cadastrado. Entre com sua senha ou recupere o acesso.",
     });
   });
 });

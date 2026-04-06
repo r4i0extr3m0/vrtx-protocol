@@ -2,12 +2,12 @@ import React from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
 import { useTheme } from '@/src/hooks';
 import { useSettingsStore, AccentColor } from '@/src/store/settingsStore';
-import { radius, spacing, typography, shadows } from '@/src/theme';
+import { spacing, shadows } from '@/src/theme';
 import { AppIcon } from './AppIcon';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 export function ThemeSelector() {
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const { accentColor, setAccentColor } = useSettingsStore();
 
   const options: { id: AccentColor; label: string; hex: string }[] = [

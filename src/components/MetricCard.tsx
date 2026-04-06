@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, ViewStyle, StyleProp, Platform } from 'react-na
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from '@/src/hooks';
-import { radius, spacing, typography, shadows } from '@/src/theme';
+import { radius, spacing, typography } from '@/src/theme';
 import { AppIcon, IconName } from './AppIcon';
 
 interface MetricCardProps {
@@ -68,7 +68,7 @@ export function MetricCard({
                 <AppIcon name={icon} size={14} color={accentColor} strokeWidth={2.5} />
               </View>
             )}
-            <Text style={[styles.label, { color: colors.muted }]}>{label.toUpperCase()}</Text>
+            <Text style={[styles.label, { color: colors.muted }]}>{label}</Text>
           </View>
           {trend && (
             <View style={[styles.trendBadge, { backgroundColor: "rgba(255,255,255,0.03)", borderColor: trend.startsWith('+') ? colors.success + '40' : colors.error + '40', borderWidth: 0.5 }]}>
@@ -81,7 +81,7 @@ export function MetricCard({
           <Text style={[styles.value, { color: colors.foreground }]}>{value}</Text>
           {hint && (
             <Text style={[styles.hint, { color: colors.muted }]} numberOfLines={1}>
-              {hint.toUpperCase()}
+              {hint}
             </Text>
           )}
         </View>
@@ -121,10 +121,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 9,
+    fontFamily: typography.family.body,
+    fontSize: 12,
     fontWeight: "900",
-    letterSpacing: 1.5,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    letterSpacing: 0.2,
   },
   trendBadge: {
     paddingHorizontal: 6,
@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   hint: {
-    fontSize: 9,
+    fontFamily: typography.family.body,
+    fontSize: 12,
     fontWeight: "700",
-    letterSpacing: 0.5,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    lineHeight: 16,
   },
 });

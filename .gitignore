@@ -56,6 +56,11 @@ app-example
 # Logs
 logs
 *.log
+expo*_logs.txt
+logcat_*.txt
+
+# Package manager drift
+package-lock.json
 
 # OS
 Thumbs.db

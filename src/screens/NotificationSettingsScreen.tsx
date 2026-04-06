@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Text, Switch, StyleSheet, Pressable, Alert } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useTheme } from "@/src/hooks";
@@ -11,9 +11,6 @@ import { Ionicons } from "@expo/vector-icons";
 export function NotificationSettingsScreen() {
   const { colors } = useTheme();
   const { preferences, setPreference } = useNotificationStore();
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [pickerMode, setPickerMode] = useState<'trainingReminderTime' | 'mealReminderTime' | null>(null);
-
   const requestPermissions = async () => {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;

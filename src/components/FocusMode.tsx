@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
 import Animated, { 
   FadeIn, 
   FadeOut, 
@@ -50,21 +50,21 @@ export function FocusMode({
           </Pressable>
 
           <View style={styles.content}>
-            <Text style={[styles.label, { color: colors.primary }]}>MODO FOCO ATIVO</Text>
+            <Text style={[styles.label, { color: colors.primary }]}>Modo foco ativado</Text>
             <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>{exerciseName}</Text>
             
             <View style={styles.statsRow}>
               <View style={styles.stat}>
                 <Text style={[styles.statValue, { color: colors.foreground }]}>{currentSet}/{totalSets}</Text>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>SÉRIE</Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>Serie</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>{weight}kg</Text>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>CARGA</Text>
+                <Text style={[styles.statValue, { color: colors.foreground }]}>{weight} kg</Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>Carga</Text>
               </View>
               <View style={styles.stat}>
                 <Text style={[styles.statValue, { color: colors.foreground }]}>{reps}</Text>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>REPS</Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>Repeticoes</Text>
               </View>
             </View>
 
@@ -111,9 +111,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontSize: 12,
+    fontFamily: typography.family.body,
+    fontSize: 13,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 0.4,
   },
   exerciseTitle: {
     fontSize: 36,
@@ -138,9 +139,10 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   statLabel: {
-    fontSize: 10,
+    fontFamily: typography.family.body,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.2,
   },
   timerWrapper: {
     width: '100%',

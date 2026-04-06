@@ -1,20 +1,16 @@
-import { StyleSheet, Text, View, Platform } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { FlashList } from "@shopify/flash-list";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { 
-  ScreenWrapper, 
-  GlassCard, 
-  NeonButton, 
-  BadgeMetal 
-} from "../components/ui";
+import { ScreenContainer } from "@/components/screen-container";
+import { AppButton } from "@/src/components/AppButton";
 import { summarizeWorkout } from "@/src/domain/workout";
 import { useTheme, useWorkout } from "@/src/hooks";
-import { spacing, typography } from "@/src/theme";
+import { radius, spacing, typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
+import { EmptyState } from "@/src/components/EmptyState";
 import * as Haptics from "expo-haptics";
-import { AppIcon } from "@/src/components/AppIcon";
 
 export function HistoryScreen() {
   const { colors } = useTheme();
@@ -22,10 +18,11 @@ export function HistoryScreen() {
 
   const renderItem = ({ item: workout, index }: { item: any; index: number }) => {
     const summary = summarizeWorkout(workout);
+    const isCompleted = Boolean(workout.completedAt);
 
     const handlePress = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (workout.completedAt) {
+      if (isCompleted) {
         router.push({ pathname: "/history/[id]", params: { id: workout.id } } as never);
       } else {
         router.push({ pathname: "/workout/[id]", params: { id: workout.id } } as never);
@@ -33,43 +30,41 @@ export function HistoryScreen() {
     };
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 50)}>
-        <Pressable onPress={handlePress}>
-          <GlassCard style={styles.item} intensity={15}>
-            <View style={styles.itemContent}>
-              <View style={styles.itemHeader}>
-                <BadgeMetal label={workout.date} variant="metal" />
-                <BadgeMetal label={workout.completedAt ? "CONCLUÍDO" : "EM_CURSO"} variant={workout.completedAt ? "success" : "warning"} />
-              </View>
-              
-              <Text style={[styles.itemTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                {workout.name.toUpperCase()}
-              </Text>
-              
-              <View style={styles.itemFooter}>
-                <View style={styles.metaItem}>
-                  <AppIcon name="Dumbbell" size={10} color={colors.primary} />
-                  <Text style={[styles.itemMeta, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                    {summary.exerciseCount} EXERCÍCIOS
-                  </Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <AppIcon name="Activity" size={10} color={colors.primary} />
-                  <Text style={[styles.itemMeta, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                    {formatVolume(summary.totalVolume)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            <AppIcon name="ChevronRight" size={20} color={colors.muted} />
-          </GlassCard>
-        </Pressable>
+      <Animated.View 
+        entering={FadeInDown.delay(index * 50)}
+        style={[styles.item, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      >
+        <View style={styles.itemText}>
+          <View
+            style={[
+              styles.statusPill,
+              {
+                backgroundColor: isCompleted ? colors.success + "14" : colors.primary + "14",
+                borderColor: isCompleted ? colors.success + "26" : colors.primary + "26",
+              },
+            ]}
+          >
+            <Text style={[styles.statusPillText, { color: isCompleted ? colors.success : colors.primary }]}>
+              {isCompleted ? "Concluido" : "Em andamento"}
+            </Text>
+          </View>
+          <Text style={[styles.itemTitle, { color: colors.foreground }]}>{workout.name}</Text>
+          <Text style={[styles.itemMeta, { color: colors.muted }]}>
+            {workout.date} · {summary.exerciseCount} exercícios · {formatVolume(summary.totalVolume)}
+          </Text>
+        </View>
+        <AppButton
+          label="Abrir"
+          onPress={handlePress}
+          variant="ghost"
+          style={styles.openBtn}
+        />
       </Animated.View>
     );
   };
 
   return (
-    <ScreenWrapper withSafeArea={false}>
+    <ScreenContainer className="px-0 py-0">
       <FlashList
         data={workouts}
         renderItem={renderItem}
@@ -77,117 +72,103 @@ export function HistoryScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View>
-              <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                LOGS_DE_DESEMPENHO
-              </Text>
-              <Text style={[styles.subtitle, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                STATUS: ACESSO_HISTÓRICO_AUTORIZADO
-              </Text>
-            </View>
-            <BadgeMetal label="TELEMETRY" variant="metal" />
+            <Text style={[styles.title, { color: colors.foreground }]}>Histórico</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>
+              Revise seus treinos anteriores com mais clareza e retome o contexto em poucos segundos.
+            </Text>
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <GlassCard style={styles.emptyCard} intensity={10}>
-              <AppIcon name="Database" size={40} color={colors.muted} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-                DADOS_NÃO_ENCONTRADOS
-              </Text>
-              <Text style={[styles.emptyDesc, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                NENHUM_REGISTRO_DETECTADO_NO_SISTEMA
-              </Text>
-              <NeonButton 
-                label="INICIAR_PROTOCOLO" 
-                onPress={() => router.push("/workout" as never)} 
-                variant="primary" 
-                style={styles.emptyBtn}
-              />
-            </GlassCard>
-          </View>
+          <EmptyState 
+            title="Nada por aqui ainda"
+            description="Quando voce concluir seus primeiros treinos, eles vao aparecer aqui para consulta rapida."
+            emoji="📅"
+            actionLabel="Comecar treino"
+            onAction={() => router.push("/workout" as never)}
+          />
         }
       />
-    </ScreenWrapper>
+    </ScreenContainer>
   );
 }
 
-import { Pressable } from "react-native";
-
 const styles = StyleSheet.create({
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 20,
+    fontSize: typography.title,
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   subtitle: {
-    fontSize: 9,
-    letterSpacing: 1,
-    opacity: 0.6,
+    fontSize: typography.body,
+    lineHeight: 24,
+    fontWeight: "500",
   },
   item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  itemContent: {
+  itemText: {
     flex: 1,
-    gap: 8,
+    gap: spacing.sm,
+    paddingRight: spacing.md,
   },
-  itemHeader: {
-    flexDirection: 'row',
-    gap: 8,
+  statusPill: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    fontFamily: typography.family.body,
+    fontSize: 11,
+    fontWeight: "700",
   },
   itemTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-  itemFooter: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   itemMeta: {
-    fontSize: 8,
-    fontWeight: "700",
-    letterSpacing: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
   },
-  emptyContainer: {
-    marginTop: 40,
+  openBtn: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
   },
-  emptyCard: {
-    alignItems: 'center',
-    padding: 40,
-    gap: 16,
+  swipeContainer: {
+    position: "relative",
+    marginBottom: spacing.md,
+    justifyContent: "center",
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  emptyDesc: {
-    fontSize: 10,
-    textAlign: 'center',
-    opacity: 0.5,
-  },
-  emptyBtn: {
-    width: '100%',
-    marginTop: 8,
+  deleteButton: {
+    position: "absolute",
+    right: 0,
+    height: "100%",
+    width: 100,
+    borderRadius: radius.xl,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

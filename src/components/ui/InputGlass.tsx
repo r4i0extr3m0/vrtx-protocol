@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   TextInput, 
   StyleSheet, 
   View, 
   Text, 
   TextInputProps, 
-  Platform,
   useWindowDimensions
 } from 'react-native';
 import Animated, { 
@@ -41,17 +40,14 @@ export function InputGlass({
 }: InputGlassProps) {
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
-  const [isFocused, setIsFocused] = useState(false);
   const focusAnim = useSharedValue(0);
 
   const handleFocus = (e: any) => {
-    setIsFocused(true);
     focusAnim.value = withSpring(1, animations.spring.smooth);
     onFocus?.(e);
   };
 
   const handleBlur = (e: any) => {
-    setIsFocused(false);
     focusAnim.value = withSpring(0, animations.spring.smooth);
     onBlur?.(e);
   };
@@ -110,13 +106,11 @@ export function InputGlass({
           { height: dynamicHeight, borderRadius: radius.md },
         ]}
       >
-        {Platform.OS !== 'web' && (
-          <BlurView 
-            intensity={10} 
-            tint="dark" 
-            style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]} 
-          />
-        )}
+        <BlurView 
+          intensity={10} 
+          tint="dark" 
+          style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]} 
+        />
         
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
         
@@ -128,7 +122,6 @@ export function InputGlass({
               fontSize: 14 * fontScale,
               fontFamily: typography.family.mono,
             },
-            Platform.OS === 'web' && { outlineStyle: 'none' } as any,
             inputStyle as any
           ]}
           placeholderTextColor="rgba(255, 255, 255, 0.2)"

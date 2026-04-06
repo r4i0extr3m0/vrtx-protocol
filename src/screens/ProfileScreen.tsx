@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -19,11 +18,11 @@ import { BiometricAuth } from "@/src/components/BiometricAuth";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
 import { ThemeSelector } from "@/src/components/ThemeSelector";
 import { useAuth, useTheme, useWorkout } from "@/src/hooks";
-import { exportToJSON, exportToCSV } from "@/src/utils/exportData";
+import { exportToJSON } from "@/src/utils/exportData";
 import { useSettingsStore } from "@/src/store/settingsStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
 import { useGamificationStore } from "@/src/store/gamificationStore";
-import { radius, spacing, typography, shadows } from "@/src/theme";
+import { radius, spacing, shadows } from "@/src/theme";
 
 export function ProfileScreen() {
   const { colors } = useTheme();

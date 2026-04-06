@@ -8,17 +8,18 @@ import * as SecureStore from "expo-secure-store";
  */
 
 const memory = new Map<string, string>();
+const isNativeMobile = Platform.OS === "ios" || Platform.OS === "android";
 
 export const secureStorage = {
   async getString(key: string): Promise<string | null> {
-    if (Platform.OS === "web") {
+    if (!isNativeMobile) {
       return memory.get(key) ?? null;
     }
     return await SecureStore.getItemAsync(key);
   },
 
   async setString(key: string, value: string): Promise<void> {
-    if (Platform.OS === "web") {
+    if (!isNativeMobile) {
       memory.set(key, value);
       return;
     }
@@ -26,7 +27,7 @@ export const secureStorage = {
   },
 
   async remove(key: string): Promise<void> {
-    if (Platform.OS === "web") {
+    if (!isNativeMobile) {
       memory.delete(key);
       return;
     }

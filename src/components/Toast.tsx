@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '@/src/hooks';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -30,7 +30,7 @@ export function Toast({ message, type = 'info', duration = 3000, onDismiss }: To
     ]).start(() => {
       onDismiss?.();
     });
-  }, []);
+  }, [duration, fadeAnim, onDismiss]);
 
   const getBackgroundColor = () => {
     switch (type) {

@@ -43,7 +43,7 @@ export interface AIChatRequest {
   objective?: FitnessObjective;
   level?: TrainingLevel;
   context?: Last7DaysSummary;
-  messages: Array<Pick<AIChatMessage, "role" | "content">>;
+  messages: Pick<AIChatMessage, "role" | "content">[];
 }
 
 export interface AIChatResponse {

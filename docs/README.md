@@ -8,6 +8,7 @@
 
 - `docs/README.md`: índice operacional, setup, execução local, testes e links principais.
 - `docs/MASTER_DOCUMENTATION.md`: visão de produto, arquitetura, navegação e escopo funcional.
+- `server/README.md`: guia técnico especializado para capacidades full-stack opcionais; não substitui os documentos canônicos acima.
 
 ## Documentos de Apoio
 
@@ -18,6 +19,8 @@
 
 - O app mobile offline-first é a superfície principal do produto.
 - A camada `server/` e `drizzle/` permanece opcional e preparada para expansão, mas não deve ser interpretada como backend obrigatório para o fluxo local/guest.
+- `server/README.md` deve ser lido apenas quando houver necessidade real de API, sync multi-dispositivo, storage, LLM server-side ou persistência relacional.
+- `drizzle/` é infraestrutura de schema e migrações para essa camada opcional; hoje não é a fonte de verdade do fluxo local/offline do app.
 
 ---
 
@@ -74,8 +77,7 @@ EXPO_PUBLIC_POSTHOG_API_KEY=phc_your_key
 - `lint`: `pnpm lint`
 - `unit`: `pnpm test:unit`
 - `e2e`: execução separada/manual até o ambiente Android de CI ficar estável
-- Checks recomendados para bloqueio de merge hoje: `typecheck` e `unit`
-- `lint` permanece separado como pipeline consultiva enquanto os warnings históricos são reduzidos
+- Checks recomendados para bloqueio de merge hoje: `typecheck`, `lint` e `unit`
 7. **Gerar build de produção (EAS)**: `eas build --platform android`
 
 ### Desenvolvimento Mobile

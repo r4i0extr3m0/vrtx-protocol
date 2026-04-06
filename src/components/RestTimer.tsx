@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { StyleSheet, Text, View, Pressable, Alert, Platform } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform } from "react-native";
 import Animated, { 
   useAnimatedProps, 
   useSharedValue, 
@@ -12,9 +12,10 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/src/hooks";
 import { useSettingsStore } from "@/src/store/settingsStore";
-import { radius, spacing, typography, shadows } from "@/src/theme";
+import { radius, spacing, shadows } from "@/src/theme";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const supportsHaptics = Platform.OS === "ios" || Platform.OS === "android";
 
 interface RestTimerProps {
   onFinish?: () => void;
@@ -43,7 +44,7 @@ export function RestTimer({ onFinish }: RestTimerProps) {
   }, [restTimerDefault, progress]);
 
   const toggleTimer = () => {
-    if (hapticFeedbackEnabled && Platform.OS !== "web") {
+    if (hapticFeedbackEnabled && supportsHaptics) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     setIsActive(!isActive);
@@ -65,7 +66,7 @@ export function RestTimer({ onFinish }: RestTimerProps) {
       }, 1000);
     } else if (timeLeft === 0) {
       setIsActive(false);
-      if (hapticFeedbackEnabled && Platform.OS !== "web") {
+      if (hapticFeedbackEnabled && supportsHaptics) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       if (onFinish) onFinish();

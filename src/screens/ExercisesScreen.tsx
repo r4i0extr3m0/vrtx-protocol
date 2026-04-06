@@ -74,7 +74,7 @@ export function ExercisesScreen() {
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      Alert.alert("Campo obrigatório", "Informe o nome do exercício.");
+      Alert.alert("Falta um nome", "Informe o nome do exercicio para salvar.");
       return;
     }
     if (editingId) {
@@ -97,8 +97,8 @@ export function ExercisesScreen() {
 
   const handleDelete = (exercise: Exercise) => {
     Alert.alert(
-      "Excluir exercício",
-      `Deseja excluir "${exercise.name}"?`,
+      "Excluir exercicio",
+      `Deseja remover "${exercise.name}" da sua biblioteca?`,
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -154,32 +154,32 @@ export function ExercisesScreen() {
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.foreground }]}>Exercícios</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>
-              Gerencie seu banco de exercícios. Todos os dados são persistidos localmente.
+              Organize sua biblioteca de exercicios e encontre cada movimento com mais facilidade.
             </Text>
             <TextInput
               autoCapitalize="none"
               autoCorrect={false}
               onChangeText={setSearch}
-              placeholder="Buscar exercício..."
+              placeholder="Buscar exercicio..."
               placeholderTextColor={colors.muted}
               style={inputStyle}
               value={search}
             />
-            <AppButton label="+ Novo exercício" onPress={openCreate} />
+            <AppButton label="Novo exercicio" onPress={openCreate} />
           </View>
         }
         ListEmptyComponent={
           exercises.length === 0 ? (
             <EmptyState 
               emoji="🏋️"
-              title="Banco Vazio"
-              description="Você ainda não cadastrou nenhum exercício. Crie o primeiro para começar a montar seus treinos."
-              actionLabel="Criar Exercício"
+              title="Sua biblioteca esta vazia"
+              description="Crie seu primeiro exercicio para montar treinos com mais rapidez."
+              actionLabel="Criar exercicio"
               onAction={openCreate}
             />
           ) : (
             <Text style={[styles.empty, { color: colors.muted }]}>
-              Nenhum exercício corresponde à sua busca.
+              Nenhum exercicio corresponde a essa busca.
             </Text>
           )
         }
@@ -194,13 +194,13 @@ export function ExercisesScreen() {
         <Pressable onPress={() => setModalVisible(false)} style={styles.overlay} />
         <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            {editingId ? "Editar exercício" : "Novo exercício"}
+            {editingId ? "Editar exercicio" : "Novo exercicio"}
           </Text>
 
           <TextInput
             autoCapitalize="words"
             onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
-            placeholder="Nome do exercício *"
+            placeholder="Nome do exercicio *"
             placeholderTextColor={colors.muted}
             style={inputStyle}
             value={form.name}
@@ -282,15 +282,15 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: typography.body,
-    lineHeight: 22,
+    lineHeight: 24,
     fontWeight: "500",
   },
   empty: {
     fontSize: typography.body,
-    lineHeight: 22,
+    lineHeight: 24,
     textAlign: "center",
     paddingVertical: spacing.xxl,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   item: {
     borderRadius: radius.xl,
@@ -305,15 +305,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   itemText: {
-    gap: spacing.xxs,
+    gap: spacing.xs,
   },
   itemTitle: {
     fontSize: 18,
     fontWeight: "800",
+    letterSpacing: -0.3,
   },
   itemMeta: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
   },
   itemActions: {
     flexDirection: "row",
@@ -354,10 +356,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   label: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    fontSize: 12,
+    fontWeight: "700",
   },
   chipRow: {
     flexGrow: 0,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   textarea: {
     minHeight: 100,

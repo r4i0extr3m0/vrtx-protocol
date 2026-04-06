@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Platform } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BlurView } from '../BlurView';
 import { useTheme } from '@/src/hooks';
@@ -42,13 +42,11 @@ export function GlassCard({
         style
       ]}
     >
-      {Platform.OS !== 'web' && (
-        <BlurView 
-          intensity={intensity} 
-          tint={tint} 
-          style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]} 
-        />
-      )}
+      <BlurView 
+        intensity={intensity} 
+        tint={tint} 
+        style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]} 
+      />
       <View style={styles.content}>
         {children}
       </View>

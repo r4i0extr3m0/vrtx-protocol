@@ -1,21 +1,15 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
-
-import { 
-  ScreenWrapper, 
-  GlassCard, 
-  BadgeMetal, 
-  ProgressBarGlow 
-} from "../components/ui";
+import { ScreenContainer } from "@/components/screen-container";
 import { BarChart } from "@/src/components/Charts/BarChart";
 import { LineChart } from "@/src/components/Charts/LineChart";
+import { MetricCard } from "@/src/components/MetricCard";
+import { SectionCard } from "@/src/components/SectionCard";
 import { calculateWorkoutVolume, findBestEstimatedOneRM } from "@/src/domain/strength";
 import { summarizeWorkout } from "@/src/domain/workout";
 import { useTheme, useWorkout } from "@/src/hooks";
-import { typography } from "@/src/theme";
+import { radius, spacing, typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
-import { AppIcon } from "@/src/components/AppIcon";
 
 function getWeekLabel(dateStr: string): string {
   const d = new Date(dateStr);
@@ -29,6 +23,7 @@ export function StatisticsScreen() {
   const { workouts } = useWorkout();
   const [selectedExercise, setSelectedExercise] = useState<string>("");
 
+  // Completed workouts only
   const completedWorkouts = useMemo(
     () => workouts.filter((w) => Boolean(w.completedAt)),
     [workouts],
@@ -44,6 +39,7 @@ export function StatisticsScreen() {
   const totalSessions = completedWorkouts.length;
   const avgVolume = totalSessions > 0 ? totalVolume / totalSessions : 0;
 
+  // All unique exercise names across completed workouts
   const exerciseNames = useMemo(() => {
     const names = new Set<string>();
     completedWorkouts.forEach((w) => w.exercises.forEach((e) => names.add(e.name)));
@@ -52,6 +48,7 @@ export function StatisticsScreen() {
 
   const currentExercise = selectedExercise || exerciseNames[0] || "";
 
+  // 1RM evolution for selected exercise
   const oneRMData = useMemo(() => {
     return completedWorkouts
       .filter((w) => w.exercises.some((e) => e.name === currentExercise))
@@ -63,6 +60,7 @@ export function StatisticsScreen() {
       .slice(-10);
   }, [completedWorkouts, currentExercise]);
 
+  // Weekly volume bar chart
   const weeklyVolumeData = useMemo(() => {
     const weekMap = new Map<string, number>();
     completedWorkouts.forEach((w) => {
@@ -77,67 +75,32 @@ export function StatisticsScreen() {
   }, [completedWorkouts]);
 
   return (
-    <ScreenWrapper withSafeArea={false}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-          <View>
-            <Text style={[styles.title, { color: colors.foreground, fontFamily: typography.family.heading }]}>
-              ANALYTICS_CORE
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.muted, fontFamily: typography.family.mono }]}>
-              STATUS: TELEMETRIA_DE_ALTA_PRECISÃO
-            </Text>
-          </View>
-          <BadgeMetal label="DATA_MINING" variant="metal" />
-        </Animated.View>
-
-        {/* Key metrics grid */}
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricsRow}>
-            <GlassCard style={styles.metricCard} intensity={15}>
-              <Text style={[styles.metricLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>VOLUME_TOTAL</Text>
-              <Text style={[styles.metricValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>{formatVolume(totalVolume)}</Text>
-              <ProgressBarGlow progress={0.8} height={2} color={colors.primary} glow={false} />
-            </GlassCard>
-            <GlassCard style={styles.metricCard} intensity={15}>
-              <Text style={[styles.metricLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>1RM_MAX_EST</Text>
-              <Text style={[styles.metricValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>{bestOneRM.toFixed(1)}KG</Text>
-              <ProgressBarGlow progress={0.6} height={2} color={colors.primaryGlow} glow={false} />
-            </GlassCard>
-          </View>
-          <View style={styles.metricsRow}>
-            <GlassCard style={styles.metricCard} intensity={15}>
-              <Text style={[styles.metricLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>SESSÕES_LOG</Text>
-              <Text style={[styles.metricValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>{totalSessions}</Text>
-            </GlassCard>
-            <GlassCard style={styles.metricCard} intensity={15}>
-              <Text style={[styles.metricLabel, { color: colors.muted, fontFamily: typography.family.mono }]}>VOL_MÉDIO</Text>
-              <Text style={[styles.metricValue, { color: colors.foreground, fontFamily: typography.family.mono }]}>{formatVolume(avgVolume)}</Text>
-            </GlassCard>
-          </View>
+    <ScreenContainer className="px-5 py-5">
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.foreground }]}>Estatísticas</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Acompanhe sua evolução com uma leitura simples de volume, consistencia e forca estimada.
+          </Text>
         </View>
 
-        {/* Weekly volume chart */}
+        <View style={styles.metricRow}>
+          <MetricCard label="Volume total" value={formatVolume(totalVolume)} hint="Soma dos treinos concluidos" />
+          <MetricCard label="Melhor carga" value={`${bestOneRM.toFixed(1)} kg`} hint="1RM estimado" />
+        </View>
+        <View style={styles.metricRow}>
+          <MetricCard label="Sessoes" value={String(totalSessions)} hint="Treinos concluidos" />
+          <MetricCard label="Media por treino" value={formatVolume(avgVolume)} hint="Volume medio" />
+        </View>
+
         {weeklyVolumeData.length > 0 && (
-          <GlassCard style={styles.chartCard} intensity={20}>
-            <View style={styles.chartHeader}>
-              <AppIcon name="BarChart2" size={16} color={colors.primary} />
-              <Text style={[styles.chartTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>VOLUME_SEMANAL_KG</Text>
-            </View>
-            <View style={styles.chartWrapper}>
-              <BarChart data={weeklyVolumeData} unit=" kg" color={colors.primary} />
-            </View>
-          </GlassCard>
+          <SectionCard title="Volume por semana" subtitle="Veja como a carga total vem evoluindo nas ultimas semanas.">
+            <BarChart data={weeklyVolumeData} unit=" kg" color={colors.primary} />
+          </SectionCard>
         )}
 
-        {/* 1RM evolution per exercise */}
         {exerciseNames.length > 0 && (
-          <GlassCard style={styles.chartCard} intensity={20}>
-            <View style={styles.chartHeader}>
-              <AppIcon name="TrendingUp" size={16} color={colors.primaryGlow} />
-              <Text style={[styles.chartTitle, { color: colors.foreground, fontFamily: typography.family.heading }]}>EVOLUÇÃO_1RM_EST</Text>
-            </View>
-            
+          <SectionCard title="Evolucao por exercicio" subtitle="Escolha um exercicio para acompanhar sua progressao.">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
               {exerciseNames.map((name) => (
                 <Pressable
@@ -146,159 +109,64 @@ export function StatisticsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: currentExercise === name ? colors.primary : 'rgba(255,255,255,0.05)',
-                      borderColor: currentExercise === name ? colors.primary : 'rgba(255,255,255,0.1)',
+                      backgroundColor: currentExercise === name ? colors.primary : colors.surfaceAlt,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      { 
-                        color: currentExercise === name ? "#000" : colors.foreground,
-                        fontFamily: typography.family.mono 
-                      },
+                      { color: currentExercise === name ? colors.background : colors.foreground },
                     ]}
                   >
-                    {name.toUpperCase()}
+                    {name}
                   </Text>
                 </Pressable>
               ))}
             </ScrollView>
 
-            <View style={styles.chartWrapper}>
-              {currentExercise ? (
-                <LineChart
-                  data={oneRMData}
-                  title={`1RM – ${currentExercise}`}
-                  unit=" kg"
-                  color={colors.primaryGlow}
-                />
-              ) : (
-                <Text style={[styles.emptyChart, { color: colors.muted, fontFamily: typography.family.mono }]}>
-                  NENHUM_EXERCÍCIO_SELECIONADO
-                </Text>
-              )}
-            </View>
-          </GlassCard>
+            {currentExercise ? (
+              <LineChart
+                data={oneRMData}
+                title={`1RM – ${currentExercise}`}
+                unit=" kg"
+                color={colors.primaryStrong}
+              />
+            ) : (
+              <Text style={[styles.body, { color: colors.muted }]}>
+                Ainda nao ha dados suficientes para exibir esse grafico.
+              </Text>
+            )}
+          </SectionCard>
         )}
 
-        {/* Summary text */}
-        <GlassCard style={styles.summaryCard} intensity={10}>
-          <View style={styles.summaryHeader}>
-            <AppIcon name="FileText" size={16} color={colors.muted} />
-            <Text style={[styles.summaryTitle, { color: colors.muted, fontFamily: typography.family.mono }]}>SUMÁRIO_EXECUTIVO</Text>
-          </View>
-          <Text style={[styles.summaryBody, { color: colors.foreground, fontFamily: typography.family.mono }]}>
+        <SectionCard title="Resumo" subtitle="Um panorama rapido do seu historico recente.">
+          <Text style={[styles.body, { color: colors.foreground }]}>
             {totalSessions === 0
-              ? "SISTEMA_AGUARDANDO_DADOS: Complete treinos para gerar telemetria."
-              : `VOCÊ_CONCLUIU ${totalSessions} SESSÕES. VOLUME_TOTAL: ${formatVolume(totalVolume)}. MELHOR_1RM: ${bestOneRM.toFixed(1)}KG.`}
+              ? "Assim que voce concluir seus treinos, esta area vai mostrar a sua evolucao."
+              : `Voce concluiu ${totalSessions} sess${totalSessions !== 1 ? "oes" : "ao"}, acumulando ${formatVolume(totalVolume)} de volume total. Sua melhor estimativa de 1RM ate agora e ${bestOneRM.toFixed(1)} kg.`}
           </Text>
-        </GlassCard>
+        </SectionCard>
       </ScrollView>
-    </ScreenWrapper>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    gap: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 9,
-    letterSpacing: 1,
-    opacity: 0.6,
-  },
-  metricsGrid: {
-    gap: 12,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  metricCard: {
-    flex: 1,
-    padding: 16,
-    gap: 8,
-  },
-  metricLabel: {
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  chartCard: {
-    padding: 20,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 20,
-  },
-  chartTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  chartWrapper: {
-    minHeight: 200,
-  },
-  chipRow: {
-    marginBottom: 20,
-  },
+  content: { gap: spacing.lg, paddingBottom: spacing.xxxl },
+  header: { gap: spacing.sm },
+  title: { fontSize: typography.title, fontWeight: "900", letterSpacing: -1 },
+  subtitle: { fontSize: typography.body, lineHeight: 24, fontWeight: "500" },
+  metricRow: { flexDirection: "row", gap: spacing.md },
+  body: { fontSize: typography.body, lineHeight: 24 },
+  chipRow: { flexGrow: 0, marginBottom: spacing.md },
   chip: {
-    borderRadius: 4,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginRight: spacing.xs,
   },
-  chipText: {
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  emptyChart: {
-    fontSize: 10,
-    textAlign: 'center',
-    marginTop: 80,
-    opacity: 0.5,
-  },
-  summaryCard: {
-    padding: 20,
-    gap: 12,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryTitle: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  summaryBody: {
-    fontSize: 11,
-    lineHeight: 18,
-    opacity: 0.8,
-  },
+  chipText: { fontSize: typography.caption, fontWeight: "700" },
 });

@@ -1,5 +1,3 @@
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
 import * as Localization from "expo-localization";
 import { storage } from "@/src/infra/mmkv";
 
@@ -138,15 +136,41 @@ const getInitialLanguage = () => {
   return "en";
 };
 
-i18n
-  .use(initReactI18next)
-  .init({
-    resources,
-    lng: getInitialLanguage(),
-    fallbackLng: "en",
-    interpolation: {
-      escapeValue: false
+type SupportedLanguage = keyof typeof resources;
+interface TranslationTree {
+  [key: string]: string | TranslationTree;
+}
+
+let currentLanguage = getInitialLanguage() as SupportedLanguage;
+
+function resolveTranslation(language: SupportedLanguage, key: string): string {
+  const root = resources[language]?.translation as TranslationTree;
+  const value = key.split(".").reduce<string | TranslationTree | undefined>((acc, segment) => {
+    if (!acc || typeof acc === "string") {
+      return acc;
     }
-  });
+    return acc[segment];
+  }, root);
+
+  return typeof value === "string" ? value : key;
+}
+
+const i18n = {
+  language: currentLanguage,
+  get resolvedLanguage() {
+    return currentLanguage;
+  },
+  async changeLanguage(nextLanguage: string) {
+    if (nextLanguage in resources) {
+      currentLanguage = nextLanguage as SupportedLanguage;
+      this.language = currentLanguage;
+      storage.set(LANGUAGE_KEY, currentLanguage);
+    }
+    return this;
+  },
+  t(key: string) {
+    return resolveTranslation(currentLanguage, key);
+  },
+};
 
 export default i18n;

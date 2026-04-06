@@ -23,41 +23,41 @@ type SlideDefinition = {
 const SLIDES: SlideDefinition[] = [
   {
     key: "boot",
-    eyebrow: "SYSTEM_BOOT",
-    title: "VRTX Protocol inicia com foco total no operador.",
+    eyebrow: "Primeiros passos",
+    title: "Comece com clareza desde o primeiro toque.",
     description:
-      "Camadas visuais em vidro líquido, profundidade espacial e leitura instantânea para abrir o sistema com sensação premium desde o primeiro frame.",
-    footer: "Boot sequence calibrada para contexto, clareza e presença.",
-    chips: ["Spatial UI", "Liquid Glass", "Zero Neon"],
+      "O VRTX Protocol combina profundidade visual, contraste forte e leitura facil para voce encontrar o que importa sem esforco.",
+    footer: "Tudo pensado para deixar o inicio mais leve, claro e intuitivo.",
+    chips: ["Visual fluido", "Leitura rapida", "Sem excessos"],
     icon: "Cpu",
   },
   {
     key: "command",
-    eyebrow: "COMMAND_CENTER",
-    title: "Treino, nutrição e IA conectados em um só cockpit.",
+    eyebrow: "Tudo em um lugar",
+    title: "Treino, nutricao e IA trabalhando lado a lado.",
     description:
-      "A navegação apresenta os módulos principais com hierarquia forte, paralaxe multicamada e transições suaves para leitura rápida do ecossistema.",
-    footer: "Treino, dieta e inteligência operacional em sincronia.",
-    chips: ["Treino", "Nutrição", "IA"],
+      "Os principais modulos aparecem com hierarquia clara e transicoes suaves para voce alternar entre areas sem perder contexto.",
+    footer: "Seu dia a dia fica mais organizado e facil de acompanhar.",
+    chips: ["Treino", "Nutricao", "IA"],
     icon: "Zap",
   },
   {
     key: "elite",
-    eyebrow: "ELITE_PERFORMANCE",
-    title: "Precisão industrial para evolução consistente.",
+    eyebrow: "Evolucao com foco",
+    title: "Veja seu progresso com mais contraste e menos ruido.",
     description:
-      "Cada card reforça métricas, direção e confiança visual com movimento 3D controlado e superfícies sóbrias de alto contraste.",
-    footer: "Decisão rápida, execução limpa e feedback tátil.",
-    chips: ["Performance", "Precisão", "Disciplina"],
+      "Cada tela destaca metricas, proximos passos e informacoes essenciais com um visual sobrio e confortavel de ler.",
+    footer: "Mais clareza para decidir, treinar e seguir em frente.",
+    chips: ["Progresso", "Clareza", "Consistencia"],
     icon: "TrendingUp",
   },
   {
     key: "execute",
-    eyebrow: "READY_TO_EXECUTE",
-    title: "Tudo pronto para entrar no sistema.",
+    eyebrow: "Vamos comecar",
+    title: "Tudo pronto para entrar e ajustar o app ao seu ritmo.",
     description:
-      "Finalize a apresentação e siga para autenticação. Se sua sessão já existir, o fluxo continua direto para a conclusão do setup.",
-    footer: "Entrada validada com transição objetiva para o próximo passo.",
+      "Ao terminar esta apresentacao, voce segue para o login ou para a configuracao inicial, sem passos desnecessarios.",
+    footer: "Voce entra rapido e continua de onde precisa.",
     chips: ["Login", "Setup", "VRTX"],
     icon: "Check",
   },
@@ -131,9 +131,9 @@ export function OnboardingScreen() {
 
   const stats = useMemo(
     () => [
-      { label: "LAYERS", value: "03" },
-      { label: "FPS", value: "120" },
-      { label: "TACTILE", value: "ON" },
+      { label: "Camadas", value: "3" },
+      { label: "Fluidez", value: "120" },
+      { label: "Toque", value: "Ativo" },
     ],
     [],
   );
@@ -148,10 +148,10 @@ export function OnboardingScreen() {
       </View>
 
       <View style={styles.header}>
-        <Text style={[styles.brand, { color: colors.foregroundMuted }]}>VRTX PROTOCOL // 2026</Text>
+        <Text style={[styles.brand, { color: colors.foregroundMuted }]}>VRTX Protocol</Text>
         <Pressable onPress={navigateAfterIntro} hitSlop={12}>
           <Text style={[styles.skip, { color: colors.muted }]}>
-            {isAuthenticated && !user?.onboardingCompleted ? "IR PARA SETUP" : "PULAR"}
+            {isAuthenticated && !user?.onboardingCompleted ? "Ir para configuracao" : "Pular"}
           </Text>
         </Pressable>
       </View>
@@ -241,13 +241,13 @@ export function OnboardingScreen() {
       <View style={styles.footerActions}>
         <Pressable onPress={navigateAfterIntro} style={[styles.secondaryButton, { borderColor: colors.borderStrong }]}>
           <Text style={[styles.secondaryButtonText, { color: colors.foregroundMuted }]}>
-            {isAuthenticated && !user?.onboardingCompleted ? "ABRIR SETUP" : "IR PARA LOGIN"}
+            {isAuthenticated && !user?.onboardingCompleted ? "Abrir configuracao" : "Ir para login"}
           </Text>
         </Pressable>
 
         <Pressable onPress={handleNext} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
           <Text style={styles.primaryButtonText}>
-            {activeIndex === SLIDES.length - 1 ? "ENTRAR NO SISTEMA" : "CONTINUAR"}
+            {activeIndex === SLIDES.length - 1 ? "Entrar no app" : "Continuar"}
           </Text>
           <AppIcon name={activeIndex === SLIDES.length - 1 ? "ChevronRight" : "ChevronRight"} color="#F8FAFC" size={18} />
         </Pressable>
@@ -301,14 +301,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   brand: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.sm,
-    letterSpacing: typography.letterSpacing.wider,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   skip: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.sm,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   progressBlock: {
     paddingHorizontal: spacing.lg,
@@ -321,9 +323,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   progressLabel: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wider,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   progressCount: {
     fontFamily: typography.family.mono,
@@ -374,9 +377,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   eyebrow: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.widest,
+    fontWeight: "700",
+    letterSpacing: 0.2,
     marginBottom: spacing.md,
   },
   title: {
@@ -405,9 +409,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   chipText: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   statsCard: {
     borderWidth: 1,
@@ -421,9 +426,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statLabel: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   statValue: {
     fontFamily: typography.family.heading,
@@ -452,9 +458,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   secondaryButtonText: {
-    fontFamily: typography.family.mono,
-    fontSize: typography.size.sm,
-    letterSpacing: typography.letterSpacing.wide,
+    fontFamily: typography.family.body,
+    fontSize: typography.size.base,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   primaryButton: {
     minHeight: 58,
@@ -466,8 +473,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#F8FAFC",
-    fontFamily: typography.family.mono,
-    fontSize: typography.size.sm,
-    letterSpacing: typography.letterSpacing.wide,
+    fontFamily: typography.family.body,
+    fontSize: typography.size.base,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
 });

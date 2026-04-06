@@ -178,11 +178,6 @@ export class SyncQueueService {
     try {
       const payload = operation.data as SyncEntityPayload;
 
-      if (operation.entity === "food_recognition") {
-        // Mock para IA de alimentos
-        return true;
-      }
-
       if (operation.type === "create") {
         const result = await apiClient.insertOne(
           operation.table,

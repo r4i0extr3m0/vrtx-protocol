@@ -109,7 +109,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
             syncStatus: "pending" as const,
           };
         });
-        const updatedWorkout = nextWorkouts.find((workout) => workout.id == workoutId);
+        const updatedWorkout = nextWorkouts.find((workout) => workout.id === workoutId);
 
         set({ workouts: nextWorkouts });
 

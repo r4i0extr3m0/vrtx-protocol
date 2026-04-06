@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { BlurView } from "@/src/components/BlurView";
@@ -11,7 +11,7 @@ import { typography } from "@/src/theme";
 export default function TabLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
+  const bottomPadding = Math.max(insets.bottom, 8);
   const tabBarHeight = 64 + bottomPadding;
 
   return (
@@ -22,24 +22,26 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
-          fontFamily: typography.family.mono,
-          fontSize: 10,
+          fontFamily: typography.family.body,
+          fontSize: 11,
           fontWeight: '700',
           paddingBottom: 4,
+          lineHeight: 14,
         },
         tabBarStyle: {
           position: 'absolute',
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255, 255, 255, 0.08)',
+          borderTopColor: colors.border,
           backgroundColor: 'transparent',
           height: tabBarHeight,
           elevation: 0,
+          paddingTop: 6,
         },
         tabBarBackground: () => (
           <BlurView 
             intensity={30} 
             tint="dark" 
-            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(13, 13, 13, 0.8)' }]} 
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(13, 13, 13, 0.84)' }]} 
           />
         ),
       }}
@@ -47,29 +49,29 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "COMMAND",
-          tabBarIcon: ({ color }) => <AppIcon name="Cpu" size={24} color={color} />,
+          title: "Inicio",
+          tabBarIcon: ({ color }) => <AppIcon name="Home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="workout"
         options={{
-          title: "PROTOCOLO",
+          title: "Treino",
           tabBarIcon: ({ color }) => <AppIcon name="Zap" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: "LOGS",
-          tabBarIcon: ({ color }) => <AppIcon name="Database" size={24} color={color} />,
+          title: "Historico",
+          tabBarIcon: ({ color }) => <AppIcon name="Clock" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="statistics"
         options={{
-          title: "ANALYTICS",
-          tabBarIcon: ({ color }) => <AppIcon name="Activity" size={24} color={color} />,
+          title: "Progresso",
+          tabBarIcon: ({ color }) => <AppIcon name="BarChart" size={24} color={color} />,
         }}
       />
     </Tabs>

@@ -2,6 +2,8 @@
 
 This guide covers server-side features including authentication, database, tRPC API, and integrations. **Only read this if your app needs these capabilities.**
 
+For VRTX Protocol, treat `docs/README.md` and `docs/MASTER_DOCUMENTATION.md` as the canonical project references. This file is a specialized implementation guide for the optional `server/` + `drizzle/` stack.
+
 ---
 
 ## When Do You Need Backend?

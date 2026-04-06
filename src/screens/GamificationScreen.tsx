@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, Pressable, Alert } from "react-native";
 import Animated, { 
   useAnimatedStyle, 
@@ -12,15 +12,15 @@ import { ScreenContainer } from "@/components/screen-container";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useTheme } from "@/src/hooks";
 import { useGamificationStore } from "@/src/store/gamificationStore";
-import { radius, spacing, typography, shadows } from "@/src/theme";
+import { radius, spacing, shadows } from "@/src/theme";
 import * as Haptics from "expo-haptics";
 import { protocolNameFromLevel } from "@/src/utils";
 
 const BADGES_INFO: Record<string, { title: string; description: string; icon: string }> = {
   xp_100: { title: "Iniciante", description: "Alcançou 100 XP", icon: "🌱" },
   xp_1000: { title: "Atleta", description: "Alcançou 1000 XP", icon: "🔥" },
-  streak_7: { title: "Consistente", description: "7 dias de streak", icon: "⚡" },
-  streak_30: { title: "Inabalável", description: "30 dias de streak", icon: "🏆" },
+  streak_7: { title: "Consistente", description: "7 dias em sequencia", icon: "⚡" },
+  streak_30: { title: "Inabalável", description: "30 dias em sequencia", icon: "🏆" },
 };
 
 export function GamificationScreen() {
@@ -42,7 +42,7 @@ export function GamificationScreen() {
   useEffect(() => {
     // Check-in 1x por dia (conta para missão e streak)
     recordActivity("checkin", 1);
-  }, []);
+  }, [recordActivity]);
 
   const nextLevelXP = Math.pow(level, 2) * 100;
   const currentLevelXP = Math.pow(level - 1, 2) * 100;
@@ -68,7 +68,7 @@ export function GamificationScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>Evolução</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Missões diárias, liga semanal e conquistas.
+            Veja seu ritmo, acompanhe metas do dia e desbloqueie novas conquistas.
           </Text>
         </View>
 
@@ -81,7 +81,7 @@ export function GamificationScreen() {
               <Text style={styles.statEmoji}>🔥</Text>
             </View>
             <Text style={[styles.statValue, { color: colors.foreground }]}>{streak}</Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>Streak</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Dias seguidos</Text>
           </Animated.View>
           
           <Animated.View 
@@ -92,7 +92,7 @@ export function GamificationScreen() {
               <Text style={styles.statEmoji}>⭐</Text>
             </View>
             <Text style={[styles.statValue, { color: colors.foreground }]}>{totalXP}</Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>Total XP</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>XP total</Text>
           </Animated.View>
         </View>
 
@@ -119,7 +119,7 @@ export function GamificationScreen() {
 
         <SectionCard 
           title={protocolNameFromLevel(level)}
-          subtitle={`${totalXP} / ${nextLevelXP} XP para o próximo nível`}
+          subtitle={`${totalXP} / ${nextLevelXP} XP para o proximo nivel`}
           delay={300}
         >
           <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceAlt }]}>
@@ -135,7 +135,7 @@ export function GamificationScreen() {
         </SectionCard>
 
         {tab === "missions" ? (
-          <SectionCard title="Missões de hoje" subtitle="Complete, colete e suba na liga." delay={380}>
+          <SectionCard title="Missoes de hoje" subtitle="Conclua suas metas, colete XP e avance aos poucos." delay={380}>
             <View style={{ gap: spacing.md }}>
               {dailyMissions.map((m) => {
                 const done = m.progress >= m.target;
@@ -164,7 +164,7 @@ export function GamificationScreen() {
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         const res = claimMission(m.id);
-                        if (!res.ok) Alert.alert("Missões", res.message ?? "Não foi possível coletar.");
+                        if (!res.ok) Alert.alert("Missoes", res.message ?? "Nao foi possivel coletar agora.");
                       }}
                       disabled={!done || claimed}
                       style={[
@@ -177,7 +177,7 @@ export function GamificationScreen() {
                       ]}
                     >
                       <Text style={{ color: done ? (claimed ? colors.muted : "#000") : colors.muted, fontWeight: "900" }}>
-                        {claimed ? "Coletado" : done ? "Coletar" : "Fazer"}
+                        {claimed ? "Recebido" : done ? "Coletar" : "Em andamento"}
                       </Text>
                     </Pressable>
                   </View>
@@ -190,35 +190,35 @@ export function GamificationScreen() {
         {tab === "league" ? (
           <SectionCard
             title={`Liga ${league.tier}`}
-            subtitle={`Semana ${weekId ?? ""} • rank #${league.rank}`}
+            subtitle={`Semana ${weekId ?? ""} · posicao #${league.rank}`}
             delay={380}
           >
             <View style={{ gap: spacing.md }}>
               <View style={[styles.leagueRow, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>XP nesta semana</Text>
+                  <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 12 }}>XP desta semana</Text>
                   <Text style={{ color: colors.foreground, fontWeight: "900", fontSize: 28, letterSpacing: -1.2 }}>
                     {league.xpThisWeek}
                   </Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
-                  <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>Zona</Text>
+                  <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 12 }}>Situacao</Text>
                   <Text style={{ color: league.rank <= league.promotionCutoff ? colors.success : league.rank >= league.demotionCutoff ? colors.error : colors.foreground, fontWeight: "900" }}>
                     {league.rank <= league.promotionCutoff
-                      ? "Promoção"
+                      ? "Subindo"
                       : league.rank >= league.demotionCutoff
-                        ? "Rebaixamento"
-                        : "Segura"}
+                        ? "Em risco"
+                        : "Estavel"}
                   </Text>
                 </View>
               </View>
 
               <View style={{ gap: 8 }}>
-                <Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>
-                  Meta rápida (hoje): complete 1 missão + finalize 1 treino.
-                </Text>
                 <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 12 }}>
-                  Top {league.promotionCutoff} sobe • #{league.demotionCutoff}+ cai
+                  Dica de hoje: conclua 1 missao e finalize 1 treino para ganhar ritmo.
+                </Text>
+                <Text style={{ color: colors.muted, fontWeight: "500", fontSize: 12, lineHeight: 18 }}>
+                  Top {league.promotionCutoff} sobe · a partir de #{league.demotionCutoff}, a zona fica de risco.
                 </Text>
               </View>
             </View>
@@ -287,7 +287,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
+    lineHeight: 21,
   },
   statsRow: {
     flexDirection: "row",
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 0.2,
   },
   statCard: {
@@ -337,10 +338,8 @@ const styles = StyleSheet.create({
     letterSpacing: -1.5,
   },
   statLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    fontSize: 11,
+    fontWeight: "700",
   },
   progressBarBg: {
     height: 16,
@@ -426,8 +425,8 @@ const styles = StyleSheet.create({
   badgeDesc: {
     fontSize: 12,
     textAlign: "center",
-    fontWeight: "600",
-    lineHeight: 16,
+    fontWeight: "500",
+    lineHeight: 18,
   },
   lockOverlay: {
     position: "absolute",

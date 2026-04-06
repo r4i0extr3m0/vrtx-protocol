@@ -34,7 +34,7 @@ export function ProgressBarGlow({
 
   useEffect(() => {
     width.value = withSpring(progress, { damping: 20, stiffness: 120 });
-  }, [progress]);
+  }, [progress, width]);
 
   const progressStyle = useAnimatedStyle(() => ({
     width: `${width.value * 100}%`,

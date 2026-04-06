@@ -8,7 +8,7 @@ import { useTheme } from "@/src/hooks";
 import { useDietStore } from "@/src/store/dietStore";
 import { useGamificationStore } from "@/src/store/gamificationStore";
 import { radius, spacing, typography } from "@/src/theme";
-import { createId, toIsoDate, toIsoTimestamp } from "@/src/utils";
+import { createId, toIsoDate } from "@/src/utils";
 import type { MealItem, Food } from "@/src/types";
 
 const INITIAL_FOODS: Food[] = [
@@ -47,7 +47,10 @@ export function AddMealScreen() {
   const handleAddItem = () => {
     if (!selectedFood) return;
     const q = parseFloat(quantity) || 0;
-    if (q <= 0) { Alert.alert("Quantidade inválida"); return; }
+    if (q <= 0) {
+      Alert.alert("Quantidade invalida", "Digite uma quantidade maior que zero para continuar.");
+      return;
+    }
 
     const newItem: MealItem = {
       id: createId("item"),
@@ -66,7 +69,10 @@ export function AddMealScreen() {
   };
 
   const handleSaveMeal = () => {
-    if (items.length === 0) { Alert.alert("Adicione pelo menos um alimento"); return; }
+    if (items.length === 0) {
+      Alert.alert("Falta um alimento", "Adicione pelo menos um item antes de salvar a refeicao.");
+      return;
+    }
 
     addMeal({
       date: toIsoDate(new Date()),
@@ -86,11 +92,13 @@ export function AddMealScreen() {
     <ScreenContainer className="px-5 py-5">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Nova Refeição</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Registre o que você comeu para manter o controle.</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Nova refeicao</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Monte sua refeicao com calma e acompanhe os macros sem complicacao.
+          </Text>
         </View>
 
-        <SectionCard title="Tipo de Refeição" subtitle="Selecione o momento do dia.">
+        <SectionCard title="Tipo de refeicao" subtitle="Escolha em que momento do dia voce fez essa refeicao.">
           <View style={styles.typeRow}>
             {(["breakfast", "lunch", "dinner", "snack"] as const).map((type) => (
               <Pressable
@@ -102,27 +110,32 @@ export function AddMealScreen() {
                 ]}
               >
                 <Text style={[styles.typeBtnText, { color: mealType === type ? "#fff" : colors.foreground }]}>
-                  {type === "breakfast" ? "Café" : type === "lunch" ? "Almoço" : type === "dinner" ? "Jantar" : "Lanche"}
+                  {type === "breakfast" ? "Cafe da manha" : type === "lunch" ? "Almoco" : type === "dinner" ? "Jantar" : "Lanche"}
                 </Text>
               </Pressable>
             ))}
           </View>
         </SectionCard>
 
-        <SectionCard title="Alimentos" subtitle="Lista de itens consumidos.">
+        <SectionCard title="Alimentos" subtitle="Adicione os itens que fizeram parte da sua refeicao.">
+          {items.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              Nenhum alimento adicionado ainda.
+            </Text>
+          ) : null}
           {items.map((item) => (
             <View key={item.id} style={styles.itemRow}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.itemName, { color: colors.foreground }]}>{item.foodName}</Text>
-                <Text style={[styles.itemMeta, { color: colors.muted }]}>{item.quantity}g • {item.calories} kcal</Text>
+                <Text style={[styles.itemMeta, { color: colors.muted }]}>{item.quantity} g · {item.calories} kcal</Text>
               </View>
               <AppButton label="×" onPress={() => setItems(items.filter((i) => i.id !== item.id))} variant="ghost" style={styles.removeBtn} />
             </View>
           ))}
-          <AppButton label="+ Adicionar Alimento" onPress={() => setFoodPickerVisible(true)} variant="secondary" />
+          <AppButton label="Adicionar alimento" onPress={() => setFoodPickerVisible(true)} variant="secondary" />
         </SectionCard>
 
-        <SectionCard title="Resumo Nutricional" subtitle="Totais calculados automaticamente.">
+        <SectionCard title="Resumo nutricional" subtitle="Os totais sao atualizados automaticamente conforme voce adiciona os itens.">
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryValue, { color: colors.foreground }]}>{totals.calories}</Text>
@@ -130,26 +143,26 @@ export function AddMealScreen() {
             </View>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryValue, { color: colors.foreground }]}>{totals.protein}g</Text>
-              <Text style={[styles.summaryLabel, { color: colors.muted }]}>Prot</Text>
+              <Text style={[styles.summaryLabel, { color: colors.muted }]}>Proteina</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryValue, { color: colors.foreground }]}>{totals.carbs}g</Text>
-              <Text style={[styles.summaryLabel, { color: colors.muted }]}>Carb</Text>
+              <Text style={[styles.summaryLabel, { color: colors.muted }]}>Carbo</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryValue, { color: colors.foreground }]}>{totals.fat}g</Text>
-              <Text style={[styles.summaryLabel, { color: colors.muted }]}>Gord</Text>
+              <Text style={[styles.summaryLabel, { color: colors.muted }]}>Gordura</Text>
             </View>
           </View>
         </SectionCard>
 
-        <AppButton label="Salvar Refeição" onPress={handleSaveMeal} />
+        <AppButton label="Salvar refeicao" onPress={handleSaveMeal} />
       </ScrollView>
 
       <Modal animationType="slide" onRequestClose={() => setFoodPickerVisible(false)} transparent visible={foodPickerVisible}>
         <Pressable onPress={() => setFoodPickerVisible(false)} style={styles.overlay} />
         <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Selecionar Alimento</Text>
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Escolha um alimento</Text>
           
           {!selectedFood ? (
             <ScrollView style={styles.foodList}>
@@ -167,7 +180,7 @@ export function AddMealScreen() {
           ) : (
             <View style={styles.quantityForm}>
               <Text style={[styles.selectedFoodName, { color: colors.foreground }]}>{selectedFood.name}</Text>
-              <Text style={[styles.label, { color: colors.muted }]}>Quantidade (gramas)</Text>
+              <Text style={[styles.label, { color: colors.muted }]}>Quantidade em gramas</Text>
               <TextInput
                 keyboardType="number-pad"
                 onChangeText={setQuantity}
@@ -201,6 +214,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: typography.body,
+    lineHeight: 24,
+    fontWeight: "500",
   },
   typeRow: {
     flexDirection: "row",
@@ -218,6 +233,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+    marginBottom: spacing.sm,
+  },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -227,10 +248,11 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   itemMeta: {
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
   },
   removeBtn: {
     minHeight: 32,
@@ -248,9 +270,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   summaryLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "600",
-    textTransform: "uppercase",
   },
   overlay: {
     flex: 1,
@@ -281,10 +302,10 @@ const styles = StyleSheet.create({
   },
   foodName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   foodMeta: {
-    fontSize: 12,
+    fontSize: 13,
   },
   quantityForm: {
     gap: spacing.md,
@@ -296,7 +317,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: "700",
-    textTransform: "uppercase",
   },
   input: {
     minHeight: 52,

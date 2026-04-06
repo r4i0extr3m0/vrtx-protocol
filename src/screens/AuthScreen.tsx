@@ -32,14 +32,14 @@ export function AuthScreen() {
     () =>
       supabaseReady
         ? [
-            { label: "CANAL", value: "SECURE" },
-            { label: "SYNC", value: "LIVE" },
-            { label: "MODE", value: mode === "login" ? "AUTH" : "CREATE" },
+            { label: "Canal", value: "Seguro" },
+            { label: "Sync", value: "Ativa" },
+            { label: "Modo", value: mode === "login" ? "Entrar" : "Cadastro" },
           ]
         : [
-            { label: "CANAL", value: "LOCAL" },
-            { label: "SYNC", value: "OFF" },
-            { label: "MODE", value: "GUEST" },
+            { label: "Canal", value: "Local" },
+            { label: "Sync", value: "Pausada" },
+            { label: "Modo", value: "Offline" },
           ],
     [mode, supabaseReady],
   );
@@ -66,13 +66,13 @@ export function AuthScreen() {
   const handleLogin = async () => {
     if (!supabaseReady) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert("LOGIN INDISPONIVEL", "Este build está em modo offline. Use 'Continuar offline'.");
+      Alert.alert("Login indisponivel", "Este app esta em modo offline. Toque em 'Continuar offline' para seguir.");
       return;
     }
 
     if (!email.trim() || !password) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("ACESSO NEGADO", "Verifique suas coordenadas (E-mail/Senha).");
+      Alert.alert("Revise seus dados", "Preencha e-mail e senha para entrar.");
       return;
     }
     setSubmitting(true);
@@ -80,7 +80,7 @@ export function AuthScreen() {
     setSubmitting(false);
     if (!result.success) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("FALHA NA AUTENTICAÇÃO", result.message ?? "Erro de conexão com o servidor.");
+      Alert.alert("Nao foi possivel entrar", result.message ?? "Houve um problema de conexao. Tente novamente.");
       return;
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -90,13 +90,13 @@ export function AuthScreen() {
   const handleSignUp = async () => {
     if (!supabaseReady) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert("REGISTRO INDISPONIVEL", "Este build está em modo offline. Use 'Continuar offline'.");
+      Alert.alert("Cadastro indisponivel", "Este app esta em modo offline. Toque em 'Continuar offline' para seguir.");
       return;
     }
 
     if (!email.trim() || !password) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("DADOS INCOMPLETOS", "Preencha os campos obrigatórios para o registro.");
+      Alert.alert("Faltam algumas informacoes", "Preencha os campos obrigatorios para criar sua conta.");
       return;
     }
     setSubmitting(true);
@@ -104,7 +104,7 @@ export function AuthScreen() {
     setSubmitting(false);
     if (!result.success) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("FALHA NO REGISTRO", result.message ?? "Não foi possível criar sua conta.");
+      Alert.alert("Nao foi possivel criar a conta", result.message ?? "Tente novamente em instantes.");
       return;
     }
     
@@ -131,23 +131,23 @@ export function AuthScreen() {
               <View style={[styles.statusPill, { borderColor: colors.borderStrong, backgroundColor: "rgba(255,255,255,0.03)" }]}>
                 <View style={[styles.statusDot, { backgroundColor: supabaseReady ? colors.success : colors.warning }]} />
                 <Text style={[styles.statusPillText, { color: colors.foregroundMuted }]}>
-                  {supabaseReady ? "SECURE_CHANNEL" : "LOCAL_CHANNEL"}
+                  {supabaseReady ? "Conexao segura" : "Acesso local"}
                 </Text>
               </View>
-              <Text style={[styles.topMeta, { color: colors.muted }]}>VRTX // 2026</Text>
+              <Text style={[styles.topMeta, { color: colors.muted }]}>VRTX 2026</Text>
             </View>
 
             <View style={styles.hero}>
-              <Text style={[styles.eyebrow, { color: colors.foregroundMuted }]}>VRTX // AUTH</Text>
+              <Text style={[styles.eyebrow, { color: colors.foregroundMuted }]}>Bem-vindo</Text>
               <Text style={[styles.title, { color: colors.foreground }]}>
-                {mode === "login" ? "Entrar no sistema" : "Criar nova conta"}
+                {mode === "login" ? "Entrar na sua conta" : "Criar sua conta"}
               </Text>
               <Text style={[styles.subtitle, { color: colors.muted }]}>
                 {!supabaseReady
-                  ? "Modo offline detectado. Use a entrada local para continuar."
+                  ? "Voce esta no modo offline. Seus dados ficam salvos neste dispositivo."
                   : mode === "login"
-                    ? "Acesse seu ambiente com credenciais válidas."
-                    : "Cadastre a conta e siga para o setup do protocolo."}
+                    ? "Entre para retomar seus treinos, historico e configuracoes."
+                    : "Crie sua conta e siga para uma configuracao rapida."}
               </Text>
             </View>
 
@@ -172,47 +172,47 @@ export function AuthScreen() {
             <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]}>
               <View style={[styles.formHeader, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.formEyebrow, { color: colors.foregroundMuted }]}>
-                  {supabaseReady ? "AUTHENTICATION_GATE" : "LOCAL_ACCESS_GATE"}
+                  {supabaseReady ? "Acesso a conta" : "Modo offline"}
                 </Text>
                 <Text style={[styles.formHint, { color: colors.muted }]}>
-                  {mode === "login" ? "Entrada rápida com validação direta." : "Cadastro simples antes do setup."}
+                  {mode === "login" ? "Use seus dados para entrar com seguranca." : "Faltam poucos passos para comecar."}
                 </Text>
               </View>
 
               {!supabaseReady ? (
                 <View style={styles.offlineWarning}>
                   <Text style={[styles.offlineBadge, { color: colors.warning, borderColor: colors.warning }]}>
-                    STATUS: MODO_LOCAL
+                    Modo offline ativo
                   </Text>
                   <Text style={[styles.offlineText, { color: colors.muted }]}>
-                    O sistema está operando em modo de isolamento. Os dados serão salvos localmente.
+                    Voce pode explorar o app agora mesmo. Os dados serao salvos localmente neste aparelho.
                   </Text>
                   <Pressable
                     onPress={handleContinueOffline}
-                    accessibilityLabel="CONTINUAR OFFLINE"
+                    accessibilityLabel="Continuar offline"
                     style={[styles.primaryButton, { backgroundColor: colors.primary }]}
                   >
-                    <Text style={styles.primaryButtonText}>CONTINUAR OFFLINE</Text>
+                    <Text style={styles.primaryButtonText}>Continuar offline</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => router.push("/terms-and-privacy" as never)}
-                    accessibilityLabel="TERMOS E PRIVACIDADE"
+                    accessibilityLabel="Termos e privacidade"
                     style={[styles.secondaryButton, { borderColor: colors.borderStrong }]}
                   >
-                    <Text style={[styles.secondaryButtonText, { color: colors.foregroundMuted }]}>TERMOS E PRIVACIDADE</Text>
+                    <Text style={[styles.secondaryButtonText, { color: colors.foregroundMuted }]}>Termos e privacidade</Text>
                   </Pressable>
                 </View>
               ) : (
                 <>
                   {mode === "signup" && (
                     <View style={styles.fieldGroup}>
-                      <Text style={[styles.label, { color: colors.foregroundMuted }]}>OPERADOR</Text>
+                      <Text style={[styles.label, { color: colors.foregroundMuted }]}>Nome</Text>
                       <TextInput
                         value={name}
                         onChangeText={setName}
                         autoCapitalize="words"
                         autoCorrect={false}
-                        placeholder="Nome do Operador"
+                        placeholder="Como voce prefere ser chamado?"
                         placeholderTextColor={colors.muted}
                         style={[
                           styles.input,
@@ -227,14 +227,14 @@ export function AuthScreen() {
                   )}
                   
                   <View style={styles.fieldGroup}>
-                    <Text style={[styles.label, { color: colors.foregroundMuted }]}>COORDENADA_EMAIL</Text>
+                    <Text style={[styles.label, { color: colors.foregroundMuted }]}>E-mail</Text>
                     <TextInput
                       value={email}
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      placeholder="email@vrtx.com"
+                      placeholder="voce@exemplo.com"
                       placeholderTextColor={colors.muted}
                       style={[
                         styles.input,
@@ -248,7 +248,7 @@ export function AuthScreen() {
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={[styles.label, { color: colors.foregroundMuted }]}>CHAVE_ACESSO</Text>
+                    <Text style={[styles.label, { color: colors.foregroundMuted }]}>Senha</Text>
                     <TextInput
                       value={password}
                       onChangeText={setPassword}
@@ -271,30 +271,30 @@ export function AuthScreen() {
                     <Pressable
                       onPress={mode === "login" ? handleLogin : handleSignUp}
                       disabled={submitting}
-                      accessibilityLabel={mode === "login" ? "EXECUTAR LOGIN" : "REGISTRAR PROTOCOLO"}
+                      accessibilityLabel={mode === "login" ? "Entrar" : "Criar conta"}
                       style={[
                         styles.primaryButton,
                         { backgroundColor: colors.primary, opacity: submitting ? 0.7 : 1 },
                       ]}
                     >
                       <Text style={styles.primaryButtonText}>
-                        {submitting ? "PROCESSANDO..." : mode === "login" ? "EXECUTAR LOGIN" : "REGISTRAR PROTOCOLO"}
+                        {submitting ? (mode === "login" ? "Entrando..." : "Criando conta...") : mode === "login" ? "Entrar" : "Criar conta"}
                       </Text>
                     </Pressable>
                     
                     <View style={styles.divider}>
                       <View style={[styles.line, { backgroundColor: colors.border }]} />
-                      <Text style={[styles.dividerText, { color: colors.muted }]}>OU</Text>
+                      <Text style={[styles.dividerText, { color: colors.muted }]}>ou</Text>
                       <View style={[styles.line, { backgroundColor: colors.border }]} />
                     </View>
 
                     <Pressable
                       onPress={() => setMode(mode === "login" ? "signup" : "login")}
-                      accessibilityLabel={mode === "login" ? "CRIAR NOVA CONTA" : "JÁ TENHO ACESSO"}
+                      accessibilityLabel={mode === "login" ? "Criar conta" : "Ja tenho conta"}
                       style={[styles.secondaryButton, { borderColor: colors.borderStrong }]}
                     >
                       <Text style={[styles.secondaryButtonText, { color: colors.foregroundMuted }]}>
-                        {mode === "login" ? "CRIAR NOVA CONTA" : "JÁ TENHO ACESSO"}
+                        {mode === "login" ? "Criar conta" : "Ja tenho conta"}
                       </Text>
                     </Pressable>
                   </View>
@@ -304,11 +304,11 @@ export function AuthScreen() {
             
             <View style={styles.footer}>
               <Text style={[styles.statusFooter, { color: colors.success }]}>
-                ● STATUS: OPERACIONAL • VRTX v2.0
+                Tudo pronto para voce comecar
               </Text>
               <Pressable onPress={() => router.push("/terms-and-privacy" as never)}>
                 <Text style={[styles.legalText, { color: colors.muted }]}>
-                  TERMOS_DE_SERVIÇO // PRIVACIDADE
+                  Termos de servico e privacidade
                 </Text>
               </Pressable>
             </View>
@@ -387,23 +387,26 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusPillText: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   topMeta: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wider,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
   hero: {
     gap: spacing.xs,
     alignItems: "center",
   },
   eyebrow: {
-    fontFamily: typography.family.mono,
-    fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.widest,
+    fontFamily: typography.family.body,
+    fontSize: typography.size.sm,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   title: {
     fontFamily: typography.family.heading,
@@ -431,9 +434,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metricLabel: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   metricValue: {
     fontFamily: typography.family.heading,
@@ -453,9 +457,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   formEyebrow: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wider,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   formHint: {
     fontFamily: typography.family.body,
@@ -465,9 +470,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   input: {
     minHeight: 54,
@@ -493,8 +499,9 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   dividerText: {
-    fontFamily: typography.family.mono,
-    fontSize: 10,
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: "700",
   },
   offlineWarning: {
     alignItems: "center",
@@ -512,9 +519,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    fontFamily: typography.family.mono,
+    fontFamily: typography.family.body,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   primaryButton: {
     minHeight: 54,
@@ -525,9 +533,10 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#F8FAFC",
-    fontFamily: typography.family.mono,
-    fontSize: typography.size.sm,
-    letterSpacing: typography.letterSpacing.wide,
+    fontFamily: typography.family.body,
+    fontSize: typography.size.base,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   secondaryButton: {
     minHeight: 52,
@@ -538,23 +547,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   secondaryButtonText: {
-    fontFamily: typography.family.mono,
-    fontSize: typography.size.sm,
-    letterSpacing: typography.letterSpacing.wide,
+    fontFamily: typography.family.body,
+    fontSize: typography.size.base,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   footer: {
     alignItems: "center",
     gap: spacing.md,
   },
   statusFooter: {
-    fontFamily: typography.family.mono,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: "700",
   },
   legalText: {
-    fontFamily: typography.family.mono,
-    fontSize: 9,
+    fontFamily: typography.family.body,
+    fontSize: 11,
     textDecorationLine: "underline",
-    letterSpacing: 0.5,
+    fontWeight: "600",
   },
 });

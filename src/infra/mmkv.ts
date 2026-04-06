@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { createMMKV } from "react-native-mmkv";
 
 type StorageLike = {
   getString: (key: string) => string | undefined;
@@ -24,7 +25,7 @@ function createMemoryStorage(): StorageLike {
 }
 
 function shouldUseMemoryStorage(): boolean {
-  if (Platform.OS === "web" || typeof window === "undefined") return true;
+  if (Platform.OS !== "ios" && Platform.OS !== "android") return true;
   // react-native-mmkv v4 uses JSI which crashes in Expo Go (storeClient)
   // JSI errors cannot be caught by JavaScript try-catch
   if (Constants.executionEnvironment === "storeClient") return true;
@@ -37,8 +38,6 @@ function createNativeMMKVStorage(): StorageLike {
   try {
     // react-native-mmkv v4: MMKV class JS não existe mais, use createMMKV()
     // https://github.com/greg-schrammel/react-native-mmkv/blob/main/docs/V4_UPGRADE_GUIDE.md
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { createMMKV } = require("react-native-mmkv");
     const encryptionKey = "vrtxprotocol-secure-key-2026";
     const mmkvInstance = createMMKV({
       id: "vrtxprotocol-storage",

@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 export interface FoodRecognitionItem {
   name: string;
   calories: number;
@@ -71,17 +69,6 @@ export async function recognizeFood(imageUri: string): Promise<FoodRecognitionRe
  * Função auxiliar para converter URI local em Base64 (necessário para APIs reais)
  */
 export async function imageToBase64(uri: string): Promise<string> {
-  if (Platform.OS === "web") {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
-  
   // Para Native, usaríamos expo-file-system ou react-native-fs
   return "base64_placeholder";
 }

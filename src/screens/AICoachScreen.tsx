@@ -135,7 +135,7 @@ export function AICoachScreen() {
     if (!isAuthenticated || !userId) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Faça login para usar o AI Coach.", createdAt: Date.now() },
+        { role: "assistant", content: "Entre na sua conta para conversar com o AI Coach.", createdAt: Date.now() },
       ]);
       return;
     }
@@ -149,7 +149,7 @@ export function AICoachScreen() {
         ...prev,
         {
           role: "assistant",
-          content: "O AI Coach está disponível no Premium. Assine para desbloquear o chat.",
+          content: "O chat com o AI Coach faz parte do Premium. Assine para continuar.",
           createdAt: Date.now(),
         },
       ]);
@@ -186,7 +186,7 @@ export function AICoachScreen() {
           ...prev,
           {
             role: "assistant",
-            content: "Limite diário atingido. Assine o Premium para continuar.",
+          content: "Voce atingiu o limite de hoje. Assine o Premium para continuar usando o chat.",
             createdAt: Date.now(),
           },
         ]);
@@ -198,7 +198,7 @@ export function AICoachScreen() {
         {
           role: "assistant",
           content:
-            "Não consegui acessar o AI agora. Confira se o EXPO_PUBLIC_AI_API_URL está configurado e se a API está rodando.",
+            "Nao consegui falar com a IA agora. Tente novamente em instantes. Se o problema continuar, verifique a conexao do app com a API.",
           createdAt: Date.now(),
         },
       ]);
@@ -220,7 +220,7 @@ export function AICoachScreen() {
         <View style={{ gap: 2 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>AI Coach</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Recomendações preditivas (beta) com base no seu histórico.
+            Sugestoes personalizadas com base no seu historico recente.
           </Text>
         </View>
         <AppButton label="Voltar" variant="ghost" onPress={() => router.back()} />
@@ -284,7 +284,7 @@ export function AICoachScreen() {
         <View style={styles.composer}>
           <View style={{ flex: 1 }}>
             <AppInput
-              placeholder="Pergunte sobre treino, dieta, deload, macros..."
+              placeholder="Pergunte sobre treino, alimentacao, deload ou macros..."
               value={message}
               onChangeText={setMessage}
               editable={!sending}
@@ -298,7 +298,9 @@ export function AICoachScreen() {
           />
         </View>
         <Text style={[styles.limitText, { color: colors.muted }]}>
-          {aiUsage ? `${aiUsage.chat.used}/${aiUsage.chat.limit} mensagens (reset: ${aiUsage.reset_at.slice(0, 10)})` : `${dailyCount}/${DAILY_LIMIT} mensagens hoje`}
+          {aiUsage
+            ? `${aiUsage.chat.used}/${aiUsage.chat.limit} mensagens usadas. Renova em ${aiUsage.reset_at.slice(0, 10)}.`
+            : `${dailyCount}/${DAILY_LIMIT} mensagens usadas hoje`}
         </Text>
       </KeyboardAvoidingView>
     </ScreenContainer>

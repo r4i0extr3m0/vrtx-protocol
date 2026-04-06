@@ -12,7 +12,7 @@ import { formatVolume } from "@/src/utils";
 export function HistoryDetailScreen() {
   const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { workouts, updateWorkout } = useWorkout();
+  const { workouts } = useWorkout();
 
   const workout = useMemo(() => workouts.find((w) => w.id === id), [workouts, id]);
   const summary = useMemo(() => (workout ? summarizeWorkout(workout) : null), [workout]);

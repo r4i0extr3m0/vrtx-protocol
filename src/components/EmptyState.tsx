@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { useTheme } from "@/src/hooks";
 import { AppButton } from "./AppButton";
-import { radius, spacing, typography } from "@/src/theme";
+import { radius, spacing } from "@/src/theme";
 
 interface EmptyStateProps {
   emoji?: string;
@@ -38,17 +38,19 @@ export function EmptyState({ emoji, title, description, actionLabel, onAction }:
 
 const styles = StyleSheet.create({
   container: {
-    padding: spacing.xl,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
     marginVertical: spacing.lg,
+    gap: spacing.xs,
   },
   emoji: {
-    fontSize: 64,
-    marginBottom: spacing.lg,
+    fontSize: 56,
+    marginBottom: spacing.md,
   },
   lottieAnimation: {
     width: 200,
@@ -56,21 +58,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "900",
     textAlign: "center",
-    marginBottom: spacing.xs,
     letterSpacing: -0.5,
   },
   description: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "500",
     textAlign: "center",
-    lineHeight: 20,
-    paddingHorizontal: spacing.md,
+    lineHeight: 22,
+    maxWidth: 320,
   },
   button: {
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     minWidth: 180,
   },
 });
