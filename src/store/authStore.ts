@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { getCurrentSession, getCurrentUser, getSupabaseClient } from "@/src/api/supabase";
+import { clearPersistedAuthSession, getCurrentSession, getCurrentUser, getSupabaseClient } from "@/src/api/supabase";
 import { getSupabaseEnvError, hasSupabaseEnv } from "@/src/constants/env";
 import { mmkvJsonStorage } from "@/src/infra/mmkv";
 import type { AuthSession, UserProfile } from "@/src/types";
@@ -369,9 +369,13 @@ export const useAuthStore = create<AuthStoreState>()(
           }
         } catch (error) {
           console.error("[authStore.signOut]", error);
+        } finally {
+          clearPersistedAuthSession();
         }
 
-        set({ isAuthenticated: false, user: null, session: null, status: "guest", hasHydrated: true });
+        // Sign-out should return to the public auth/onboarding flow.
+        // "guest" is reserved for the explicit offline path chosen by the user.
+        set({ isAuthenticated: false, user: null, session: null, status: "idle", hasHydrated: true });
         usePremiumStore.getState().resetPremium();
       },
       updateProfile: async (updates: Partial<UserProfile>) => {

@@ -1,13 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { 
   FadeInDown, 
   useAnimatedStyle, 
@@ -24,13 +26,15 @@ import { AppButton } from "@/src/components/AppButton";
 import { RestTimer } from "@/src/components/RestTimer";
 import { AppIcon } from "@/src/components/AppIcon";
 import { FocusMode } from "@/src/components/FocusMode";
-import { createExerciseEntry, createExerciseSet, summarizeWorkout } from "@/src/domain/workout";
-import { useTheme, useWorkout } from "@/src/hooks";
+import { createExerciseSet, summarizeWorkout } from "@/src/domain/workout";
+import { buildWorkoutExercises, WORKOUT_PRESETS, type WorkoutPreset } from "@/src/data/workoutPresets";
+import { useTabBarInset, useTheme, useWorkout } from "@/src/hooks";
 import { useGamificationStore } from "@/src/store/gamificationStore";
+import { useExerciseStore } from "@/src/store/exerciseStore";
 import { useTemplateStore } from "@/src/store/templateStore";
 import { radius, spacing, shadows } from "@/src/theme";
-import type { ExerciseEntry, ExerciseSet } from "@/src/types";
-import { createId, formatVolume } from "@/src/utils";
+import type { ExerciseEntry, ExerciseSet, TemplateExercise } from "@/src/types";
+import { formatVolume } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { VoiceCoach } from "@/src/services/voiceCoach";
 
@@ -43,6 +47,7 @@ interface SetFormModalProps {
 
 function SetFormModal({ visible, editingSet, onClose, onSave }: SetFormModalProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [reps, setReps] = useState(String(editingSet?.reps ?? 10));
   const [weight, setWeight] = useState(String(editingSet?.weightKg ?? 0));
   const [completed, setCompleted] = useState(editingSet?.completed ?? true);
@@ -62,7 +67,16 @@ function SetFormModal({ visible, editingSet, onClose, onSave }: SetFormModalProp
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
       <Pressable onPress={onClose} style={styles.overlay} />
-      <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.modalContent,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            paddingBottom: insets.bottom + spacing.lg,
+          },
+        ]}
+      >
         <Text style={[styles.modalTitle, { color: colors.foreground }]}>
           {editingSet ? "Editar série" : "Nova série"}
         </Text>
@@ -98,8 +112,10 @@ function SetFormModal({ visible, editingSet, onClose, onSave }: SetFormModalProp
 
 export function WorkoutScreen() {
   const { colors } = useTheme();
-  const { workouts, activeWorkoutId, createWorkout, createFromTemplate, removeExercise, addSet, updateSet, completeWorkout } = useWorkout();
+  const { workouts, activeWorkoutId, createFromTemplate, removeExercise, addSet, updateSet, completeWorkout } = useWorkout();
   const { templates } = useTemplateStore();
+  const { exercises, ensureSeedExercises } = useExerciseStore();
+  const { contentPaddingBottom, scrollIndicatorBottom, tabBarHeight } = useTabBarInset();
   const recordActivity = useGamificationStore((state) => state.recordActivity);
   const addXP = useGamificationStore((state) => state.addXP);
   const streak = useGamificationStore((state) => state.streak);
@@ -113,7 +129,13 @@ export function WorkoutScreen() {
   const [showTimer, setShowTimer] = useState(false);
   const [focusModeVisible, setFocusModeVisible] = useState(false);
   const [activeExercise, setActiveExercise] = useState<ExerciseEntry | null>(null);
+  const [libraryMode, setLibraryMode] = useState<"ready" | "custom">("ready");
   const focusModeSet = activeExercise?.sets.find((setEntry) => !setEntry.completed) ?? activeExercise?.sets[0] ?? null;
+  const hasExerciseLibrary = exercises.length > 0;
+
+  useEffect(() => {
+    ensureSeedExercises();
+  }, [ensureSeedExercises]);
 
   const prScale = useSharedValue(0);
   const prOpacity = useSharedValue(0);
@@ -171,43 +193,234 @@ export function WorkoutScreen() {
     zIndex: 1000,
   }));
 
+  const startPresetWorkout = (preset: WorkoutPreset) => {
+    const draft = createFromTemplate(preset.name, buildWorkoutExercises(preset.exercises));
+    trackEvent(ANALYTICS_EVENTS.WORKOUT_STARTED, {
+      workout_id: draft.id,
+      source: "ready_workout",
+      preset_id: preset.id,
+      workout_name: preset.name,
+      exercise_count: preset.exercises.length,
+    });
+  };
+
+  const savePresetAsCustom = (preset: WorkoutPreset) => {
+    router.push({ pathname: "/templates", params: { mode: "duplicate", presetId: preset.id } } as never);
+  };
+
+  const startCustomWorkout = (name: string, exercises: TemplateExercise[]) => {
+    const draft = createFromTemplate(name, buildWorkoutExercises(exercises));
+    trackEvent(ANALYTICS_EVENTS.WORKOUT_STARTED, {
+      workout_id: draft.id,
+      source: "custom_workout",
+      workout_name: name,
+      exercise_count: exercises.length,
+    });
+  };
+
   if (!workout) {
     return (
       <ScreenContainer className="px-5">
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Treino</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Monte um treino do zero ou comece por um modelo pronto.</Text>
-        </View>
-        <AppButton
-          label="Novo treino em branco"
-          onPress={() => {
-            createWorkout("Treino do dia");
-          }}
-          variant="brand"
-        />
-        <View style={{ marginTop: spacing.xl }}>
-           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Modelos prontos</Text>
-           {templates.map((t) => (
-              <Pressable key={t.id} onPress={() => {
-                const exercises: ExerciseEntry[] = t.exercises.map((te) =>
-                  createExerciseEntry({
-                    id: createId("exercise"),
-                    name: te.exerciseName,
-                    muscleGroup: te.muscleGroup,
-                    sets: Array.from({ length: te.sets }, () =>
-                      createExerciseSet({ reps: te.repsTarget, weightKg: te.weightKg ?? 0, completed: false }),
-                    ),
-                  }),
-                );
-                createFromTemplate(t.name, exercises);
-              }} style={[styles.templateItem, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
-                <Text style={[styles.templateName, { color: colors.foreground }]}>{t.name}</Text>
-                <Text style={[styles.templateMeta, { color: colors.muted }]}>
-                  {t.exercises.length} exercicio{t.exercises.length !== 1 ? "s" : ""} para voce começar mais rapido
+        <ScrollView
+          contentContainerStyle={[styles.emptyContent, { paddingBottom: contentPaddingBottom }]}
+          keyboardShouldPersistTaps="handled"
+          scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.foreground }]}>Treino</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>
+              Escolha um treino pronto para começar agora ou monte sua biblioteca personalizada.
+            </Text>
+          </View>
+
+          <View style={[styles.libraryToggle, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+            <Pressable
+              onPress={() => setLibraryMode("ready")}
+              style={[
+                styles.libraryToggleOption,
+                {
+                  backgroundColor: libraryMode === "ready" ? colors.primary : "transparent",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.libraryToggleText,
+                  { color: libraryMode === "ready" ? "#fff" : colors.foreground },
+                ]}
+              >
+                Treinos prontos
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setLibraryMode("custom")}
+              style={[
+                styles.libraryToggleOption,
+                {
+                  backgroundColor: libraryMode === "custom" ? colors.primary : "transparent",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.libraryToggleText,
+                  { color: libraryMode === "custom" ? "#fff" : colors.foreground },
+                ]}
+              >
+                Personalizados
+              </Text>
+            </Pressable>
+          </View>
+
+          {libraryMode === "ready" ? (
+            <View style={styles.librarySection}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Treinos prontos</Text>
+              <Text style={[styles.sectionDescription, { color: colors.muted }]}>
+                Planos base curados para tirar o app do vazio e gerar o primeiro aha sem depender de IA.
+              </Text>
+              {WORKOUT_PRESETS.map((preset) => (
+                <View
+                  key={preset.id}
+                  style={[styles.presetCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+                >
+                  <View style={styles.presetHeader}>
+                    <View style={styles.presetTextBlock}>
+                      <Text style={[styles.presetTitle, { color: colors.foreground }]}>{preset.name}</Text>
+                      <Text style={[styles.presetDescription, { color: colors.muted }]}>
+                        {preset.description}
+                      </Text>
+                    </View>
+                    <View style={[styles.presetCountBadge, { backgroundColor: colors.surfaceAlt }]}>
+                      <Text style={[styles.presetCountText, { color: colors.primary }]}>
+                        {preset.exercises.length} exercicios
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.presetMetaRow}>
+                    <View style={[styles.metaPill, { backgroundColor: colors.surfaceAlt }]}>
+                      <Text style={[styles.metaPillText, { color: colors.foreground }]}>{preset.frequencyLabel}</Text>
+                    </View>
+                    <View style={[styles.metaPill, { backgroundColor: colors.surfaceAlt }]}>
+                      <Text style={[styles.metaPillText, { color: colors.foreground }]}>{preset.durationLabel}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.cardActionStack}>
+                    <AppButton label="Comecar agora" onPress={() => startPresetWorkout(preset)} variant="brand" />
+                    <AppButton
+                      label="Salvar como personalizado"
+                      onPress={() => savePresetAsCustom(preset)}
+                      variant="secondary"
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.librarySection}>
+              <View
+                style={[
+                  styles.customHubCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  shadows.card,
+                ]}
+              >
+                <Text style={[styles.emptyTemplateTitle, { color: colors.foreground }]}>
+                  Treinos personalizados
                 </Text>
-              </Pressable>
-           ))}
-        </View>
+                <Text style={[styles.emptyTemplateText, { color: colors.muted }]}>
+                  Monte seu treino do zero e guarde uma estrutura propria sem abrir varios caminhos ao mesmo tempo.
+                </Text>
+                <View style={styles.emptyTemplateActions}>
+                  <AppButton
+                    label="Montar do zero"
+                    onPress={() => router.push({ pathname: "/templates", params: { mode: "create" } } as never)}
+                    variant="brand"
+                  />
+                  {!hasExerciseLibrary ? (
+                    <AppButton
+                      label="Criar exercicio"
+                      onPress={() => router.push("/exercises" as never)}
+                      variant="secondary"
+                    />
+                  ) : null}
+                </View>
+                <Text style={[styles.customHelperText, { color: colors.muted }]}>
+                  Para adaptar um treino pronto, use `Salvar como personalizado` na aba `Treinos prontos`.
+                </Text>
+              </View>
+
+              <View style={styles.customSectionHeader}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Meus treinos</Text>
+                  <AppButton
+                    label="Historico"
+                    onPress={() => router.push("/history" as never)}
+                    variant="ghost"
+                    style={styles.inlineGhostButton}
+                  />
+                </View>
+                <Text style={[styles.sectionDescription, { color: colors.muted }]}>
+                  {templates.length === 0
+                    ? "Ainda nao ha treinos salvos. Monte do zero ou salve um treino pronto como personalizado."
+                    : `${templates.length} treino${templates.length !== 1 ? "s" : ""} salvo${templates.length !== 1 ? "s" : ""} para reutilizar quando quiser.`}
+                </Text>
+              </View>
+              {templates.length === 0 ? (
+                <View
+                  style={[
+                    styles.emptyTemplateState,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    shadows.card,
+                  ]}
+                >
+                  <Text style={[styles.emptyTemplateTitle, { color: colors.foreground }]}>
+                    Nenhum treino personalizado ainda
+                  </Text>
+                  <Text style={[styles.emptyTemplateText, { color: colors.muted }]}>
+                    Use `Montar do zero` para criar o primeiro ou volte para `Treinos prontos` e salve um preset como personalizado.
+                  </Text>
+                  <View style={styles.emptyTemplateActions}>
+                    <AppButton
+                      label="Montar do zero"
+                      onPress={() => router.push({ pathname: "/templates", params: { mode: "create" } } as never)}
+                      variant="brand"
+                    />
+                    <AppButton
+                      label="Ver treinos prontos"
+                      onPress={() => setLibraryMode("ready")}
+                      variant="secondary"
+                    />
+                  </View>
+                </View>
+              ) : (
+                templates.map((template) => (
+                  <View
+                    key={template.id}
+                    style={[styles.templateItem, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+                  >
+                    <Text style={[styles.templateName, { color: colors.foreground }]}>{template.name}</Text>
+                    <Text style={[styles.templateMeta, { color: colors.muted }]}>
+                      {template.exercises.length} exercicio{template.exercises.length !== 1 ? "s" : ""} pronto{template.exercises.length !== 1 ? "s" : ""} para iniciar ou editar
+                    </Text>
+                    <View style={styles.cardActionStack}>
+                      <AppButton
+                        label="Comecar agora"
+                        onPress={() => startCustomWorkout(template.name, template.exercises)}
+                        variant="brand"
+                      />
+                      <AppButton
+                        label="Editar treino"
+                        onPress={() => router.push("/templates" as never)}
+                        variant="secondary"
+                      />
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+        </ScrollView>
       </ScreenContainer>
     );
   }
@@ -221,6 +434,10 @@ export function WorkoutScreen() {
       <FlashList
         data={workout.exercises}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={[styles.workoutListContent, { paddingBottom: contentPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+        contentInset={{ bottom: tabBarHeight }}
         ListHeaderComponent={() => (
           <View style={styles.header}>
             <View style={styles.titleRow}>
@@ -308,6 +525,13 @@ export function WorkoutScreen() {
           <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
             <AppButton label="Finalizar treino" onPress={() => {
               const streakBonus = streak > 0 ? 20 : 0;
+              trackEvent(ANALYTICS_EVENTS.WORKOUT_COMPLETED, {
+                workout_id: workout.id,
+                workout_name: workout.name,
+                exercise_count: workout.exercises.length,
+                set_count: summary?.setCount ?? 0,
+                total_volume: summary?.totalVolume ?? 0,
+              });
               completeWorkout(workout.id);
               // XP simples para o MVP: base fixa por treino e bonus se o usuario ja vinha em streak.
               recordActivity("workout", 1);
@@ -351,6 +575,33 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
     gap: spacing.md,
+  },
+  emptyContent: {
+    paddingTop: spacing.md,
+    gap: spacing.lg,
+  },
+  workoutListContent: {
+    paddingBottom: spacing.xxxl,
+  },
+  libraryToggle: {
+    flexDirection: "row",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    padding: 4,
+    gap: 4,
+  },
+  libraryToggleOption: {
+    flex: 1,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  libraryToggleText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  librarySection: {
+    gap: spacing.lg,
   },
   titleRow: {
     flexDirection: 'row',
@@ -459,6 +710,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: spacing.md,
   },
+  emptyTemplateState: {
+    marginTop: spacing.md,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  emptyTemplateTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+  emptyTemplateText: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 21,
+  },
+  emptyTemplateActions: {
+    gap: spacing.sm,
+  },
+  customHelperText: {
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
   templateName: {
     fontSize: 16,
     fontWeight: "800",
@@ -471,7 +747,83 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "900",
-    marginBottom: spacing.md,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
+    marginTop: -spacing.sm,
+  },
+  customSectionHeader: {
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  inlineGhostButton: {
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+  },
+  presetCard: {
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  presetHeader: {
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "flex-start",
+  },
+  presetTextBlock: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  presetTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  presetDescription: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  presetCountBadge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  presetCountText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  presetMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  metaPill: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  metaPillText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  cardActionStack: {
+    gap: spacing.sm,
+  },
+  customHubCard: {
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.xl,
+    gap: spacing.md,
   },
   overlay: {
     flex: 1,
@@ -483,7 +835,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.xl,
-    paddingBottom: 40,
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     borderTopWidth: 1,

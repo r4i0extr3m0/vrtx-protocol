@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScreenWrapper } from "../components/ui";
 import { useAuth, useTheme } from "@/src/hooks";
@@ -20,6 +22,7 @@ import { radius, spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { signIn, signUp, status, isAuthenticated, setGuestMode } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -64,6 +67,8 @@ export function AuthScreen() {
   };
 
   const handleLogin = async () => {
+    Keyboard.dismiss();
+
     if (!supabaseReady) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert("Login indisponivel", "Este app esta em modo offline. Toque em 'Continuar offline' para seguir.");
@@ -88,6 +93,8 @@ export function AuthScreen() {
   };
 
   const handleSignUp = async () => {
+    Keyboard.dismiss();
+
     if (!supabaseReady) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert("Cadastro indisponivel", "Este app esta em modo offline. Toque em 'Continuar offline' para seguir.");
@@ -118,8 +125,24 @@ export function AuthScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={[
+              styles.content,
+              {
+                paddingTop: Math.max(insets.top + spacing.lg, 44),
+              },
+            ]}
+          >
             <View pointerEvents="none" style={styles.background}>
               <View style={[styles.orbLarge, { backgroundColor: colors.primaryGlow }]} />
               <View style={[styles.orbSmall, { backgroundColor: "rgba(255,255,255,0.05)" }]} />
@@ -234,6 +257,7 @@ export function AuthScreen() {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
+                      returnKeyType="next"
                       placeholder="voce@exemplo.com"
                       placeholderTextColor={colors.muted}
                       style={[
@@ -254,6 +278,10 @@ export function AuthScreen() {
                       onChangeText={setPassword}
                       secureTextEntry
                       autoCorrect={false}
+                      returnKeyType="done"
+                      onSubmitEditing={() => {
+                        void (mode === "login" ? handleLogin() : handleSignUp());
+                      }}
                       placeholder="••••••••"
                       placeholderTextColor={colors.muted}
                       style={[

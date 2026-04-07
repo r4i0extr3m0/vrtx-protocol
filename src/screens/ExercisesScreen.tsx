@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,11 +43,15 @@ const emptyForm: ExerciseFormData = {
 
 export function ExercisesScreen() {
   const { colors } = useTheme();
-  const { exercises, createExercise, updateExercise, deleteExercise } = useExerciseStore();
+  const { exercises, createExercise, updateExercise, deleteExercise, ensureSeedExercises } = useExerciseStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExerciseFormData>(emptyForm);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    ensureSeedExercises();
+  }, [ensureSeedExercises]);
 
   const filtered = useMemo(() => {
     return exercises.filter(
@@ -150,6 +156,7 @@ export function ExercisesScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.foreground }]}>Exercícios</Text>
@@ -192,74 +199,82 @@ export function ExercisesScreen() {
         visible={modalVisible}
       >
         <Pressable onPress={() => setModalVisible(false)} style={styles.overlay} />
-        <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            {editingId ? "Editar exercicio" : "Novo exercicio"}
-          </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={24}
+          style={styles.modalKeyboard}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                {editingId ? "Editar exercicio" : "Novo exercicio"}
+              </Text>
 
-          <TextInput
-            autoCapitalize="words"
-            onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
-            placeholder="Nome do exercicio *"
-            placeholderTextColor={colors.muted}
-            style={inputStyle}
-            value={form.name}
-          />
+              <TextInput
+                autoCapitalize="words"
+                onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
+                placeholder="Nome do exercicio *"
+                placeholderTextColor={colors.muted}
+                style={inputStyle}
+                value={form.name}
+              />
 
-          <Text style={[styles.label, { color: colors.muted }]}>Grupo muscular</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-            {MUSCLE_GROUPS.map((group) => (
-              <Pressable
-                key={group}
-                onPress={() => setForm((f) => ({ ...f, muscleGroup: group }))}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: form.muscleGroup === group ? colors.primary : colors.surfaceAlt,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.chipText, { color: form.muscleGroup === group ? "#fff" : colors.foreground }]}>
-                  {group}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+              <Text style={[styles.label, { color: colors.muted }]}>Grupo muscular</Text>
+              <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                {MUSCLE_GROUPS.map((group) => (
+                  <Pressable
+                    key={group}
+                    onPress={() => setForm((f) => ({ ...f, muscleGroup: group }))}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: form.muscleGroup === group ? colors.primary : colors.surfaceAlt,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: form.muscleGroup === group ? "#fff" : colors.foreground }]}>
+                      {group}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
 
-          <TextInput
-            autoCapitalize="words"
-            onChangeText={(v) => setForm((f) => ({ ...f, equipment: v }))}
-            placeholder="Equipamento (opcional)"
-            placeholderTextColor={colors.muted}
-            style={inputStyle}
-            value={form.equipment}
-          />
+              <TextInput
+                autoCapitalize="words"
+                onChangeText={(v) => setForm((f) => ({ ...f, equipment: v }))}
+                placeholder="Equipamento (opcional)"
+                placeholderTextColor={colors.muted}
+                style={inputStyle}
+                value={form.equipment}
+              />
 
-          <TextInput
-            multiline
-            numberOfLines={3}
-            onChangeText={(v) => setForm((f) => ({ ...f, notes: v }))}
-            placeholder="Observações (opcional)"
-            placeholderTextColor={colors.muted}
-            style={[inputStyle, styles.textarea]}
-            value={form.notes}
-          />
+              <TextInput
+                multiline
+                numberOfLines={3}
+                onChangeText={(v) => setForm((f) => ({ ...f, notes: v }))}
+                placeholder="Observações (opcional)"
+                placeholderTextColor={colors.muted}
+                style={[inputStyle, styles.textarea]}
+                value={form.notes}
+              />
 
-          <View style={styles.modalActions}>
-            <AppButton
-              label="Cancelar"
-              onPress={() => setModalVisible(false)}
-              variant="secondary"
-              style={styles.modalBtn}
-            />
-            <AppButton
-              label={editingId ? "Salvar" : "Criar"}
-              onPress={handleSave}
-              style={styles.modalBtn}
-            />
+              <View style={styles.modalActions}>
+                <AppButton
+                  label="Cancelar"
+                  onPress={() => setModalVisible(false)}
+                  variant="secondary"
+                  style={styles.modalBtn}
+                />
+                <AppButton
+                  label={editingId ? "Salvar" : "Criar"}
+                  onPress={handleSave}
+                  style={styles.modalBtn}
+                />
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
   );
@@ -349,6 +364,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.lg,
     maxHeight: "85%",
+  },
+  modalKeyboard: {
+    justifyContent: "flex-end",
   },
   modalTitle: {
     fontSize: 22,

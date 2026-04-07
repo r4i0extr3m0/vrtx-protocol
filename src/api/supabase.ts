@@ -74,6 +74,11 @@ export async function getCurrentUser(): Promise<User | null> {
   return result.data.user ?? null;
 }
 
+export function clearPersistedAuthSession(): void {
+  storage.remove(AUTH_TOKEN_KEY);
+  cachedClient = null;
+}
+
 export function getPersistedAccessToken(): string | null {
   const raw = storage.getString(AUTH_TOKEN_KEY);
   if (!raw) {

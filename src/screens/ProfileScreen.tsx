@@ -17,7 +17,7 @@ import { SectionCard } from "@/src/components/SectionCard";
 import { BiometricAuth } from "@/src/components/BiometricAuth";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
 import { ThemeSelector } from "@/src/components/ThemeSelector";
-import { useAuth, useTheme, useWorkout } from "@/src/hooks";
+import { useAuth, useTabBarInset, useTheme, useWorkout } from "@/src/hooks";
 import { exportToJSON } from "@/src/utils/exportData";
 import { useSettingsStore } from "@/src/store/settingsStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
@@ -28,6 +28,7 @@ export function ProfileScreen() {
   const { colors } = useTheme();
   const { user, signOut } = useAuth();
   const { workouts } = useWorkout();
+  const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const { streak, totalXP } = useGamificationStore();
   const { isPremium, subscriptionType } = usePremiumStore();
   const {
@@ -47,7 +48,7 @@ export function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           await signOut();
-          router.replace("/login");
+          router.replace("/onboarding");
         },
       },
     ]);
@@ -61,7 +62,12 @@ export function ProfileScreen() {
 
   return (
     <ScreenContainer className="px-5">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: contentPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
           <View style={styles.avatarWrapper}>
             <LinearGradient

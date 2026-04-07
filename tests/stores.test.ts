@@ -10,6 +10,7 @@ describe("authStore", () => {
 
   it("keeps the visitor idle when Supabase env is missing", async () => {
     const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
 
     vi.doMock("@/src/infra/mmkv", () => ({
       mmkvJsonStorage: storage,
@@ -18,6 +19,7 @@ describe("authStore", () => {
       hasSupabaseEnv: () => false,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getSupabaseClient: vi.fn(),
@@ -33,6 +35,7 @@ describe("authStore", () => {
   it("clears auth state and premium cache on sign out", async () => {
     const storage = createMemoryJsonStorage();
     const signOut = vi.fn().mockResolvedValue(undefined);
+    const clearPersistedAuthSession = vi.fn();
     const resetPremium = vi.fn();
 
     vi.doMock("@/src/infra/mmkv", () => ({
@@ -43,6 +46,7 @@ describe("authStore", () => {
       getSupabaseEnvError: () => null,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getSupabaseClient: vi.fn(() => ({
@@ -76,12 +80,13 @@ describe("authStore", () => {
     await useAuthStore.getState().signOut();
 
     expect(signOut).toHaveBeenCalledTimes(1);
+    expect(clearPersistedAuthSession).toHaveBeenCalledTimes(1);
     expect(resetPremium).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
       session: null,
-      status: "guest",
+      status: "idle",
       hasHydrated: true,
     });
   });
@@ -89,6 +94,7 @@ describe("authStore", () => {
   it("clears local auth state even when remote sign out fails", async () => {
     const storage = createMemoryJsonStorage();
     const signOut = vi.fn().mockRejectedValue(new Error("network down"));
+    const clearPersistedAuthSession = vi.fn();
     const resetPremium = vi.fn();
 
     vi.doMock("@/src/infra/mmkv", () => ({
@@ -99,6 +105,7 @@ describe("authStore", () => {
       getSupabaseEnvError: () => null,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getSupabaseClient: vi.fn(() => ({
@@ -134,19 +141,21 @@ describe("authStore", () => {
     await useAuthStore.getState().signOut();
 
     expect(signOut).toHaveBeenCalledTimes(1);
+    expect(clearPersistedAuthSession).toHaveBeenCalledTimes(1);
     expect(resetPremium).toHaveBeenCalledTimes(1);
     expect(consoleError).toHaveBeenCalled();
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
       session: null,
-      status: "guest",
+      status: "idle",
       hasHydrated: true,
     });
   });
 
   it("switches to guest mode explicitly without keeping auth residue", async () => {
     const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
 
     vi.doMock("@/src/infra/mmkv", () => ({
       mmkvJsonStorage: storage,
@@ -156,6 +165,7 @@ describe("authStore", () => {
       getSupabaseEnvError: () => null,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getSupabaseClient: vi.fn(),
@@ -197,6 +207,7 @@ describe("authStore", () => {
 
   it("hydrates session with profile fields from profiles table", async () => {
     const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
     const getCurrentSession = vi.fn().mockResolvedValue({
       access_token: "access-token",
       refresh_token: "refresh-token",
@@ -234,6 +245,7 @@ describe("authStore", () => {
       getSupabaseEnvError: () => null,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession,
       getCurrentUser,
       getSupabaseClient: vi.fn(() => ({ from })),
@@ -268,6 +280,7 @@ describe("authStore", () => {
 
   it("updates profile via auth metadata when profiles table is unavailable", async () => {
     const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
     const updateUser = vi.fn().mockResolvedValue({ error: null });
     const upsert = vi.fn().mockResolvedValue({
       error: {
@@ -285,6 +298,7 @@ describe("authStore", () => {
       getSupabaseEnvError: () => null,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getSupabaseClient: vi.fn(() => ({
@@ -333,6 +347,7 @@ describe("authStore", () => {
 
   it("translates thrown duplicate signup errors instead of using the generic fallback", async () => {
     const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
     const signUp = vi.fn().mockRejectedValue({
       code: "user_already_exists",
       message: "User already registered",
@@ -346,6 +361,7 @@ describe("authStore", () => {
       getSupabaseEnvError: () => null,
     }));
     vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getSupabaseClient: vi.fn(() => ({

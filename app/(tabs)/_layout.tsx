@@ -6,13 +6,13 @@ import { HapticTab } from "@/components/haptic-tab";
 import { BlurView } from "@/src/components/BlurView";
 import { AppIcon } from "@/src/components/AppIcon";
 import { useTheme } from "@/src/hooks";
+import { getTabBarHeight } from "@/src/navigation/tabBar";
 import { typography } from "@/src/theme";
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom, 8);
-  const tabBarHeight = 64 + bottomPadding;
+  const tabBarHeight = getTabBarHeight(insets);
 
   return (
     <Tabs
@@ -68,10 +68,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="diet"
         options={{
-          title: "Historico",
-          tabBarIcon: ({ color }) => <AppIcon name="Clock" size={24} color={color} />,
+          title: "Dieta",
+          tabBarIcon: ({ color }) => <AppIcon name="Apple" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -79,6 +79,12 @@ export default function TabLayout() {
         options={{
           title: "Perfil",
           tabBarIcon: ({ color }) => <AppIcon name="User" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

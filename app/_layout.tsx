@@ -17,6 +17,7 @@ import { trpc, createTRPCClient } from "@/lib/trpc";
 import { getAuthRedirect } from "@/src/navigation/authGate";
 import { initializeMMKV } from "@/src/infra/mmkv";
 import { useAuth } from "@/src/hooks";
+import { AppFeedbackProvider } from "@/src/providers/AppFeedbackProvider";
 import { initMonitoring } from "@/src/services/monitoring";
 import { identifyUser } from "@/src/services/analytics";
 import { configureRevenueCat, loginRevenueCat, logoutRevenueCat } from "@/src/services/revenuecat";
@@ -182,7 +183,9 @@ function RootLayout() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+        <AppFeedbackProvider>{content}</AppFeedbackProvider>
+      </SafeAreaProvider>
     </ThemeProvider>
   );
 }

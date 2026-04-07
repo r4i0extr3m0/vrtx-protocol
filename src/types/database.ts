@@ -107,6 +107,7 @@ export interface DailyGoals {
   protein: number;
   carbs: number;
   fat: number;
+  waterMl?: number;
 }
 
 export interface Food {

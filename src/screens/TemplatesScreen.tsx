@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,9 +11,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { SectionCard } from "@/src/components/SectionCard";
+import { WORKOUT_PRESETS } from "@/src/data/workoutPresets";
 import { useTheme } from "@/src/hooks";
 import { useExerciseStore } from "@/src/store/exerciseStore";
 import { useTemplateStore } from "@/src/store/templateStore";
@@ -29,9 +33,10 @@ const emptyForm: TemplateFormData = {
 };
 
 export function TemplatesScreen() {
+  const params = useLocalSearchParams<{ mode?: string; presetId?: string }>();
   const { colors } = useTheme();
   const { templates, createTemplate, updateTemplate, deleteTemplate } = useTemplateStore();
-  const { exercises: exerciseLibrary } = useExerciseStore();
+  const { exercises: exerciseLibrary, ensureSeedExercises } = useExerciseStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TemplateFormData>(emptyForm);
@@ -39,10 +44,30 @@ export function TemplatesScreen() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [setsInput, setSetsInput] = useState("3");
   const [repsInput, setRepsInput] = useState("10");
+  const [handledPrefillKey, setHandledPrefillKey] = useState<string | null>(null);
+
+  const selectedPreset = useMemo(
+    () => WORKOUT_PRESETS.find((preset) => preset.id === params.presetId) ?? null,
+    [params.presetId],
+  );
 
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setModalVisible(true);
+  };
+
+  const openCreateFromPreset = (presetId: string) => {
+    const preset = WORKOUT_PRESETS.find((item) => item.id === presetId);
+    if (!preset) {
+      return;
+    }
+
+    setEditingId(null);
+    setForm({
+      name: `${preset.name} personalizado`,
+      exercises: preset.exercises.map((exercise) => ({ ...exercise })),
+    });
     setModalVisible(true);
   };
 
@@ -54,7 +79,7 @@ export function TemplatesScreen() {
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      Alert.alert("Campo obrigatório", "Informe o nome do template.");
+      Alert.alert("Campo obrigatório", "Informe o nome do treino.");
       return;
     }
     if (editingId) {
@@ -63,11 +88,12 @@ export function TemplatesScreen() {
       createTemplate(form.name.trim(), form.exercises);
     }
     setModalVisible(false);
+    router.replace("/templates" as never);
   };
 
   const handleDelete = (template: Template) => {
     Alert.alert(
-      "Excluir template",
+      "Excluir treino",
       `Deseja excluir "${template.name}"?`,
       [
         { text: "Cancelar", style: "cancel" },
@@ -105,6 +131,40 @@ export function TemplatesScreen() {
     }));
   };
 
+  const updateExerciseConfig = (index: number, field: "sets" | "repsTarget", value: string) => {
+    const parsed = Math.max(1, parseInt(value, 10) || 1);
+    setForm((current) => ({
+      ...current,
+      exercises: current.exercises.map((exercise, exerciseIndex) =>
+        exerciseIndex === index ? { ...exercise, [field]: parsed } : exercise,
+      ),
+    }));
+  };
+
+  useEffect(() => {
+    ensureSeedExercises();
+  }, [ensureSeedExercises]);
+
+  useEffect(() => {
+    const mode = params.mode;
+    const prefillKey = `${mode ?? "default"}:${params.presetId ?? "none"}`;
+
+    if (handledPrefillKey === prefillKey) {
+      return;
+    }
+
+    if (mode === "create") {
+      openCreate();
+      setHandledPrefillKey(prefillKey);
+      return;
+    }
+
+    if (mode === "duplicate" && selectedPreset) {
+      openCreateFromPreset(selectedPreset.id);
+      setHandledPrefillKey(prefillKey);
+    }
+  }, [handledPrefillKey, params.mode, params.presetId, selectedPreset]);
+
   const inputStyle = [
     styles.input,
     { backgroundColor: colors.surfaceAlt, borderColor: colors.border, color: colors.foreground },
@@ -114,21 +174,21 @@ export function TemplatesScreen() {
     <ScreenContainer className="px-5 py-5">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Templates</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Treinos personalizados</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Crie templates de treino reutilizáveis para iniciar sessões rapidamente.
+            Salve um treino seu, ajuste series e reps e reaproveite sem recomecar do zero.
           </Text>
         </View>
 
-        <AppButton label="Novo template" onPress={openCreate} />
+        <AppButton label="Montar do zero" onPress={openCreate} />
 
         <SectionCard
-          title="Meus templates"
-          subtitle={`${templates.length} template${templates.length !== 1 ? "s" : ""} salvo${templates.length !== 1 ? "s" : ""}`}
+          title="Meus treinos"
+          subtitle={`${templates.length} treino${templates.length !== 1 ? "s" : ""} salvo${templates.length !== 1 ? "s" : ""}`}
         >
           {templates.length === 0 ? (
             <Text style={[styles.empty, { color: colors.muted }]}>
-              Nenhum template criado. Crie o primeiro para acelerar seus treinos.
+              Nenhum treino salvo ainda. Crie o primeiro para repetir sua rotina sem recomecar do zero.
             </Text>
           ) : (
             templates.map((template) => (
@@ -185,21 +245,26 @@ export function TemplatesScreen() {
         visible={modalVisible}
       >
         <Pressable onPress={() => setModalVisible(false)} style={styles.overlay} />
-        <View
-          style={[
-            styles.modalContent,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={24}
+          style={styles.modalKeyboard}
         >
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {editingId ? "Editar template" : "Novo template"}
+              {editingId ? "Editar treino" : selectedPreset ? "Duplicar e ajustar" : "Novo treino"}
             </Text>
 
             <TextInput
               autoCapitalize="words"
               onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
-              placeholder="Nome do template *"
+              placeholder="Nome do treino *"
               placeholderTextColor={colors.muted}
               style={[inputStyle, { marginBottom: spacing.md }]}
               value={form.name}
@@ -224,6 +289,26 @@ export function TemplatesScreen() {
                   <Text style={[styles.exerciseRowMeta, { color: colors.muted }]}>
                     {ex.sets} séries × {ex.repsTarget} reps
                   </Text>
+                  <View style={styles.exerciseAdjustRow}>
+                    <View style={styles.exerciseAdjustField}>
+                      <Text style={[styles.adjustLabel, { color: colors.muted }]}>Séries</Text>
+                      <TextInput
+                        keyboardType="number-pad"
+                        onChangeText={(value) => updateExerciseConfig(index, "sets", value)}
+                        style={[styles.miniInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+                        value={String(ex.sets)}
+                      />
+                    </View>
+                    <View style={styles.exerciseAdjustField}>
+                      <Text style={[styles.adjustLabel, { color: colors.muted }]}>Reps</Text>
+                      <TextInput
+                        keyboardType="number-pad"
+                        onChangeText={(value) => updateExerciseConfig(index, "repsTarget", value)}
+                        style={[styles.miniInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+                        value={String(ex.repsTarget)}
+                      />
+                    </View>
+                  </View>
                 </View>
                 <AppButton
                   label="×"
@@ -244,14 +329,18 @@ export function TemplatesScreen() {
             <View style={styles.modalActions}>
               <AppButton
                 label="Cancelar"
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  router.replace("/templates" as never);
+                }}
                 variant="secondary"
                 style={styles.modalBtn}
               />
               <AppButton label={editingId ? "Salvar" : "Criar"} onPress={handleSave} style={styles.modalBtn} />
             </View>
-          </ScrollView>
-        </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add exercise picker modal */}
@@ -262,97 +351,117 @@ export function TemplatesScreen() {
         visible={addExerciseVisible}
       >
         <Pressable onPress={() => setAddExerciseVisible(false)} style={styles.overlay} />
-        <View
-          style={[
-            styles.modalContent,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={24}
+          style={styles.modalKeyboard}
         >
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            Selecionar exercício
-          </Text>
-
-          {exerciseLibrary.length === 0 ? (
-            <Text style={[styles.empty, { color: colors.muted }]}>
-              Nenhum exercício cadastrado. Crie exercícios primeiro.
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Selecionar exercício
             </Text>
-          ) : (
-            <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
-              {exerciseLibrary.map((ex) => (
-                <Pressable
-                  key={ex.id}
-                  onPress={() => setSelectedExerciseId(ex.id)}
-                  style={[
-                    styles.exercisePickerItem,
-                    {
-                      backgroundColor:
-                        selectedExerciseId === ex.id ? colors.primary : colors.surfaceAlt,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <Text
+
+            {exerciseLibrary.length === 0 ? (
+              <View style={styles.emptyLibraryState}>
+                <Text style={[styles.empty, { color: colors.muted }]}>
+                  Sua biblioteca minima ainda nao apareceu. Abra `Exercicios` para criar mais itens ou use o seed inicial.
+                </Text>
+                <AppButton
+                  label="Abrir exercicios"
+                  onPress={() => {
+                    setAddExerciseVisible(false);
+                    router.push("/exercises" as never);
+                  }}
+                  variant="secondary"
+                />
+              </View>
+            ) : (
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: 200 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {exerciseLibrary.map((ex) => (
+                  <Pressable
+                    key={ex.id}
+                    onPress={() => setSelectedExerciseId(ex.id)}
                     style={[
-                      styles.exercisePickerText,
+                      styles.exercisePickerItem,
                       {
-                        color:
-                          selectedExerciseId === ex.id ? colors.background : colors.foreground,
+                        backgroundColor:
+                          selectedExerciseId === ex.id ? colors.primary : colors.surfaceAlt,
+                        borderColor: colors.border,
                       },
                     ]}
                   >
-                    {ex.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.exercisePickerMeta,
-                      {
-                        color:
-                          selectedExerciseId === ex.id ? colors.background : colors.muted,
-                      },
-                    ]}
-                  >
-                    {ex.muscleGroup}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
+                    <Text
+                      style={[
+                        styles.exercisePickerText,
+                        {
+                          color:
+                            selectedExerciseId === ex.id ? colors.background : colors.foreground,
+                        },
+                      ]}
+                    >
+                      {ex.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.exercisePickerMeta,
+                        {
+                          color:
+                            selectedExerciseId === ex.id ? colors.background : colors.muted,
+                        },
+                      ]}
+                    >
+                      {ex.muscleGroup}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
 
-          <View style={styles.setsRepsRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.muted, marginBottom: spacing.xs }]}>
-                Séries
-              </Text>
-              <TextInput
-                keyboardType="number-pad"
-                onChangeText={setSetsInput}
-                style={inputStyle}
-                value={setsInput}
-              />
+            <View style={styles.setsRepsRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.label, { color: colors.muted, marginBottom: spacing.xs }]}>
+                  Séries
+                </Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setSetsInput}
+                  style={inputStyle}
+                  value={setsInput}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.label, { color: colors.muted, marginBottom: spacing.xs }]}>
+                  Reps alvo
+                </Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setRepsInput}
+                  style={inputStyle}
+                  value={repsInput}
+                />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.muted, marginBottom: spacing.xs }]}>
-                Reps alvo
-              </Text>
-              <TextInput
-                keyboardType="number-pad"
-                onChangeText={setRepsInput}
-                style={inputStyle}
-                value={repsInput}
+
+            <View style={styles.modalActions}>
+              <AppButton
+                label="Cancelar"
+                onPress={() => setAddExerciseVisible(false)}
+                variant="secondary"
+                style={styles.modalBtn}
               />
+              <AppButton label="Adicionar" onPress={handleAddExercise} style={styles.modalBtn} />
             </View>
           </View>
-
-          <View style={styles.modalActions}>
-            <AppButton
-              label="Cancelar"
-              onPress={() => setAddExerciseVisible(false)}
-              variant="secondary"
-              style={styles.modalBtn}
-            />
-            <AppButton label="Adicionar" onPress={handleAddExercise} style={styles.modalBtn} />
-          </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
   );
@@ -427,6 +536,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     maxHeight: "85%",
   },
+  modalKeyboard: {
+    justifyContent: "flex-end",
+  },
   modalTitle: {
     fontSize: typography.section,
     fontWeight: "900",
@@ -453,6 +565,28 @@ const styles = StyleSheet.create({
   },
   exerciseRowMeta: {
     fontSize: typography.caption,
+  },
+  exerciseAdjustRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  exerciseAdjustField: {
+    flex: 1,
+    gap: 6,
+  },
+  adjustLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  miniInput: {
+    minHeight: 42,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body,
   },
   removeBtn: {
     minHeight: 40,
@@ -482,5 +616,8 @@ const styles = StyleSheet.create({
   },
   modalBtn: {
     flex: 1,
+  },
+  emptyLibraryState: {
+    gap: spacing.md,
   },
 });

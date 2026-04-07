@@ -1,12 +1,13 @@
-import { useState, useMemo } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View, Pressable, Modal } from "react-native";
-import { router } from "expo-router";
+import { useEffect, useState, useMemo } from "react";
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useTheme } from "@/src/hooks";
 import { useDietStore } from "@/src/store/dietStore";
 import { useGamificationStore } from "@/src/store/gamificationStore";
+import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { radius, spacing, typography } from "@/src/theme";
 import { createId, toIsoDate } from "@/src/utils";
 import type { MealItem, Food } from "@/src/types";
@@ -20,6 +21,7 @@ const INITIAL_FOODS: Food[] = [
 ];
 
 export function AddMealScreen() {
+  const params = useLocalSearchParams<{ mealType?: "breakfast" | "lunch" | "dinner" | "snack" }>();
   const { colors } = useTheme();
   const { addMeal, foods: customFoods } = useDietStore();
   const { recordActivity } = useGamificationStore();
@@ -31,6 +33,12 @@ export function AddMealScreen() {
   const [quantity, setQuantity] = useState("100");
 
   const allFoods = useMemo(() => [...INITIAL_FOODS, ...customFoods], [customFoods]);
+
+  useEffect(() => {
+    if (params.mealType && ["breakfast", "lunch", "dinner", "snack"].includes(params.mealType)) {
+      setMealType(params.mealType);
+    }
+  }, [params.mealType]);
 
   const totals = useMemo(() => {
     return items.reduce(
@@ -85,12 +93,25 @@ export function AddMealScreen() {
     });
 
     recordActivity("diet", 1);
+    trackEvent(ANALYTICS_EVENTS.DIET_MEAL_ADDED, {
+      meal_type: mealType,
+      item_count: items.length,
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
+    });
     router.back();
   };
 
   return (
     <ScreenContainer className="px-5 py-5">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={24}
+        style={styles.keyboardWrapper}
+      >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>Nova refeicao</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
@@ -158,43 +179,50 @@ export function AddMealScreen() {
 
         <AppButton label="Salvar refeicao" onPress={handleSaveMeal} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal animationType="slide" onRequestClose={() => setFoodPickerVisible(false)} transparent visible={foodPickerVisible}>
         <Pressable onPress={() => setFoodPickerVisible(false)} style={styles.overlay} />
-        <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Escolha um alimento</Text>
-          
-          {!selectedFood ? (
-            <ScrollView style={styles.foodList}>
-              {allFoods.map((food) => (
-                <Pressable
-                  key={food.id}
-                  onPress={() => setSelectedFood(food)}
-                  style={[styles.foodItem, { borderBottomColor: colors.border }]}
-                >
-                  <Text style={[styles.foodName, { color: colors.foreground }]}>{food.name}</Text>
-                  <Text style={[styles.foodMeta, { color: colors.muted }]}>{food.caloriesPer100g} kcal / 100g</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.quantityForm}>
-              <Text style={[styles.selectedFoodName, { color: colors.foreground }]}>{selectedFood.name}</Text>
-              <Text style={[styles.label, { color: colors.muted }]}>Quantidade em gramas</Text>
-              <TextInput
-                keyboardType="number-pad"
-                onChangeText={setQuantity}
-                style={[styles.input, { backgroundColor: colors.surfaceAlt, borderColor: colors.border, color: colors.foreground }]}
-                value={quantity}
-                autoFocus
-              />
-              <View style={styles.modalButtons}>
-                <AppButton label="Voltar" onPress={() => setSelectedFood(null)} variant="secondary" style={{ flex: 1 }} />
-                <AppButton label="Adicionar" onPress={handleAddItem} style={{ flex: 1 }} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={24}
+          style={styles.keyboardWrapper}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Escolha um alimento</Text>
+            
+            {!selectedFood ? (
+              <ScrollView keyboardShouldPersistTaps="handled" style={styles.foodList}>
+                {allFoods.map((food) => (
+                  <Pressable
+                    key={food.id}
+                    onPress={() => setSelectedFood(food)}
+                    style={[styles.foodItem, { borderBottomColor: colors.border }]}
+                  >
+                    <Text style={[styles.foodName, { color: colors.foreground }]}>{food.name}</Text>
+                    <Text style={[styles.foodMeta, { color: colors.muted }]}>{food.caloriesPer100g} kcal / 100g</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.quantityForm}>
+                <Text style={[styles.selectedFoodName, { color: colors.foreground }]}>{selectedFood.name}</Text>
+                <Text style={[styles.label, { color: colors.muted }]}>Quantidade em gramas</Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setQuantity}
+                  style={[styles.input, { backgroundColor: colors.surfaceAlt, borderColor: colors.border, color: colors.foreground }]}
+                  value={quantity}
+                  autoFocus
+                />
+                <View style={styles.modalButtons}>
+                  <AppButton label="Voltar" onPress={() => setSelectedFood(null)} variant="secondary" style={{ flex: 1 }} />
+                  <AppButton label="Adicionar" onPress={handleAddItem} style={{ flex: 1 }} />
+                </View>
               </View>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
   );
@@ -204,6 +232,9 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.lg,
     paddingBottom: spacing.xxxl,
+  },
+  keyboardWrapper: {
+    flex: 1,
   },
   header: {
     gap: spacing.xs,

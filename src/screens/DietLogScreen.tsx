@@ -1,20 +1,12 @@
-import { useMemo, useEffect } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withSpring,
-  FadeInDown,
-  FadeInUp
-} from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
-import { AppCard } from "@/src/components/AppCard";
-import { useTheme } from "@/src/hooks";
+import { useTabBarInset, useTheme } from "@/src/hooks";
 import { useDietStore } from "@/src/store/dietStore";
 import { radius, spacing, shadows } from "@/src/theme";
 import * as Haptics from "expo-haptics";
@@ -28,12 +20,39 @@ const MEAL_ICONS: Record<string, IconName> = {
   snack: "Apple",
 };
 
+const MEAL_SECTIONS = [
+  { key: "breakfast", label: "Cafe da manha", ratio: 0.25 },
+  { key: "lunch", label: "Almoco", ratio: 0.35 },
+  { key: "dinner", label: "Jantar", ratio: 0.25 },
+  { key: "snack", label: "Lanches", ratio: 0.15 },
+] as const;
+
+function formatLiters(amountMl: number): string {
+  return `${(amountMl / 1000).toFixed(1).replace(".", ",")} L`;
+}
+
 export function DietLogScreen() {
   const { colors } = useTheme();
-  const { meals, dailyGoals, waterIntake, addWater } = useDietStore();
+  const {
+    meals,
+    dailyGoals,
+    waterIntake,
+    addWater,
+    goalsConfigured,
+    goalsSetupPromptDismissed,
+    dismissGoalsSetupPrompt,
+  } = useDietStore();
+  const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const today = toIsoDate(new Date());
+  const [setupPromptVisible, setSetupPromptVisible] = useState(false);
 
   const todayMeals = useMemo(() => meals.filter((m) => m.date === today), [meals, today]);
+
+  useEffect(() => {
+    if (!goalsConfigured && !goalsSetupPromptDismissed) {
+      setSetupPromptVisible(true);
+    }
+  }, [goalsConfigured, goalsSetupPromptDismissed]);
 
   const totals = useMemo(() => {
     return todayMeals.reduce(
@@ -46,164 +65,247 @@ export function DietLogScreen() {
       { calories: 0, protein: 0, carbs: 0, fat: 0 },
     );
   }, [todayMeals]);
+  const remainingCalories = Math.max((dailyGoals.calories ?? 0) - totals.calories, 0);
+  const mealSummary = useMemo(() => {
+    return MEAL_SECTIONS.map((section) => {
+      const sectionMeals = todayMeals.filter((meal) => meal.mealType === section.key);
+      const calories = sectionMeals.reduce((acc, meal) => acc + meal.totalCalories, 0);
+      const itemCount = sectionMeals.reduce((acc, meal) => acc + meal.items.length, 0);
+      const targetCalories = goalsConfigured ? Math.round(dailyGoals.calories * section.ratio) : 0;
 
-  const progressValue = useSharedValue(0);
-  const progress = Math.min(totals.calories / dailyGoals.calories, 1);
-
-  useEffect(() => {
-    progressValue.value = withSpring(progress, { damping: 15, stiffness: 100 });
-  }, [progress, progressValue]);
-
-  const animatedProgressStyle = useAnimatedStyle(() => ({
-    width: `${progressValue.value * 100}%`,
-  }));
+      return {
+        ...section,
+        calories,
+        itemCount,
+        targetCalories,
+        progress: goalsConfigured ? Math.min(calories / Math.max(targetCalories, 1), 1) : 0,
+      };
+    });
+  }, [dailyGoals.calories, goalsConfigured, todayMeals]);
+  const macroSummary = [
+    { key: "carbs", label: "Carboidratos", value: totals.carbs, target: dailyGoals.carbs, color: colors.warning },
+    { key: "protein", label: "Proteina", value: totals.protein, target: dailyGoals.protein, color: colors.primary },
+    { key: "fat", label: "Gorduras", value: totals.fat, target: dailyGoals.fat, color: colors.error },
+  ];
 
   const handleAddWater = (amount: number) => {
     addWater(amount);
     Haptics.impactAsync(amount >= 500 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
-    trackEvent(ANALYTICS_EVENTS.MEAL_ADDED, { type: 'water', amount });
+    trackEvent(ANALYTICS_EVENTS.DIET_MEAL_ADDED, { entry_type: "water", amount });
+  };
+
+  const handleDismissSetupPrompt = () => {
+    dismissGoalsSetupPrompt();
+    setSetupPromptVisible(false);
   };
 
   return (
     <ScreenContainer className="px-5">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: contentPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Nutrição</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Dieta</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>
-              Veja sua alimentacao do dia com mais clareza e ajuste o que faltar.
+              Controle de energia. Execucao limpa.
             </Text>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(200)}>
-          <Pressable onPress={() => {
-            trackEvent(ANALYTICS_EVENTS.PURCHASE_STARTED, { feature: 'ai_camera' });
-            router.push("/camera" as never);
-          }}>
-            <LinearGradient
-              colors={colors.brandGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.aiBanner, shadows.card]}
-            >
-              <View style={styles.aiInfo}>
-                <Text style={styles.aiTitle}>Escanear refeicao</Text>
-                <Text style={styles.aiDesc}>Tire uma foto e receba uma estimativa rapida da sua refeicao.</Text>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+            {goalsConfigured ? (
+              <>
+                <View style={styles.summaryActionsRow}>
+                  <View>
+                    <Text style={[styles.summaryTitle, { color: colors.foreground }]}>Resumo do dia</Text>
+                    <Text style={[styles.protocolHint, { color: colors.muted }]}>
+                      Proteina alta sustenta performance e recuperacao.
+                    </Text>
+                  </View>
+                  <View style={styles.summaryActions}>
+                    <Pressable onPress={() => router.push("/diet/goals" as never)} style={styles.summaryLink}>
+                      <Text style={[styles.summaryLinkText, { color: colors.primary }]}>Detalhes</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => router.push({ pathname: "/diet/goals", params: { mode: "edit" } } as never)}
+                      style={[styles.editIconButton, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}
+                    >
+                      <AppIcon name="Edit" size={16} color={colors.primary} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.summaryTopRow}>
+                  <View style={[styles.summaryRing, { borderColor: colors.primary + "35", backgroundColor: colors.surfaceAlt }]}>
+                    <Text style={[styles.summaryRingValue, { color: colors.foreground }]}>{remainingCalories}</Text>
+                    <Text style={[styles.summaryRingLabel, { color: colors.muted }]}>kcal</Text>
+                  </View>
+                  <View style={styles.summaryMeta}>
+                    <Text style={[styles.summaryKicker, { color: colors.muted }]}>Restantes</Text>
+                    <Text style={[styles.summaryMetaText, { color: colors.muted }]}>Consumidas: {totals.calories} kcal</Text>
+                    <Text style={[styles.summaryMetaText, { color: colors.muted }]}>Meta: {dailyGoals.calories} kcal</Text>
+                  </View>
+                </View>
+
+                <View style={styles.macroStack}>
+                  {macroSummary.map((macro) => (
+                    <View key={macro.key} style={styles.macroBarRow}>
+                      <View style={styles.macroBarHeader}>
+                        <Text style={[styles.macroBarLabel, { color: colors.foreground }]}>{macro.label}</Text>
+                        <Text style={[styles.macroBarValue, { color: colors.muted }]}>
+                          {macro.value} / {macro.target} g
+                        </Text>
+                      </View>
+                      <View style={[styles.macroBarTrack, { backgroundColor: colors.surfaceAlt }]}>
+                        <View
+                          style={[
+                            styles.macroBarFill,
+                            { backgroundColor: macro.color, width: `${Math.min(macro.value / Math.max(macro.target, 1), 1) * 100}%` },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <View style={styles.unconfiguredState}>
+                <Text style={[styles.summaryTitle, { color: colors.foreground }]}>Metas nao configuradas</Text>
+                <Text style={[styles.summaryMetaText, { color: colors.muted }]}>
+                  Defina calorias e macros para ver o painel completo.
+                </Text>
+                <Pressable
+                  onPress={() => router.push({ pathname: "/diet/goals", params: { mode: "setup" } } as never)}
+                  style={[styles.configureButton, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.configureButtonText}>Definir metas</Text>
+                </Pressable>
               </View>
-              <View style={styles.aiIconWrapper}>
-                <AppIcon name="Camera" size={24} color="#000" strokeWidth={2.5} />
-              </View>
-            </LinearGradient>
-          </Pressable>
+            )}
+          </View>
         </Animated.View>
 
-        <AppCard 
-          title="Resumo do dia" 
-          subtitle={`${totals.calories} / ${dailyGoals.calories} kcal`}
-          delay={300}
-        >
-          <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceAlt }]}>
-            <Animated.View style={[styles.progressBarFill, animatedProgressStyle]}>
-              <LinearGradient
-                colors={colors.brandGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-              />
-            </Animated.View>
+        <Animated.View entering={FadeInDown.delay(320)} style={styles.sectionBlock}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Alimentacao</Text>
+            <Pressable
+              onPress={() => router.push("/diet/add-meal" as never)}
+              style={styles.summaryLink}
+            >
+              <Text style={[styles.summaryLinkText, { color: colors.primary }]}>Ver tudo</Text>
+            </Pressable>
           </View>
-          
-          <View style={styles.macroRow}>
-            {[
-              { label: "Proteina", value: totals.protein, target: dailyGoals.protein, color: colors.primary, icon: "Beef" as IconName },
-              { label: "Carbo", value: totals.carbs, target: dailyGoals.carbs, color: colors.warning, icon: "Wheat" as IconName },
-              { label: "Gordura", value: totals.fat, target: dailyGoals.fat, color: colors.error, icon: "Droplets" as IconName },
-            ].map((macro) => (
-              <View key={macro.label} style={styles.macroItem}>
-                <View style={[styles.macroIconWrapper, { backgroundColor: macro.color + '10' }]}>
-                   <AppIcon name={macro.icon} size={14} color={macro.color} />
+
+          {!todayMeals.length ? (
+            <View style={[styles.emptyStateCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              <Text style={[styles.emptyStateTitle, { color: colors.foreground }]}>Nenhuma refeicao registrada hoje.</Text>
+              <Text style={[styles.emptyStateSubtitle, { color: colors.muted }]}>
+                Comece pelo basico. O resto ajusta com o tempo.
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.mealsList}>
+            {mealSummary.map((section, index) => (
+              <Animated.View
+                key={section.key}
+                entering={FadeInDown.delay(360 + index * 70)}
+                style={[styles.mealRowCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+              >
+                <View style={[styles.mealRowIcon, { backgroundColor: colors.surfaceAlt }]}>
+                  <AppIcon name={MEAL_ICONS[section.key]} size={18} color={colors.primary} />
                 </View>
-                <Text style={[styles.macroValue, { color: colors.foreground }]}>{macro.value}g</Text>
-                <Text style={[styles.macroLabel, { color: colors.muted }]}>{macro.label}</Text>
-              </View>
+                <View style={styles.mealRowContent}>
+                  <View style={styles.mealRowHeader}>
+                    <Text style={[styles.mealRowTitle, { color: colors.foreground }]}>{section.label}</Text>
+                    <Text style={[styles.mealRowTarget, { color: colors.muted }]}>
+                      {goalsConfigured ? `meta ${section.targetCalories} kcal` : "meta --"}
+                    </Text>
+                  </View>
+                  <Text style={[styles.mealRowMeta, { color: colors.muted }]}>
+                    {section.calories} / {goalsConfigured ? section.targetCalories : "--"} kcal
+                    {section.itemCount ? ` · ${section.itemCount} item${section.itemCount !== 1 ? "s" : ""}` : ""}
+                  </Text>
+                  <View style={[styles.mealProgressTrack, { backgroundColor: colors.surfaceAlt }]}>
+                    <View
+                      style={[
+                        styles.mealProgressFill,
+                        { backgroundColor: colors.primary, width: `${section.progress * 100}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: "/diet/add-meal", params: { mealType: section.key } } as never)
+                  }
+                  style={[styles.mealPlusButton, { backgroundColor: colors.primary }]}
+                >
+                  <AppIcon name="Plus" size={18} color="#fff" />
+                </Pressable>
+              </Animated.View>
             ))}
           </View>
-        </AppCard>
+        </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(400)}>
-          <AppCard title="Hidratacao" subtitle="Meta do dia: 2500 ml">
+        <Animated.View entering={FadeInDown.delay(620)} style={styles.sectionBlock}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monitor de agua</Text>
+          <View style={[styles.waterCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
             <View style={styles.waterContent}>
               <View style={styles.waterMain}>
                 <View style={[styles.waterIconWrapper, { backgroundColor: colors.info + '15' }]}>
                   <AppIcon name="Droplets" size={24} color={colors.info} />
                 </View>
-                <Text style={[styles.waterValueText, { color: colors.foreground }]}>{waterIntake}ml</Text>
-              </View>
-              <View style={styles.waterActions}>
-                <Pressable onPress={() => handleAddWater(200)} style={[styles.waterBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-                  <Text style={[styles.waterBtnText, { color: colors.primary }]}>+200</Text>
-                </Pressable>
-                <Pressable onPress={() => handleAddWater(500)} style={[styles.waterBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-                  <Text style={[styles.waterBtnText, { color: colors.primary }]}>+500</Text>
-                </Pressable>
+                <View>
+                  <Text style={[styles.waterValueText, { color: colors.foreground }]}>{formatLiters(waterIntake)}</Text>
+                  <Text style={[styles.waterHint, { color: colors.muted }]}>Meta do dia: {dailyGoals.waterMl ?? 2500} ml</Text>
+                </View>
               </View>
             </View>
-          </AppCard>
-        </Animated.View>
-
-        <View style={styles.mealsHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Refeicoes</Text>
-          <AppButton 
-            label="Adicionar" 
-            onPress={() => router.push("/diet/add-meal" as never)} 
-            variant="secondary" 
-            style={styles.addBtn} 
-          />
-        </View>
-
-        {todayMeals.length === 0 ? (
-          <Animated.View entering={FadeInDown.delay(500)} style={styles.emptyContainer}>
-            <View style={[styles.emptyIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
-              <AppIcon name="Utensils" size={32} color={colors.muted} />
-            </View>
-            <Text style={[styles.empty, { color: colors.muted }]}>Nenhuma refeicao registrada hoje.</Text>
-          </Animated.View>
-        ) : (
-          todayMeals.map((meal, index) => (
-            <Animated.View key={meal.id} entering={FadeInDown.delay(500 + index * 100)}>
-              <Pressable 
-                style={[styles.mealCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
-              >
-                <View style={[styles.mealIconWrapper, { backgroundColor: colors.surfaceAlt }]}>
-                  <AppIcon name={MEAL_ICONS[meal.mealType] || "Utensils"} size={22} color={colors.primary} />
-                </View>
-                <View style={styles.mealInfo}>
-                  <Text style={[styles.mealType, { color: colors.foreground }]}>
-                    {meal.mealType === "breakfast" ? "Cafe da manha" : 
-                     meal.mealType === "lunch" ? "Almoço" : 
-                     meal.mealType === "dinner" ? "Jantar" : "Lanche"}
-                  </Text>
-                  <Text style={[styles.mealMeta, { color: colors.muted }]}>
-                    {meal.items.length} item{meal.items.length !== 1 ? "s" : ""} registrado{meal.items.length !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-                <View style={styles.mealCaloriesWrapper}>
-                  <Text style={[styles.mealCalories, { color: colors.primary }]}>{meal.totalCalories}</Text>
-                  <Text style={[styles.mealUnit, { color: colors.muted }]}>kcal</Text>
-                </View>
+            <View style={styles.waterActions}>
+              <Pressable onPress={() => handleAddWater(200)} style={[styles.waterBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                <Text style={[styles.waterBtnText, { color: colors.primary }]}>+200 ml</Text>
               </Pressable>
-            </Animated.View>
-          ))
-        )}
-
-        <AppButton 
-          label="Ajustar metas" 
-          onPress={() => router.push("/diet/goals" as never)} 
-          variant="ghost" 
-          style={{ marginTop: spacing.md }}
-        />
+              <Pressable onPress={() => handleAddWater(500)} style={[styles.waterBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                <Text style={[styles.waterBtnText, { color: colors.primary }]}>+500 ml</Text>
+              </Pressable>
+            </View>
+            <Pressable onPress={() => router.push({ pathname: "/diet/goals", params: { mode: "edit" } } as never)} style={styles.summaryLink}>
+              <Text style={[styles.summaryLinkText, { color: colors.primary }]}>Ajustar meta de agua</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
       </ScrollView>
+
+      <Modal animationType="slide" onRequestClose={handleDismissSetupPrompt} transparent visible={setupPromptVisible}>
+        <Pressable onPress={handleDismissSetupPrompt} style={styles.modalOverlay} />
+        <View style={[styles.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Definir metas do dia</Text>
+          <Text style={[styles.modalDescription, { color: colors.muted }]}>
+            Configure calorias e macros em menos de 60 segundos. Voce pode ajustar tudo depois.
+          </Text>
+          <View style={styles.actionsColumn}>
+            <AppButton
+              label="Definir agora"
+              onPress={() => {
+                setSetupPromptVisible(false);
+                router.push({ pathname: "/diet/goals", params: { mode: "setup" } } as never);
+              }}
+            />
+            <AppButton
+              label="Pular por enquanto"
+              onPress={handleDismissSetupPrompt}
+              variant="secondary"
+            />
+          </View>
+          <Text style={[styles.modalFooter, { color: colors.muted }]}>Modo offline. Seus dados ficam no dispositivo.</Text>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -211,7 +313,6 @@ export function DietLogScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.xl,
-    paddingBottom: spacing.xxxl,
     paddingTop: spacing.md,
   },
   header: {
@@ -230,73 +331,217 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 21,
   },
-  aiBanner: {
-    flexDirection: "row",
-    padding: spacing.xl,
+  summaryCard: {
+    borderWidth: 1,
     borderRadius: radius.xxl,
-    alignItems: "center",
+    padding: spacing.xl,
     gap: spacing.md,
   },
-  aiInfo: {
-    flex: 1,
-    gap: 4,
+  summaryActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
   },
-  aiTitle: {
-    color: "#000",
+  summaryActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  summaryTopRow: {
+    flexDirection: "row",
+    gap: spacing.lg,
+    alignItems: "center",
+  },
+  summaryRing: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryRingValue: {
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  summaryRingLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  summaryMeta: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  summaryTitle: {
     fontSize: 22,
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
-  aiDesc: {
-    color: "rgba(0,0,0,0.6)",
+  summaryKicker: {
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  summaryMetaText: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  protocolHint: {
+    marginTop: 4,
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 18,
   },
-  aiIconWrapper: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(0,0,0,0.1)",
-    justifyContent: "center",
+  summaryLink: {
+    alignSelf: "flex-start",
+  },
+  summaryLinkText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  editIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
     alignItems: "center",
+    justifyContent: "center",
   },
-  progressBarBg: {
-    height: 12,
-    borderRadius: 6,
-    overflow: "hidden",
-    marginVertical: spacing.sm,
+  unconfiguredState: {
+    gap: spacing.md,
   },
-  progressBarFill: {
-    height: "100%",
-    borderRadius: 6,
+  configureButton: {
+    alignSelf: "flex-start",
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
-  macroRow: {
+  configureButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  macroStack: {
+    gap: spacing.md,
+  },
+  macroBarRow: {
+    gap: spacing.xs,
+  },
+  macroBarHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: spacing.md,
+    gap: spacing.md,
   },
-  macroItem: {
+  macroBarLabel: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  macroBarValue: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  macroBarTrack: {
+    height: 8,
+    borderRadius: radius.pill,
+    overflow: "hidden",
+  },
+  macroBarFill: {
+    height: "100%",
+    borderRadius: radius.pill,
+  },
+  sectionBlock: {
+    gap: spacing.md,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
     alignItems: "center",
-    flex: 1,
-    gap: 4,
+    justifyContent: "space-between",
   },
-  macroIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  macroValue: {
-    fontSize: 18,
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: "900",
     letterSpacing: -0.5,
   },
-  macroLabel: {
-    fontSize: 11,
+  emptyStateCard: {
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  emptyStateTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  emptyStateSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  mealsList: {
+    gap: spacing.md,
+  },
+  mealRowCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  mealRowIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mealRowContent: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  mealRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  mealRowTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  mealRowTarget: {
+    fontSize: 12,
     fontWeight: "700",
+  },
+  mealRowMeta: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  mealProgressTrack: {
+    height: 6,
+    borderRadius: radius.pill,
+    overflow: "hidden",
+  },
+  mealProgressFill: {
+    height: "100%",
+    borderRadius: radius.pill,
+  },
+  mealPlusButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  waterCard: {
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.xl,
   },
   waterContent: {
     flexDirection: 'row',
@@ -320,9 +565,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -1,
   },
+  waterHint: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
   waterActions: {
     flexDirection: 'row',
     gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   waterBtn: {
     paddingHorizontal: 16,
@@ -334,84 +584,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  mealsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-  addBtn: {
-    minHeight: 40,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
-  },
-  emptyContainer: {
-    alignItems: "center",
-    paddingVertical: spacing.xxl,
-    backgroundColor: "rgba(255,255,255,0.02)",
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    borderStyle: "dashed",
+  actionsColumn: {
     gap: spacing.md,
   },
-  emptyIconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  empty: {
-    textAlign: "center",
-    fontSize: 15,
-    fontWeight: "500",
-    lineHeight: 22,
-  },
-  mealCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  mealIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: spacing.md,
-  },
-  mealInfo: {
+  modalOverlay: {
     flex: 1,
-    gap: 2,
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
-  mealType: {
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: -0.5,
+  modalSheet: {
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.xl,
+    gap: spacing.md,
   },
-  mealMeta: {
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
-  },
-  mealCaloriesWrapper: {
-    alignItems: "flex-end",
-  },
-  mealCalories: {
-    fontSize: 20,
+  modalTitle: {
+    fontSize: 24,
     fontWeight: "900",
+    letterSpacing: -0.8,
   },
-  mealUnit: {
-    fontSize: 11,
-    fontWeight: "700",
+  modalDescription: {
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 21,
+  },
+  modalFooter: {
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

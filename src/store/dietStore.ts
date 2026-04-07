@@ -6,12 +6,44 @@ import { useSyncStore } from "@/src/store/syncStore";
 import type { DailyGoals, Food, Meal } from "@/src/types";
 import { createId, toIsoTimestamp } from "@/src/utils";
 
+type DietGoal = "lose" | "maintain" | "gain";
+type DietActivityLevel = "sedentary" | "light" | "moderate" | "active";
+type DietSex = "male" | "female" | "unspecified";
+
+export interface DietProfile {
+  sex: DietSex;
+  age: number;
+  heightCm: number;
+  weightKg: number;
+  goal: DietGoal;
+  activityLevel: DietActivityLevel;
+  workoutsPerWeek: number;
+  bodyFatPercentage?: number;
+  leanMassKg?: number;
+}
+
 // --- Schemas de Validação ---
 const dailyGoalsSchema = z.object({
   calories: z.number().min(500).max(10000),
   protein: z.number().min(0).max(1000),
   carbs: z.number().min(0).max(2000),
   fat: z.number().min(0).max(500),
+  waterMl: z.number().min(500).max(10000).default(2500),
+});
+
+const dietProfileSchema = z.object({
+  sex: z.enum(["male", "female", "unspecified"]),
+  age: z.number().min(13).max(100),
+  heightCm: z.number().min(120).max(250),
+  weightKg: z.number().min(30).max(350),
+  goal: z.enum(["lose", "maintain", "gain"]),
+  activityLevel: z.enum(["sedentary", "light", "moderate", "active"]),
+  workoutsPerWeek: z.number().min(0).max(7),
+  bodyFatPercentage: z.number().min(3).max(60).optional(),
+  leanMassKg: z.number().min(20).max(250).optional(),
+}).refine((value) => value.leanMassKg === undefined || value.leanMassKg <= value.weightKg, {
+  message: "Lean mass cannot exceed total weight.",
+  path: ["leanMassKg"],
 });
 
 const mealItemSchema = z.object({
@@ -52,16 +84,107 @@ interface DietStoreState {
   dailyGoals: DailyGoals;
   foods: Food[];
   waterIntake: number; // em ml
+  profile: DietProfile | null;
+  goalsConfigured: boolean;
+  goalsLockedManually: boolean;
+  goalsSetupPromptDismissed: boolean;
   hydrated: boolean;
   addMeal: (meal: Omit<Meal, "id" | "createdAt" | "updatedAt" | "syncStatus">) => Meal;
   updateMeal: (id: string, partial: Partial<Meal>) => void;
   deleteMeal: (id: string) => void;
   setDailyGoals: (goals: DailyGoals) => void;
+  applyGoalSetup: (profile: DietProfile, manualOverride?: boolean) => DailyGoals;
+  setDietProfile: (profile: DietProfile) => DietProfile;
+  refreshGoalsFromProfile: (force?: boolean) => DailyGoals | null;
+  setGoalsConfigured: (value: boolean) => void;
+  setGoalsLockedManually: (value: boolean) => void;
+  dismissGoalsSetupPrompt: () => void;
   addFood: (food: Omit<Food, "id" | "syncStatus">) => Food;
   addWater: (amountMl: number) => void;
   resetWater: () => void;
   setHydrated: (value: boolean) => void;
   fetchFoodByBarcode: (barcode: string) => Promise<Food | null>;
+}
+
+const DEFAULT_DAILY_GOALS: DailyGoals = {
+  calories: 2500,
+  protein: 150,
+  carbs: 300,
+  fat: 70,
+  waterMl: 2500,
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getActivityFactor(activityLevel: DietActivityLevel): number {
+  switch (activityLevel) {
+    case "light":
+      return 1.35;
+    case "moderate":
+      return 1.5;
+    case "active":
+      return 1.7;
+    default:
+      return 1.2;
+  }
+}
+
+function inferLeanMassKg(profile: DietProfile): number | null {
+  if (typeof profile.bodyFatPercentage === "number" && Number.isFinite(profile.bodyFatPercentage)) {
+    return profile.weightKg * (1 - profile.bodyFatPercentage / 100);
+  }
+
+  if (typeof profile.leanMassKg === "number" && Number.isFinite(profile.leanMassKg)) {
+    return profile.leanMassKg;
+  }
+
+  return null;
+}
+
+export function calculateDietGoals(profile: DietProfile): DailyGoals {
+  const validatedProfile = dietProfileSchema.parse(profile);
+  const sexOffset = validatedProfile.sex === "male" ? 5 : validatedProfile.sex === "female" ? -161 : -78;
+  const bmr = 10 * validatedProfile.weightKg + 6.25 * validatedProfile.heightCm - 5 * validatedProfile.age + sexOffset;
+  const activityFactor = getActivityFactor(validatedProfile.activityLevel) + Math.min(validatedProfile.workoutsPerWeek, 7) * 0.02;
+  const estimatedTdee = bmr * activityFactor;
+  const targetCalories =
+    validatedProfile.goal === "lose"
+      ? Math.max(1200, estimatedTdee - 400)
+      : validatedProfile.goal === "gain"
+        ? estimatedTdee + 220
+        : estimatedTdee;
+
+  const leanMassKg = inferLeanMassKg(validatedProfile);
+  const proteinBaseKg =
+    leanMassKg ??
+    validatedProfile.weightKg;
+  const proteinMultiplier =
+    leanMassKg !== null
+      ? validatedProfile.goal === "lose"
+        ? 2.3
+        : 2
+      : validatedProfile.goal === "lose"
+        ? 2
+        : validatedProfile.goal === "gain"
+          ? 1.8
+          : 1.7;
+  const fatMultiplier = validatedProfile.goal === "gain" ? 0.95 : validatedProfile.goal === "maintain" ? 0.9 : 0.8;
+
+  const protein = clamp(Math.round(proteinBaseKg * proteinMultiplier), 80, 260);
+  const fat = clamp(Math.round(validatedProfile.weightKg * fatMultiplier), 40, 120);
+  const remainingCalories = Math.max(targetCalories - protein * 4 - fat * 9, 200);
+  const carbs = Math.max(40, Math.round(remainingCalories / 4));
+  const waterMl = clamp(Math.round(validatedProfile.weightKg * 35 + validatedProfile.workoutsPerWeek * 250), 1800, 5000);
+
+  return dailyGoalsSchema.parse({
+    calories: Math.round(targetCalories),
+    protein,
+    carbs,
+    fat,
+    waterMl,
+  });
 }
 
 function enqueueDietOperation(
@@ -84,14 +207,13 @@ export const useDietStore = create<DietStoreState>()(
   persist(
     (set, get) => ({
       meals: [],
-      dailyGoals: {
-        calories: 2500,
-        protein: 150,
-        carbs: 300,
-        fat: 70,
-      },
+      dailyGoals: DEFAULT_DAILY_GOALS,
       foods: [],
       waterIntake: 0,
+      profile: null,
+      goalsConfigured: false,
+      goalsLockedManually: false,
+      goalsSetupPromptDismissed: false,
       hydrated: false,
       addMeal: (mealData) => {
         const validated = mealSchema.parse(mealData);
@@ -138,7 +260,58 @@ export const useDietStore = create<DietStoreState>()(
       },
       setDailyGoals: (goals) => {
         const validated = dailyGoalsSchema.parse(goals);
-        set({ dailyGoals: validated });
+        set({ dailyGoals: validated, goalsConfigured: true });
+      },
+      applyGoalSetup: (profile, manualOverride = false) => {
+        const validatedProfile = dietProfileSchema.parse(profile);
+        const calculatedGoals = calculateDietGoals(validatedProfile);
+        set({
+          profile: validatedProfile,
+          dailyGoals: calculatedGoals,
+          goalsConfigured: true,
+          goalsLockedManually: manualOverride ? true : get().goalsLockedManually,
+          goalsSetupPromptDismissed: true,
+        });
+        return calculatedGoals;
+      },
+      setDietProfile: (profile) => {
+        const validatedProfile = dietProfileSchema.parse(profile);
+        const shouldRecalculate = !get().goalsLockedManually;
+        set((state) => ({
+          profile: validatedProfile,
+          dailyGoals: shouldRecalculate ? calculateDietGoals(validatedProfile) : state.dailyGoals,
+          goalsConfigured: true,
+          goalsSetupPromptDismissed: true,
+        }));
+        return validatedProfile;
+      },
+      refreshGoalsFromProfile: (force = false) => {
+        const currentProfile = get().profile;
+
+        if (!currentProfile) {
+          return null;
+        }
+
+        if (get().goalsLockedManually && !force) {
+          return null;
+        }
+
+        const recalculatedGoals = calculateDietGoals(currentProfile);
+        set({
+          dailyGoals: recalculatedGoals,
+          goalsConfigured: true,
+          goalsSetupPromptDismissed: true,
+        });
+        return recalculatedGoals;
+      },
+      setGoalsConfigured: (value) => {
+        set({ goalsConfigured: value });
+      },
+      setGoalsLockedManually: (value) => {
+        set({ goalsLockedManually: value, goalsConfigured: true });
+      },
+      dismissGoalsSetupPrompt: () => {
+        set({ goalsSetupPromptDismissed: true });
       },
       addFood: (foodData) => {
         const validated = foodSchema.parse(foodData);
@@ -220,7 +393,31 @@ export const useDietStore = create<DietStoreState>()(
     }),
     {
       name: "vrtxprotocol-diet-store",
+      version: 2,
       storage: createJSONStorage(() => mmkvJsonStorage),
+      migrate: (persistedState: any) => {
+        const dailyGoals = dailyGoalsSchema.safeParse({
+          ...DEFAULT_DAILY_GOALS,
+          ...(persistedState?.dailyGoals ?? {}),
+        }).success
+          ? dailyGoalsSchema.parse({
+              ...DEFAULT_DAILY_GOALS,
+              ...(persistedState?.dailyGoals ?? {}),
+            })
+          : DEFAULT_DAILY_GOALS;
+
+        const hasDietHistory =
+          Array.isArray(persistedState?.meals) && persistedState.meals.length > 0;
+
+        return {
+          ...persistedState,
+          dailyGoals,
+          profile: persistedState?.profile ?? null,
+          goalsConfigured: persistedState?.goalsConfigured ?? hasDietHistory,
+          goalsLockedManually: persistedState?.goalsLockedManually ?? false,
+          goalsSetupPromptDismissed: persistedState?.goalsSetupPromptDismissed ?? hasDietHistory,
+        };
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
       },

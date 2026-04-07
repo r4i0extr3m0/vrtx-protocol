@@ -1,4 +1,5 @@
 import { Alert, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
@@ -12,7 +13,8 @@ export function SettingsScreen() {
 
   const handleLogout = async () => {
     await signOut();
-    Alert.alert("Sessão encerrada", "Os dados locais continuam disponíveis no dispositivo.");
+    Alert.alert("Sessao encerrada", "Os dados locais continuam disponiveis no dispositivo.");
+    router.replace("/onboarding");
   };
 
   return (

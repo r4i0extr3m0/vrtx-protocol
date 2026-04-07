@@ -22,7 +22,7 @@ export function PremiumScreen() {
   const features = [
     { icon: 'analytics', title: 'Relatorios melhores', desc: 'Acompanhe volume, progresso e consistencia com mais clareza.' },
     { icon: 'cloud-upload', title: 'Backup na nuvem', desc: 'Mantenha seus dados protegidos e acessiveis.' },
-    { icon: 'infinite', title: 'Modelos ilimitados', desc: 'Crie quantos modelos de treino quiser.' },
+    { icon: 'infinite', title: 'Treinos ilimitados', desc: 'Crie quantos treinos personalizados quiser.' },
     { icon: 'star', title: 'Experiencia limpa', desc: 'Mais foco no treino e menos distracoes.' },
   ];
 

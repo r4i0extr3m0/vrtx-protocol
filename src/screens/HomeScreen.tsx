@@ -7,13 +7,14 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { SyncStatusPill } from "@/src/components/SyncStatusPill";
 import { AppIcon } from "@/src/components/AppIcon";
-import { useWorkout, useTheme } from "@/src/hooks";
+import { useTabBarInset, useWorkout, useTheme } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
 import { spacing, typography, radius, shadows } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePremiumStore } from "@/src/store/premiumStore";
 import { useGamificationStore } from "@/src/store/gamificationStore";
+import { useDietStore } from "@/src/store/dietStore";
 
 function getCurrentWeekStartMs(): number {
   const date = new Date();
@@ -23,9 +24,33 @@ function getCurrentWeekStartMs(): number {
   return date.getTime();
 }
 
+function getLastWorkoutLabel(workoutDate: string | null): string {
+  if (!workoutDate) {
+    return "Nenhum treino concluido ainda";
+  }
+
+  const today = new Date();
+  const target = new Date(`${workoutDate}T00:00:00`);
+  today.setHours(0, 0, 0, 0);
+  const diffMs = today.getTime() - target.getTime();
+  const diffDays = Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+
+  if (diffDays === 0) {
+    return "Ultimo treino: hoje";
+  }
+
+  if (diffDays === 1) {
+    return "Ultimo treino: ontem";
+  }
+
+  return `Ultimo treino: ha ${diffDays} dias`;
+}
+
 export function HomeScreen() {
   const { colors } = useTheme();
   const { workouts, activeWorkoutId, createWorkout } = useWorkout();
+  const { meals } = useDietStore();
+  const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const streak = useGamificationStore((state) => state.streak);
   const totalXP = useGamificationStore((state) => state.totalXP);
   const isPremium = usePremiumStore((state) => state.isPremium);
@@ -33,10 +58,22 @@ export function HomeScreen() {
   const today = new Date().toISOString().slice(0, 10);
   const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId) ?? null;
   const completedWorkouts = useMemo(
-    () => workouts.filter((workout) => Boolean(workout.completedAt)),
+    () =>
+      workouts
+        .filter((workout) => Boolean(workout.completedAt))
+        .sort((left, right) => {
+          const leftTimestamp = Date.parse(left.completedAt ?? left.startedAt ?? left.date);
+          const rightTimestamp = Date.parse(right.completedAt ?? right.startedAt ?? right.date);
+          return rightTimestamp - leftTimestamp;
+        }),
     [workouts],
   );
+  const latestCompletedWorkout = completedWorkouts[0] ?? null;
   const todayCompletedWorkout = completedWorkouts.find((workout) => workout.date === today) ?? null;
+  const todayMealsCount = useMemo(
+    () => meals.filter((meal) => meal.date === today && meal.mealType !== "water").length,
+    [meals, today],
+  );
   const last7WorkoutCount = useMemo(() => {
     const windowStart = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return completedWorkouts.filter((workout) => {
@@ -68,7 +105,7 @@ export function HomeScreen() {
     }
 
     if (todayCompletedWorkout) {
-      router.push("/statistics" as never);
+      router.push("/statistics?source=home&tab=performance" as never);
       return;
     }
 
@@ -78,57 +115,67 @@ export function HomeScreen() {
   const todayTitle = activeWorkout
     ? "Retomar treino"
     : todayCompletedWorkout
-      ? "Treino concluido"
+      ? todayMealsCount
+        ? "Loop fechado"
+        : "Treino concluido"
       : "Comecar treino";
   const todaySubtitle = activeWorkout
     ? `${activeWorkout.name} em andamento. Continue de onde voce parou.`
     : todayCompletedWorkout
-      ? "Seu treino de hoje ja contou para o streak. Abra o Status para ver o resumo."
-      : "Entre, registre e feche o loop diario em poucos toques.";
-  const nextActionTitle = activeWorkout
-    ? "Finalize a sessao atual"
-    : todayCompletedWorkout
-      ? isPremium
-        ? "Abrir recuperacao de hoje"
-        : "Desbloquear recuperacao Pro"
-      : "Registrar o treino do dia";
-  const nextActionDescription = activeWorkout
-    ? "Volte para o treino e conclua as series pendentes."
-    : todayCompletedWorkout
-      ? isPremium
-        ? "Veja sinais simples de carga e descanso usando seu proprio log."
-        : "Tracking continua livre. O plano Pro libera a leitura de recuperacao e insights."
-      : "Seu loop ideal e: Hoje, treino concluido, Status atualizado e streak mantido.";
-  const nextActionButtonLabel = activeWorkout
-    ? "Retomar agora"
-    : todayCompletedWorkout
-      ? isPremium
-        ? "Abrir Status"
-        : "Ver Premium"
-      : "Comecar treino";
+      ? todayMealsCount
+        ? "Treino e refeicao registrados. Abra o Status para revisar o dia com clareza."
+        : "Seu treino de hoje ja contou. Registre uma refeicao para fechar o loop."
+      : "Abra, registre o treino e feche o dia em poucos toques.";
+  const latestWorkoutLabel = getLastWorkoutLabel(latestCompletedWorkout?.date ?? null);
+  const showRecoveryAction = isPremium && todayCompletedWorkout;
+  const nextActionTitle = !todayMealsCount
+    ? "Registrar refeicao"
+    : showRecoveryAction
+      ? "Ver recuperacao"
+      : "Ver historico";
+  const nextActionDescription = !todayMealsCount
+    ? "Registre uma refeicao simples para fechar o loop do dia sem abrir varios caminhos."
+    : showRecoveryAction
+      ? "Abra a leitura de hoje e confira o que seu log sugere para carga e descanso."
+      : "Revise sua ultima sessao sem tirar o foco do treino de hoje.";
+  const nextActionButtonLabel = !todayMealsCount
+    ? "Registrar refeicao"
+    : showRecoveryAction
+      ? "Ver recuperacao"
+      : "Ver historico";
   const handleNextAction = () => {
-    if (activeWorkout) {
-      router.push({ pathname: "/workout/[id]", params: { id: activeWorkout.id } } as never);
+    if (!todayMealsCount) {
+      router.push("/diet/add-meal" as never);
       return;
     }
 
-    if (todayCompletedWorkout) {
-      router.push((isPremium ? "/statistics" : "/premium") as never);
+    if (showRecoveryAction) {
+      router.push("/statistics?tab=recovery&source=home" as never);
       return;
     }
 
-    handleNewWorkout();
+    router.push("/history" as never);
   };
+  const premiumInsight = latestCompletedWorkout
+    ? streak >= 3
+      ? `${streak} dias seguidos. Sua consistencia esta construindo tracao.`
+      : "Seu ultimo treino ja esta alimentando a leitura de performance."
+    : "Complete o primeiro treino para transformar o Status em leitura util.";
 
   return (
     <ScreenContainer className="px-5">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: contentPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerText}>
             <Text style={[styles.eyebrow, { color: colors.foregroundMuted }]}>Painel de hoje</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>VRTX Protocol</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>
-              Command Center do MVP: abrir, treinar, fechar o dia e acompanhar progresso real.
+              Abra, treine e acompanhe o que importa hoje.
             </Text>
           </View>
           <SyncStatusPill />
@@ -146,9 +193,8 @@ export function HomeScreen() {
                 <View style={styles.mainActionContent}>
                   <Text style={styles.mainActionEyebrow}>Hoje</Text>
                   <Text style={styles.mainActionTitle}>{todayTitle}</Text>
-                  <Text style={styles.mainActionSubtitle}>
-                    {todaySubtitle}
-                  </Text>
+                  <Text style={styles.mainActionSubtitle}>{todaySubtitle}</Text>
+                  <Text style={styles.mainActionMeta}>{latestWorkoutLabel}</Text>
                 </View>
                 <View style={styles.mainActionIcon}>
                   <AppIcon name="Zap" size={24} color="#000" strokeWidth={2.5} />
@@ -164,7 +210,7 @@ export function HomeScreen() {
               </View>
               <View style={styles.cardHeaderText}>
                 <Text style={[styles.cardEyebrow, { color: colors.foregroundMuted }]}>Status</Text>
-                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Performance e consistencia</Text>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Preview do seu status</Text>
               </View>
             </View>
             <View style={styles.statusGrid}>
@@ -177,8 +223,8 @@ export function HomeScreen() {
                 <Text style={[styles.statusLabel, { color: colors.muted }]}>XP total</Text>
               </View>
               <View style={[styles.statusItem, { backgroundColor: colors.surfaceAlt }]}>
-                <Text style={[styles.statusValue, { color: colors.foreground }]}>{completedWorkouts.length}</Text>
-                <Text style={[styles.statusLabel, { color: colors.muted }]}>treinos concluidos</Text>
+                <Text style={[styles.statusValue, { color: colors.foreground }]}>{last7WorkoutCount}</Text>
+                <Text style={[styles.statusLabel, { color: colors.muted }]}>treinos em 7 dias</Text>
               </View>
               <View style={[styles.statusItem, { backgroundColor: colors.surfaceAlt }]}>
                 <Text style={[styles.statusValue, { color: colors.foreground }]}>
@@ -187,14 +233,17 @@ export function HomeScreen() {
                 <Text style={[styles.statusLabel, { color: colors.muted }]}>volume semana</Text>
               </View>
             </View>
-            <Text style={[styles.cardBody, { color: colors.muted }]}>
-              {isPremium
-                ? "Abra o Status para acompanhar performance e recuperacao usando apenas o seu log."
-                : "Free mostra progresso basico. O Pro libera a aba de recuperacao e leituras mais profundas."}
-            </Text>
+            {isPremium ? (
+              <Text style={[styles.insightText, { color: colors.foreground }]}>{premiumInsight}</Text>
+            ) : (
+              <View style={[styles.statusBadge, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                <AppIcon name="Sparkles" size={14} color={colors.warning} />
+                <Text style={[styles.statusBadgeText, { color: colors.foreground }]}>Recuperacao no Pro</Text>
+              </View>
+            )}
             <AppButton
-              label={isPremium ? "Abrir Status" : "Abrir Status basico"}
-              onPress={() => router.push("/statistics" as never)}
+              label="Ver Status"
+              onPress={() => router.push("/statistics?source=home&tab=performance" as never)}
             />
           </Animated.View>
 
@@ -208,27 +257,11 @@ export function HomeScreen() {
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>{nextActionTitle}</Text>
               </View>
             </View>
-            <Text style={[styles.cardBody, { color: colors.foreground }]}>
-              {nextActionDescription}
-            </Text>
-            <View style={styles.actionHighlights}>
-              <View style={styles.actionHighlight}>
-                <AppIcon name="Check" size={16} color={colors.success} />
-                <Text style={[styles.actionText, { color: colors.muted }]}>
-                  {todayCompletedWorkout ? "Dia contado no streak" : "Loop diario em 30-90 segundos"}
-                </Text>
-              </View>
-              <View style={styles.actionHighlight}>
-                <AppIcon name="Calendar" size={16} color={colors.primary} />
-                <Text style={[styles.actionText, { color: colors.muted }]}>
-                  {last7WorkoutCount} treino{last7WorkoutCount !== 1 ? "s" : ""} nos ultimos 7 dias
-                </Text>
-              </View>
-            </View>
+            <Text style={[styles.cardBody, { color: colors.foreground }]}>{nextActionDescription}</Text>
             <AppButton
               label={nextActionButtonLabel}
               onPress={handleNextAction}
-              variant={todayCompletedWorkout && !isPremium ? "secondary" : "brand"}
+              variant="brand"
             />
           </Animated.View>
         </View>
@@ -352,6 +385,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 20,
   },
+  mainActionMeta: {
+    color: 'rgba(0,0,0,0.58)',
+    fontFamily: typography.family.body,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    marginTop: spacing.sm,
+  },
   mainActionIcon: {
     width: 56,
     height: 56,
@@ -383,17 +424,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.2,
   },
-  actionHighlights: {
-    gap: spacing.sm,
-  },
-  actionHighlight: {
+  statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
-  actionText: {
+  statusBadgeText: {
     fontFamily: typography.family.body,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
+  },
+  insightText: {
+    fontFamily: typography.family.body,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
   },
 });

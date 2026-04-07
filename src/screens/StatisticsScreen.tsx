@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -8,9 +8,10 @@ import { AppIcon } from "@/src/components/AppIcon";
 import { MetricCard } from "@/src/components/MetricCard";
 import { SectionCard } from "@/src/components/SectionCard";
 import { summarizeWorkout } from "@/src/domain/workout";
-import { useTheme, useWorkout } from "@/src/hooks";
+import { useTabBarInset, useTheme, useWorkout } from "@/src/hooks";
 import { useGamificationStore } from "@/src/store/gamificationStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
+import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
 import { radius, spacing, typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 
@@ -79,13 +80,36 @@ function countConsecutiveTrainingDays(dayKeys: string[]): number {
 }
 
 export function StatisticsScreen() {
-  const params = useLocalSearchParams<{ source?: string }>();
+  const params = useLocalSearchParams<{ source?: string; tab?: StatusTab }>();
   const { colors } = useTheme();
   const { workouts } = useWorkout();
+  const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const streak = useGamificationStore((state) => state.streak);
   const totalXP = useGamificationStore((state) => state.totalXP);
   const isPremium = usePremiumStore((state) => state.isPremium);
   const [activeTab, setActiveTab] = useState<StatusTab>("performance");
+  const completedWorkoutCount = workouts.filter((workout) => Boolean(workout.completedAt)).length;
+
+  useEffect(() => {
+    if (params.tab === "performance" || params.tab === "recovery") {
+      setActiveTab(params.tab);
+    }
+  }, [params.tab]);
+
+  useEffect(() => {
+    trackEvent(ANALYTICS_EVENTS.STATUS_VIEWED, {
+      source: params.source ?? "tab",
+      premium: isPremium,
+      completed_workouts: completedWorkoutCount,
+    });
+  }, [completedWorkoutCount, isPremium, params.source]);
+
+  useEffect(() => {
+    trackEvent(ANALYTICS_EVENTS.STATUS_TAB_VIEWED, {
+      tab: activeTab,
+      source: params.source ?? "tab",
+    });
+  }, [activeTab, params.source]);
 
   const completedWorkouts = useMemo(
     () =>
@@ -235,8 +259,8 @@ export function StatisticsScreen() {
   const postWorkoutHeadline =
     params.source === "workout_complete"
       ? baselineReady && volumeVsBaselinePct !== null
-        ? `Sessao registrada. Seu volume semanal esta ${formatPercent(volumeVsBaselinePct)} ${volumeVsBaselinePct >= 0 ? "acima" : "abaixo"} da media de 4 semanas.`
-        : "Sessao registrada. Seu baseline de 4 semanas ainda esta em formacao."
+        ? `Treino salvo. Sua semana ficou ${formatPercent(volumeVsBaselinePct)} ${volumeVsBaselinePct >= 0 ? "acima" : "abaixo"} do baseline.`
+        : "Treino salvo. Seu baseline ainda esta em formacao."
       : null;
 
   const performanceSummary =
@@ -248,13 +272,28 @@ export function StatisticsScreen() {
 
   return (
     <ScreenContainer className="px-5 py-5">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: contentPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>Status</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Performance sempre aberta. Recuperacao avanca no Pro.
+            Veja o que conta hoje e qual e a proxima acao.
           </Text>
         </View>
+
+        {params.source === "home" ? (
+          <SectionCard title="Voltando da Home" subtitle="Leitura curta para fechar o loop.">
+            <Text style={[styles.body, { color: colors.foreground }]}>
+              {activeTab === "recovery"
+                ? "Voce veio pela proxima acao. Leia a recuperacao e ajuste a carga do proximo treino sem abrir mais caminhos."
+                : "Voce veio pelo bloco Status. Veja a leitura principal e decida o proximo passo com menos ruido."}
+            </Text>
+          </SectionCard>
+        ) : null}
 
         {postWorkoutHeadline ? (
           <SectionCard title="Treino registrado" subtitle="Fechou o loop diario.">
@@ -317,6 +356,13 @@ export function StatisticsScreen() {
 
             <SectionCard title="Resumo de performance" subtitle="Leitura curta e objetiva.">
               <Text style={[styles.body, { color: colors.foreground }]}>{performanceSummary}</Text>
+              {params.source === "home" ? (
+                <AppButton
+                  label="Ver historico"
+                  onPress={() => router.push("/history" as never)}
+                  variant="secondary"
+                />
+              ) : null}
             </SectionCard>
 
             <SectionCard title="Ultima sessao" subtitle="Seu ponto mais recente de prova.">
@@ -329,6 +375,13 @@ export function StatisticsScreen() {
                 <Text style={[styles.support, { color: latestVolumeDelta >= 0 ? colors.success : colors.warning }]}>
                   {latestVolumeDelta >= 0 ? "Volume acima" : "Volume abaixo"} do treino anterior em {formatVolume(Math.abs(latestVolumeDelta))}.
                 </Text>
+              ) : null}
+              {latestSnapshot ? (
+                <AppButton
+                  label="Abrir detalhes"
+                  onPress={() => router.push({ pathname: "/history/[id]", params: { id: latestSnapshot.workout.id } } as never)}
+                  variant="secondary"
+                />
               ) : null}
             </SectionCard>
 
@@ -377,6 +430,13 @@ export function StatisticsScreen() {
 
             <SectionCard title="Proxima acao" subtitle="Nada de linguagem medica ou alarmista.">
               <Text style={[styles.body, { color: colors.foreground }]}>{recoveryMetrics.nextAction}</Text>
+              {params.source === "home" ? (
+                <AppButton
+                  label="Voltar ao treino"
+                  onPress={() => router.push("/workout" as never)}
+                  variant="secondary"
+                />
+              ) : null}
             </SectionCard>
           </>
         ) : (

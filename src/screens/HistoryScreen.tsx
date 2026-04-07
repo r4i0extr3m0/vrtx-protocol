@@ -6,7 +6,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { summarizeWorkout } from "@/src/domain/workout";
-import { useTheme, useWorkout } from "@/src/hooks";
+import { useTabBarInset, useTheme, useWorkout } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { EmptyState } from "@/src/components/EmptyState";
@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 export function HistoryScreen() {
   const { colors } = useTheme();
   const { workouts } = useWorkout();
+  const { contentPaddingBottom, scrollIndicatorBottom, tabBarHeight } = useTabBarInset();
 
   const renderItem = ({ item: workout, index }: { item: any; index: number }) => {
     const summary = summarizeWorkout(workout);
@@ -69,7 +70,10 @@ export function HistoryScreen() {
         data={workouts}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: contentPaddingBottom }]}
+        keyboardShouldPersistTaps="handled"
+        scrollIndicatorInsets={{ bottom: scrollIndicatorBottom }}
+        contentInset={{ bottom: tabBarHeight }}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.foreground }]}>Histórico</Text>
