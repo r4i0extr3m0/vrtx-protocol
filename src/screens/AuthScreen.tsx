@@ -16,8 +16,10 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScreenWrapper } from "../components/ui";
+import { AppIcon } from "@/src/components/AppIcon";
 import { useAuth, useTheme } from "@/src/hooks";
 import { hasSupabaseEnv } from "@/src/constants/env";
+import { LEGAL_VERSION } from "@/src/legal/legalTexts";
 import { radius, spacing, typography } from "@/src/theme";
 
 export function AuthScreen() {
@@ -29,6 +31,7 @@ export function AuthScreen() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const supabaseReady = useMemo(() => hasSupabaseEnv(), []);
   const metrics = useMemo(
@@ -106,8 +109,19 @@ export function AuthScreen() {
       Alert.alert("Faltam algumas informacoes", "Preencha os campos obrigatorios para criar sua conta.");
       return;
     }
+    if (!acceptedTerms) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        "Aceite os termos",
+        "Voce precisa aceitar os Termos e a Politica de Privacidade antes de criar sua conta.",
+      );
+      return;
+    }
     setSubmitting(true);
-    const result = await signUp(email.trim(), password, name.trim() || undefined);
+    const result = await signUp(email.trim(), password, name.trim() || undefined, {
+      acceptedAt: new Date().toISOString(),
+      version: LEGAL_VERSION,
+    });
     setSubmitting(false);
     if (!result.success) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -295,14 +309,48 @@ export function AuthScreen() {
                     />
                   </View>
 
+                  {mode === "signup" ? (
+                    <View style={styles.legalBlock}>
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: acceptedTerms }}
+                        onPress={() => setAcceptedTerms((current) => !current)}
+                        style={styles.legalRow}
+                      >
+                        <View
+                          style={[
+                            styles.checkbox,
+                            {
+                              borderColor: acceptedTerms ? colors.primary : colors.borderStrong,
+                              backgroundColor: acceptedTerms ? colors.primary : "transparent",
+                            },
+                          ]}
+                        >
+                          {acceptedTerms ? <AppIcon name="Check" size={14} color="#08111F" strokeWidth={3} /> : null}
+                        </View>
+                        <Text style={[styles.legalCopy, { color: colors.foregroundMuted }]}>
+                          Eu li e aceito os Termos e a Politica de Privacidade.
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={() => router.push("/terms-and-privacy" as never)}>
+                        <Text style={[styles.legalLink, { color: colors.primary }]}>
+                          Ler termos e politica
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+
                   <View style={styles.buttonStack}>
                     <Pressable
                       onPress={mode === "login" ? handleLogin : handleSignUp}
-                      disabled={submitting}
+                      disabled={submitting || (mode === "signup" && !acceptedTerms)}
                       accessibilityLabel={mode === "login" ? "Entrar" : "Criar conta"}
                       style={[
                         styles.primaryButton,
-                        { backgroundColor: colors.primary, opacity: submitting ? 0.7 : 1 },
+                        {
+                          backgroundColor: colors.primary,
+                          opacity: submitting || (mode === "signup" && !acceptedTerms) ? 0.55 : 1,
+                        },
                       ]}
                     >
                       <Text style={styles.primaryButtonText}>
@@ -496,6 +544,34 @@ const styles = StyleSheet.create({
   },
   fieldGroup: {
     gap: spacing.xs,
+  },
+  legalBlock: {
+    gap: spacing.sm,
+  },
+  legalRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  legalCopy: {
+    flex: 1,
+    fontFamily: typography.family.body,
+    fontSize: typography.size.sm,
+    lineHeight: 20,
+  },
+  legalLink: {
+    fontFamily: typography.family.body,
+    fontSize: typography.size.sm,
+    fontWeight: "700",
   },
   label: {
     fontFamily: typography.family.body,

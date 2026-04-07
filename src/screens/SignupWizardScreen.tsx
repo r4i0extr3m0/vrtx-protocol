@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Alert, View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
+import { AppIcon } from "@/src/components/AppIcon";
 import { useAuth, useTheme } from "@/src/hooks";
+import { LEGAL_VERSION } from "@/src/legal/legalTexts";
 import { spacing, typography, radius } from "@/src/theme";
 import Animated, { FadeInRight, FadeOutLeft } from "react-native-reanimated";
 import { AppButton } from "@/src/components/AppButton";
@@ -19,6 +21,7 @@ export function SignupWizardScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [goal, setGoal] = useState<"gain" | "lose" | "maintain">("maintain");
@@ -39,8 +42,15 @@ export function SignupWizardScreen() {
       Alert.alert("Campos obrigatórios", "Preencha e-mail e senha.");
       return;
     }
+    if (!acceptedTerms) {
+      Alert.alert("Aceite os termos", "Voce precisa aceitar os Termos e a Politica de Privacidade.");
+      return;
+    }
     setLoading(true);
-    const result = await signUp(email, password, name);
+    const result = await signUp(email, password, name, {
+      acceptedAt: new Date().toISOString(),
+      version: LEGAL_VERSION,
+    });
     setLoading(false);
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -106,11 +116,38 @@ export function SignupWizardScreen() {
               value={password}
               onChangeText={setPassword}
             />
+
+            <View style={styles.legalBlock}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedTerms }}
+                onPress={() => setAcceptedTerms((current) => !current)}
+                style={styles.legalRow}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    {
+                      borderColor: acceptedTerms ? colors.primary : colors.border,
+                      backgroundColor: acceptedTerms ? colors.primary : "transparent",
+                    },
+                  ]}
+                >
+                  {acceptedTerms ? <AppIcon name="Check" size={14} color="#08111F" strokeWidth={3} /> : null}
+                </View>
+                <Text style={[styles.legalCopy, { color: colors.muted }]}>
+                  Eu li e aceito os Termos e a Politica de Privacidade.
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => router.push("/terms-and-privacy" as never)}>
+                <Text style={[styles.legalLink, { color: colors.primary }]}>Ler termos e politica</Text>
+              </Pressable>
+            </View>
             
             <AppButton 
               label={loading ? "Criando..." : "Continuar"} 
               onPress={handleAccountSubmit} 
-              disabled={loading || !email || !password}
+              disabled={loading || !email || !password || !acceptedTerms}
             />
           </Animated.View>
         );
@@ -246,6 +283,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: spacing.md,
     fontSize: typography.body,
+  },
+  legalBlock: {
+    gap: spacing.sm,
+  },
+  legalRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  legalCopy: {
+    flex: 1,
+    fontSize: typography.bodySm,
+    lineHeight: 20,
+  },
+  legalLink: {
+    fontSize: typography.bodySm,
+    fontWeight: "700",
   },
   row: {
     flexDirection: "row",

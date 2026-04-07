@@ -375,13 +375,133 @@ describe("authStore", () => {
     }));
 
     const { useAuthStore } = await import("../src/store/authStore");
-    const result = await useAuthStore.getState().signUp("user@example.com", "Test123456!", "Victor");
+    const result = await useAuthStore
+      .getState()
+      .signUp("user@example.com", "Test123456!", "Victor", {
+        acceptedAt: "2026-04-07T00:00:00.000Z",
+        version: "2026-04-07",
+      });
 
     expect(result).toMatchObject({
       success: false,
       code: "USER_ALREADY_EXISTS",
       message: "Este e-mail ja esta cadastrado. Entre com sua senha ou recupere o acesso.",
     });
+  });
+
+  it("blocks signup before calling Supabase when legal acceptance is missing", async () => {
+    const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
+    const signUp = vi.fn();
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getSupabaseClient: vi.fn(() => ({
+        auth: { signUp },
+      })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium: vi.fn() }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    const result = await useAuthStore.getState().signUp("user@example.com", "Test123456!", "Victor");
+
+    expect(result).toMatchObject({
+      success: false,
+      code: "LEGAL_ACCEPTANCE_REQUIRED",
+    });
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it("reauthenticates and invokes the deletion function before clearing local auth", async () => {
+    const storage = createMemoryJsonStorage();
+    const clearPersistedAuthSession = vi.fn();
+    const signOut = vi.fn().mockResolvedValue(undefined);
+    const signInWithPassword = vi.fn().mockResolvedValue({
+      data: {
+        session: {
+          access_token: "access-token-1",
+          refresh_token: "refresh-token-1",
+          expires_at: 123,
+        },
+      },
+      error: null,
+    });
+    const invoke = vi.fn().mockResolvedValue({
+      data: { ok: true },
+      error: null,
+    });
+    const resetPremium = vi.fn();
+
+    vi.doMock("@/src/infra/mmkv", () => ({
+      mmkvJsonStorage: storage,
+    }));
+    vi.doMock("@/src/constants/env", () => ({
+      hasSupabaseEnv: () => true,
+      getSupabaseEnvError: () => null,
+    }));
+    vi.doMock("@/src/api/supabase", () => ({
+      clearPersistedAuthSession,
+      getCurrentSession: vi.fn(),
+      getCurrentUser: vi.fn(),
+      getPersistedAccessToken: vi.fn(() => null),
+      getSupabaseClient: vi.fn(() => ({
+        auth: { signInWithPassword, signOut },
+        functions: { invoke },
+      })),
+    }));
+    vi.doMock("@/src/store/premiumStore", () => ({
+      usePremiumStore: {
+        getState: () => ({ refreshAIUsage: vi.fn(), resetPremium }),
+      },
+    }));
+
+    const { useAuthStore } = await import("../src/store/authStore");
+    useAuthStore.setState({
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Victor",
+      },
+      session: {
+        accessToken: "old-access-token",
+        refreshToken: "old-refresh-token",
+        expiresAt: 123,
+      },
+      isAuthenticated: true,
+      status: "authenticated",
+      hasHydrated: true,
+    });
+
+    const result = await useAuthStore.getState().deleteAccount("Test123456!");
+
+    expect(result).toEqual({ success: true });
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "Test123456!",
+    });
+    expect(invoke).toHaveBeenCalledWith("delete-user-account", {
+      headers: {
+        Authorization: "Bearer access-token-1",
+      },
+      body: {},
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(clearPersistedAuthSession).toHaveBeenCalledTimes(1);
+    expect(resetPremium).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().status).toBe("idle");
   });
 });
 

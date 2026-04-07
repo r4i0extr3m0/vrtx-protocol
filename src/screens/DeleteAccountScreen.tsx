@@ -30,7 +30,7 @@ export function DeleteAccountScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     try {
-      const result = await deleteAccount();
+      const result = await deleteAccount(password);
       
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

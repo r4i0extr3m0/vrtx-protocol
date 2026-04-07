@@ -1,14 +1,26 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { clearPersistedAuthSession, getCurrentSession, getCurrentUser, getSupabaseClient } from "@/src/api/supabase";
+import {
+  clearPersistedAuthSession,
+  getCurrentSession,
+  getCurrentUser,
+  getPersistedAccessToken,
+  getSupabaseClient,
+} from "@/src/api/supabase";
 import { getSupabaseEnvError, hasSupabaseEnv } from "@/src/constants/env";
 import { mmkvJsonStorage } from "@/src/infra/mmkv";
+import { LEGAL_VERSION } from "@/src/legal/legalTexts";
 import type { AuthSession, UserProfile } from "@/src/types";
 import { usePremiumStore } from "@/src/store/premiumStore";
 import { translateAuthError } from "@/src/utils";
 
 let profilesTableUnavailable = false;
+
+export type LegalAcceptanceInput = {
+  acceptedAt: string;
+  version: string;
+};
 
 interface AuthStoreState {
   isAuthenticated: boolean;
@@ -21,14 +33,15 @@ interface AuthStoreState {
   signUp: (
     email: string,
     password: string,
-    name?: string
+    name?: string,
+    legalAcceptance?: LegalAcceptanceInput,
   ) => Promise<{ success: boolean; message?: string; code?: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string; code?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; message?: string }>;
   enableBiometrics: (enabled: boolean) => void;
   resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
-  deleteAccount: () => Promise<{ success: boolean; message?: string }>;
+  deleteAccount: (password: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 function mapSession(session: any): AuthSession | null {
@@ -221,7 +234,12 @@ export const useAuthStore = create<AuthStoreState>()(
       setGuestMode: () => {
         set({ isAuthenticated: false, user: null, session: null, status: "guest", hasHydrated: true });
       },
-      signUp: async (email: string, password: string, name?: string) => {
+      signUp: async (
+        email: string,
+        password: string,
+        name?: string,
+        legalAcceptance?: LegalAcceptanceInput,
+      ) => {
         try {
           if (!hasSupabaseEnv()) {
             return {
@@ -229,12 +247,24 @@ export const useAuthStore = create<AuthStoreState>()(
               message: getSupabaseEnvError() ?? "Login indisponível neste build.",
             };
           }
+          if (!legalAcceptance?.acceptedAt || !legalAcceptance?.version) {
+            return {
+              success: false,
+              message: "Voce precisa aceitar os Termos e a Politica de Privacidade antes de criar sua conta.",
+              code: "LEGAL_ACCEPTANCE_REQUIRED",
+            };
+          }
           const client = getSupabaseClient();
           const result = await client.auth.signUp({
             email,
             password,
             options: {
-              data: { name: name ?? "" },
+              data: {
+                name: name ?? "",
+                terms_accepted_at: legalAcceptance.acceptedAt,
+                terms_version: legalAcceptance.version ?? LEGAL_VERSION,
+                privacy_version: legalAcceptance.version ?? LEGAL_VERSION,
+              },
             },
           });
           if (result.error) {
@@ -433,25 +463,54 @@ export const useAuthStore = create<AuthStoreState>()(
           return { success: false, message: "Erro ao solicitar recuperação." };
         }
       },
-      deleteAccount: async () => {
+      deleteAccount: async (password: string) => {
         try {
           if (!hasSupabaseEnv()) return { success: false, message: "Supabase não configurado." };
           const client = getSupabaseClient();
-          // Nota: deleteUser geralmente requer privilégios de admin ou uma Edge Function.
-          // Aqui chamamos uma RPC ou assumimos que o cliente tem permissão via RLS/Função.
-          const { error } = await client.rpc('delete_user_account');
-          if (error) {
-            // Fallback: Tentar deletar o perfil e deslogar se a RPC falhar
-            const { user } = get();
-            if (user) {
-              await client.from('profiles').delete().eq('id', user.id);
-            }
-            await get().signOut();
-            return { success: true, message: "Conta desativada localmente. Entre em contato para exclusão total." };
+          const email = get().user?.email ?? (await getCurrentUser())?.email ?? null;
+          if (!email) {
+            return { success: false, message: "Não foi possível identificar o e-mail da conta atual." };
           }
+
+          const reAuth = await client.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (reAuth.error) {
+            const t = translateAuthError(getAuthErrorInput(reAuth.error));
+            return {
+              success: false,
+              message: t.message || "Senha inválida. Confirme sua senha atual para excluir a conta.",
+            };
+          }
+
+          const accessToken =
+            reAuth.data.session?.access_token ?? get().session?.accessToken ?? getPersistedAccessToken();
+
+          if (!accessToken) {
+            return { success: false, message: "Não foi possível validar sua sessão para excluir a conta." };
+          }
+
+          const { error } = await client.functions.invoke("delete-user-account", {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: {},
+          });
+
+          if (error) {
+            console.error("[authStore.deleteAccount]", error);
+            return {
+              success: false,
+              message:
+                "A exclusão total da conta não foi concluída. Verifique se a Edge Function 'delete-user-account' está publicada e configurada no Supabase.",
+            };
+          }
+
           await get().signOut();
           return { success: true };
-        } catch {
+        } catch (error) {
+          console.error("[authStore.deleteAccount]", error);
           return { success: false, message: "Erro ao excluir conta." };
         }
       }
