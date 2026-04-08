@@ -11,8 +11,10 @@ import { useAuthStore } from '@/src/store/authStore';
 export function DeleteAccountScreen() {
   const { colors } = useTheme();
   const [password, setPassword] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const deleteAccount = useAuthStore(state => state.deleteAccount);
 
   const handleDeleteAccount = async () => {
@@ -26,13 +28,15 @@ export function DeleteAccountScreen() {
       return;
     }
 
+    setLastError(null);
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     try {
-      const result = await deleteAccount(password);
+      const result = await deleteAccount(password, deleteReason);
       
       if (result.success) {
+        setLastError(null);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'Conta Excluída',
@@ -47,11 +51,15 @@ export function DeleteAccountScreen() {
           ]
         );
       } else {
-        throw new Error(result.message);
+        const errorMessage = result.message || 'Não foi possível excluir sua conta.';
+        setLastError(errorMessage);
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
+      const errorMessage = error?.message || 'Não foi possível excluir sua conta. Verifique sua senha.';
+      setLastError(errorMessage);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', error.message || 'Não foi possível excluir sua conta. Verifique sua senha.');
+      Alert.alert('Erro ao excluir conta', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,6 +103,30 @@ export function DeleteAccountScreen() {
             value={password}
             onChangeText={setPassword}
           />
+
+          <Text style={[styles.label, { color: colors.foreground }]}>Motivo da exclusão (opcional)</Text>
+          <TextInput
+            style={[
+              styles.input,
+              styles.reasonInput,
+              { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground },
+            ]}
+            placeholder="Se quiser, conte para nós o motivo da exclusão"
+            placeholderTextColor={colors.muted}
+            editable={!loading}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            value={deleteReason}
+            onChangeText={setDeleteReason}
+          />
+
+          {lastError ? (
+            <View style={[styles.errorBox, { backgroundColor: colors.error + '12', borderColor: colors.error + '55' }]}>
+              <Text style={[styles.errorTitle, { color: colors.error }]}>Motivo retornado pela exclusão</Text>
+              <Text style={[styles.errorText, { color: colors.foreground }]}>{lastError}</Text>
+            </View>
+          ) : null}
 
           <View style={[styles.confirmBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.confirmLabel, { color: colors.foreground }]}>
@@ -187,6 +219,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.md,
     fontSize: typography.body,
+  },
+  reasonInput: {
+    minHeight: 104,
+  },
+  errorBox: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  errorTitle: {
+    fontSize: typography.bodySm,
+    fontWeight: '800',
+  },
+  errorText: {
+    fontSize: typography.bodySm,
+    lineHeight: typography.bodySm * 1.4,
   },
   confirmBox: {
     borderWidth: 1,

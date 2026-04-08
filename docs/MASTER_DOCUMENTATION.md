@@ -42,8 +42,9 @@ O projeto e aderente a usuarios que desejam:
 - login por email e senha;
 - fluxo de criacao de conta;
 - fluxo de confirmacao de email;
-- wizard complementar de cadastro/perfil;
-- onboarding dedicado removido temporariamente, com reconstrução prevista fora da branch principal;
+- `signup-wizard` como onboarding autenticado principal no estado atual do app;
+- wizard de cadastro/perfil em multiplas etapas com conta, perfil base, rotina, objetivo e composicao corporal opcional;
+- `OnboardingScreen` permanece como camada separada e nao e hoje a fonte principal do onboarding autenticado;
 - suporte estrutural para autenticacao via Supabase;
 - modo guest/offline quando o Supabase nao esta configurado no build de desenvolvimento;
 - preparacao para biometria e fluxos de seguranca do dispositivo.
@@ -63,6 +64,7 @@ O projeto e aderente a usuarios que desejam:
 - tela principal de dieta/nutricao;
 - registro de refeicoes;
 - configuracao de metas;
+- configuracao inicial de metas nutricionais a partir do cadastro;
 - calculo de progresso calorico e macros;
 - banner e fluxo para camera/IA aplicada a alimentacao.
 
@@ -78,7 +80,7 @@ O projeto e aderente a usuarios que desejam:
 - tela de perfil;
 - configuracoes;
 - termos e privacidade;
-- exclusao de conta;
+- exclusao de conta via Edge Function dedicada;
 - telas auxiliares como premium, sync status, camera e callback OAuth.
 
 ## 4. Estrutura de Navegacao

@@ -74,6 +74,20 @@ export async function getCurrentUser(): Promise<User | null> {
   return result.data.user ?? null;
 }
 
+export function getSupabaseFunctionUrl(functionName: string): string | null {
+  if (!hasSupabaseEnv()) {
+    return null;
+  }
+
+  const baseUrl = env.supabaseUrl.replace(/\/+$/, "");
+  const sanitizedName = functionName.replace(/^\/+/, "");
+  return `${baseUrl}/functions/v1/${sanitizedName}`;
+}
+
+export function getSupabaseAnonKey(): string {
+  return env.supabaseAnonKey;
+}
+
 export function clearPersistedAuthSession(): void {
   storage.remove(AUTH_TOKEN_KEY);
   cachedClient = null;

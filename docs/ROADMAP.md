@@ -20,10 +20,10 @@ IronLog é um diário de treino offline-first com foco em privacidade, performan
 - [ ] Criar landing page com pitch
 
 ### Semana 5-6: Documentação & Comunidade
-- [ ] Criar ARCHITECTURE.md
-- [ ] Criar INSTALLATION.md
-- [ ] Criar CONTRIBUTING.md
-- [ ] Atualizar README.md
+- [x] Criar ARCHITECTURE.md
+- [x] Criar INSTALLATION.md
+- [x] Criar CONTRIBUTING.md
+- [x] Atualizar README.md
 
 ### Semana 7-8: Beta Testing
 - [ ] Recrutar 50 beta testers
@@ -38,6 +38,7 @@ IronLog é um diário de treino offline-first com foco em privacidade, performan
 ## 🎨 Q2 2026 (Abr-Jun) — UX Premium
 
 ### Semana 9-10: Onboarding Interativo
+- [x] Expandir `signup-wizard` para coleta de perfil inicial e metas nutricionais
 - [ ] Criar tour guiado na primeira abertura
 - [ ] Demonstrar funcionalidade offline
 - [ ] Explicar diferencial de privacidade

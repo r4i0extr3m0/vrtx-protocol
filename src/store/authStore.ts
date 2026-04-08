@@ -5,8 +5,9 @@ import {
   clearPersistedAuthSession,
   getCurrentSession,
   getCurrentUser,
-  getPersistedAccessToken,
+  getSupabaseAnonKey,
   getSupabaseClient,
+  getSupabaseFunctionUrl,
 } from "@/src/api/supabase";
 import { getSupabaseEnvError, hasSupabaseEnv } from "@/src/constants/env";
 import { mmkvJsonStorage } from "@/src/infra/mmkv";
@@ -41,7 +42,7 @@ interface AuthStoreState {
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; message?: string }>;
   enableBiometrics: (enabled: boolean) => void;
   resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
-  deleteAccount: (password: string) => Promise<{ success: boolean; message?: string }>;
+  deleteAccount: (password: string, reason?: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 function mapSession(session: any): AuthSession | null {
@@ -141,6 +142,56 @@ function getAuthErrorInput(error: unknown): string {
   }
 
   return "unknown";
+}
+
+function getDeleteAccountEndpoint(): string | null {
+  return getSupabaseFunctionUrl("delete-user-account");
+}
+
+function getDeleteAccountErrorMessage(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+
+  const message = "message" in payload ? String((payload as any).message ?? "").trim() : "";
+  const error = "error" in payload ? String((payload as any).error ?? "").trim() : "";
+  return message || error || undefined;
+}
+
+async function requestAccountDeletion(accessToken: string, reason?: string): Promise<{ ok: boolean; message?: string }> {
+  const endpoint = getDeleteAccountEndpoint();
+  if (!endpoint) {
+    return { ok: false, message: "Supabase não configurado." };
+  }
+
+  const trimmedReason = typeof reason === "string" ? reason.trim() : "";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: getSupabaseAnonKey(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(trimmedReason ? { reason: trimmedReason } : {}),
+  });
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  const message = getDeleteAccountErrorMessage(payload);
+  if (!response.ok) {
+    return { ok: false, message: message || "A exclusão da conta falhou. Tente novamente." };
+  }
+
+  if (!payload || typeof payload !== "object" || (payload as any).ok !== true) {
+    return { ok: false, message: message || "A exclusão da conta falhou. Tente novamente." };
+  }
+
+  return { ok: true, message };
 }
 
 function mapUser(user: any, profile?: ProfileRecord | null): UserProfile | null {
@@ -463,7 +514,7 @@ export const useAuthStore = create<AuthStoreState>()(
           return { success: false, message: "Erro ao solicitar recuperação." };
         }
       },
-      deleteAccount: async (password: string) => {
+      deleteAccount: async (password: string, reason?: string) => {
         try {
           if (!hasSupabaseEnv()) return { success: false, message: "Supabase não configurado." };
           const client = getSupabaseClient();
@@ -484,31 +535,32 @@ export const useAuthStore = create<AuthStoreState>()(
             };
           }
 
-          const accessToken =
-            reAuth.data.session?.access_token ?? get().session?.accessToken ?? getPersistedAccessToken();
+          const currentSession = reAuth.data.session ?? (await client.auth.getSession()).data.session ?? null;
+          const accessToken = currentSession?.access_token ?? null;
 
           if (!accessToken) {
             return { success: false, message: "Não foi possível validar sua sessão para excluir a conta." };
           }
 
-          const { error } = await client.functions.invoke("delete-user-account", {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: {},
-          });
+          set({ session: mapSession(currentSession) });
 
-          if (error) {
-            console.error("[authStore.deleteAccount]", error);
+          const deleteResult = await requestAccountDeletion(accessToken, reason);
+          if (!deleteResult.ok) {
+            console.error("[authStore.deleteAccount]", deleteResult.message ?? "delete_failed");
             return {
               success: false,
               message:
+                deleteResult.message ??
                 "A exclusão total da conta não foi concluída. Verifique se a Edge Function 'delete-user-account' está publicada e configurada no Supabase.",
             };
           }
 
           await get().signOut();
-          return { success: true };
+          const successMessage =
+            typeof deleteResult.message === "string" && deleteResult.message.trim().length > 0
+              ? deleteResult.message.trim()
+              : undefined;
+          return { success: true, message: successMessage };
         } catch (error) {
           console.error("[authStore.deleteAccount]", error);
           return { success: false, message: "Erro ao excluir conta." };
