@@ -123,3 +123,32 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 2. Rodar entrevistas com o script da secao 8 e registrar em `docs/validation/`.
 3. Decidir GO/NO-GO.
 4. Se GO: definir nome/dominio definitivo e corrigir migrations do Supabase.
+
+## 11. Decisoes aprovadas (08/09/2026)
+
+- **Validacao:** 1 PT entrevistado confirmou a dor central (falta de acompanhamento
+  direto; so descobre problemas "vagamente", quando ha feedback). GO preliminar:
+  seguir o MVP enquanto se valida com mais PTs em paralelo.
+- **Precos (referencia):** Basico R$ 59 (5 alunos), Plus R$ 75 (10), Premier R$ 100 (20).
+  R$ 59 e trava psicologica aceitavel; plano de promos 50% + incentivo ao anual sera
+  tratado na estrategia de captacao (posterior).
+- **Arquitetura:** mesmo app (VRTX) com modo por role (`coach` vs `client`). Sem web
+  dashboard no MVP.
+- **Vinculo:** codigo de convite unico (ex.: VRTX-XXXXXX) gerado pelo coach; aluno
+  entra com o codigo dentro do app. Nada de dados misturados: isolamento por RLS.
+- **Limite de alunos:** HARD por plano desde o MVP (gate no momento do vinculo),
+  mesmo sem cobranca implementada.
+- **Usuario avulso (solo):** MANTIDO. Conta `client` sem coach continua logando treinos
+  com versao limitada gratuita (e o que o VRTX ja faz). Sem canibalizacao: o que o PT
+  paga e a gestao de alunos, nao o proprio log. Hero do produto = coach; solo = funil.
+
+## 12. Status de implementacao
+
+- [ ] Fase 0 concluida (GO preliminar)
+- [ ] Migration Supabase B2B (roles, planos, coach_clients, RLS)
+- [ ] RPCs de convite (gerar codigo / vincular aluno, com limite do plano)
+- [ ] Auth/signup com "Tipo de conta" (avulso | aluno de PT | personal)
+- [ ] Area coach no app (Meus Alunos, gerar convite, remover aluno)
+- [ ] Fluxo aluno (entrar com codigo)
+- [ ] Limite de alunos por plano (UI + gate)
+- [ ] Cobranca (adiada — fase posterior)
