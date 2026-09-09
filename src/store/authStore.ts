@@ -36,6 +36,7 @@ interface AuthStoreState {
     password: string,
     name?: string,
     legalAcceptance?: LegalAcceptanceInput,
+    accountOptions?: { role?: UserProfile["role"]; cref?: string },
   ) => Promise<{ success: boolean; message?: string; code?: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string; code?: string }>;
   signOut: () => Promise<void>;
@@ -62,6 +63,7 @@ type ProfileRecord = Partial<UserProfile> & {
   biometrics_enabled?: boolean;
   onboarding_completed?: boolean;
   activity_level?: UserProfile["activityLevel"];
+  coach_plan?: UserProfile["coachPlan"];
 };
 
 function isMissingProfilesTableError(error: unknown): boolean {
@@ -98,6 +100,14 @@ function getOptionalActivityLevel(value: unknown): UserProfile["activityLevel"] 
     : undefined;
 }
 
+function getOptionalRole(value: unknown): UserProfile["role"] | undefined {
+  return value === "coach" || value === "client" ? value : undefined;
+}
+
+function getOptionalCoachPlan(value: unknown): UserProfile["coachPlan"] | undefined {
+  return value === "free" || value === "basic" || value === "plus" || value === "premier" ? value : undefined;
+}
+
 function normalizeProfile(profile: any): Partial<UserProfile> {
   if (!profile) {
     return {};
@@ -113,6 +123,9 @@ function normalizeProfile(profile: any): Partial<UserProfile> {
     height: getOptionalNumber(profile.height),
     goal: getOptionalGoal(profile.goal),
     activityLevel: getOptionalActivityLevel(profile.activityLevel ?? profile.activity_level),
+    role: getOptionalRole(profile.role),
+    cref: getOptionalString(profile.cref),
+    coachPlan: getOptionalCoachPlan(profile.coachPlan ?? profile.coach_plan),
   };
 }
 
@@ -126,6 +139,9 @@ function serializeAuthMetadata(updates: Partial<UserProfile>): Record<string, un
   if ("height" in updates) metadata.height = updates.height ?? null;
   if ("goal" in updates) metadata.goal = updates.goal ?? null;
   if ("activityLevel" in updates) metadata.activityLevel = updates.activityLevel ?? null;
+  if ("role" in updates) metadata.role = updates.role ?? null;
+  if ("cref" in updates) metadata.cref = updates.cref ?? null;
+  if ("coachPlan" in updates) metadata.coachPlan = updates.coachPlan ?? null;
 
   return metadata;
 }
@@ -217,6 +233,9 @@ function mapUser(user: any, profile?: ProfileRecord | null): UserProfile | null 
     height: normalizedProfile.height ?? normalizedMetadata.height,
     goal: normalizedProfile.goal ?? normalizedMetadata.goal,
     activityLevel: normalizedProfile.activityLevel ?? normalizedMetadata.activityLevel,
+    role: normalizedProfile.role ?? normalizedMetadata.role ?? "client",
+    cref: normalizedProfile.cref ?? normalizedMetadata.cref,
+    coachPlan: normalizedProfile.coachPlan ?? normalizedMetadata.coachPlan ?? null,
   };
 }
 
@@ -274,6 +293,28 @@ async function syncProfileRecord(client: any, payload: Record<string, unknown>) 
   return { success: false, missingTable: false, error };
 }
 
+const PROFILE_SNAKE_KEYS: Record<string, string> = {
+  emailVerified: "email_verified",
+  biometricsEnabled: "biometrics_enabled",
+  onboardingCompleted: "onboarding_completed",
+  activityLevel: "activity_level",
+  coachPlan: "coach_plan",
+};
+
+function toProfileDbRecord(id: string, updates: Partial<UserProfile>): Record<string, unknown> {
+  const record: Record<string, unknown> = {
+    id,
+    updated_at: new Date().toISOString(),
+  };
+
+  for (const [key, value] of Object.entries(updates)) {
+    const column = PROFILE_SNAKE_KEYS[key] ?? key;
+    record[column] = value ?? null;
+  }
+
+  return record;
+}
+
 export const useAuthStore = create<AuthStoreState>()(
   persist(
     (set, get) => ({
@@ -290,6 +331,7 @@ export const useAuthStore = create<AuthStoreState>()(
         password: string,
         name?: string,
         legalAcceptance?: LegalAcceptanceInput,
+        accountOptions?: { role?: UserProfile["role"]; cref?: string },
       ) => {
         try {
           if (!hasSupabaseEnv()) {
@@ -306,6 +348,7 @@ export const useAuthStore = create<AuthStoreState>()(
             };
           }
           const client = getSupabaseClient();
+          const isCoach = accountOptions?.role === "coach";
           const result = await client.auth.signUp({
             email,
             password,
@@ -315,6 +358,7 @@ export const useAuthStore = create<AuthStoreState>()(
                 terms_accepted_at: legalAcceptance.acceptedAt,
                 terms_version: legalAcceptance.version ?? LEGAL_VERSION,
                 privacy_version: legalAcceptance.version ?? LEGAL_VERSION,
+                ...(isCoach ? { role: "coach", coachPlan: "basic", cref: accountOptions?.cref ?? "" } : {}),
               },
             },
           });
@@ -329,6 +373,13 @@ export const useAuthStore = create<AuthStoreState>()(
               email,
               name: name ?? "",
               created_at: new Date().toISOString(),
+              ...(isCoach
+                ? {
+                    role: "coach",
+                    cref: accountOptions?.cref ?? null,
+                    coach_plan: "basic",
+                  }
+                : { role: "client" }),
             });
 
             if (!profileSync.success && !profileSync.missingTable) {
@@ -477,11 +528,7 @@ export const useAuthStore = create<AuthStoreState>()(
               authMetadataError = error;
             }
 
-            const profileSync = await syncProfileRecord(client, {
-              id: user.id,
-              ...updates,
-              updated_at: new Date().toISOString(),
-            });
+            const profileSync = await syncProfileRecord(client, toProfileDbRecord(user.id, updates));
 
             if (authMetadataError && !profileSync.success) {
               throw authMetadataError;

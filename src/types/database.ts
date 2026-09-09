@@ -32,6 +32,10 @@ export interface AuthSession {
   expiresAt: number;
 }
 
+export type UserRole = "client" | "coach";
+
+export type CoachPlan = "free" | "basic" | "plus" | "premier";
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -43,6 +47,36 @@ export interface UserProfile {
   height?: number;
   goal?: "gain" | "lose" | "maintain";
   activityLevel?: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  role?: UserRole;
+  cref?: string;
+  coachPlan?: CoachPlan | null;
+}
+
+export type CoachClientStatus = "pending" | "active" | "removed";
+
+export interface CoachClientLink {
+  id: string;
+  coachId: string;
+  clientId: string | null;
+  inviteCode: string;
+  status: CoachClientStatus;
+  acceptedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CoachClientListItem {
+  linkId: string;
+  clientId: string | null;
+  name: string;
+  email: string;
+  status: CoachClientStatus;
+  inviteCode: string;
+  acceptedAt?: string | null;
+}
+
+export interface ClaimInviteResult {
+  coachId: string;
+  coachName?: string;
 }
 
 export interface Exercise {

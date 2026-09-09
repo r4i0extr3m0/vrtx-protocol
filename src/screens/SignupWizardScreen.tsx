@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import Animated, { FadeInRight, FadeOutLeft } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -40,6 +40,8 @@ export function SignupWizardScreen() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState(user?.name ?? "");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [accountType, setAccountType] = useState<"client" | "coach">("client");
+  const [cref, setCref] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<DietProfile["sex"]>("unspecified");
   const [weight, setWeight] = useState(user?.weight ? String(user.weight) : "");
@@ -180,10 +182,19 @@ export function SignupWizardScreen() {
     }
 
     setLoading(true);
-    const result = await signUp(email.trim(), password, name.trim() || undefined, {
-      acceptedAt: new Date().toISOString(),
-      version: LEGAL_VERSION,
-    });
+    const result = await signUp(
+      email.trim(),
+      password,
+      name.trim() || undefined,
+      {
+        acceptedAt: new Date().toISOString(),
+        version: LEGAL_VERSION,
+      },
+      {
+        role: accountType,
+        cref: cref.trim() || undefined,
+      },
+    );
     setLoading(false);
 
     if (!result.success) {
@@ -276,6 +287,57 @@ export function SignupWizardScreen() {
           <Animated.View entering={FadeInRight} exiting={FadeOutLeft} style={styles.stepContainer}>
             <Text style={[styles.title, { color: colors.foreground }]}>Crie sua conta</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>Comece sua jornada e configure seu protocolo inicial.</Text>
+
+            <View style={styles.optionGroup}>
+              <Text style={[styles.sectionLabel, { color: colors.muted }]}>Tipo de conta</Text>
+              <View style={styles.goalOptions}>
+                <Pressable
+                  onPress={() => setAccountType("client")}
+                  style={[
+                    styles.goalCard,
+                    {
+                      backgroundColor: accountType === "client" ? colors.primary + "18" : colors.surfaceAlt,
+                      borderColor: accountType === "client" ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.goalText, { color: accountType === "client" ? colors.primary : colors.foreground }]}>
+                    Praticante
+                  </Text>
+                  <Text style={[styles.goalHint, { color: colors.muted }]}>
+                    Registro meus treinos. Posso vincular a um personal depois.
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setAccountType("coach")}
+                  style={[
+                    styles.goalCard,
+                    {
+                      backgroundColor: accountType === "coach" ? colors.primary + "18" : colors.surfaceAlt,
+                      borderColor: accountType === "coach" ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.goalText, { color: accountType === "coach" ? colors.primary : colors.foreground }]}>
+                    Personal trainer
+                  </Text>
+                  <Text style={[styles.goalHint, { color: colors.muted }]}>
+                    Acompanho alunos e prescrevo treinos.
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {accountType === "coach" ? (
+              <TextInput
+                placeholder="CREF (opcional)"
+                placeholderTextColor={colors.muted}
+                autoCapitalize="characters"
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.foreground, borderColor: colors.border }]}
+                value={cref}
+                onChangeText={setCref}
+              />
+            ) : null}
 
             <TextInput
               placeholder="Nome"
@@ -563,10 +625,6 @@ export function SignupWizardScreen() {
 
   return (
     <ScreenContainer
-      scrollable
-      keyboardAvoiding
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.scrollContent}
       edges={["top", "bottom", "left", "right"]}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
@@ -595,7 +653,19 @@ export function SignupWizardScreen() {
         </View>
       </View>
 
-      <View style={styles.content}>{renderStep()}</View>
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {renderStep()}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }

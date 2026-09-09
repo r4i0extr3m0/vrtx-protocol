@@ -5,7 +5,7 @@ import { StyleSheet } from "react-native";
 import { HapticTab } from "@/components/haptic-tab";
 import { BlurView } from "@/src/components/BlurView";
 import { AppIcon } from "@/src/components/AppIcon";
-import { useTheme } from "@/src/hooks";
+import { useAuth, useTheme } from "@/src/hooks";
 import { getTabBarHeight } from "@/src/navigation/tabBar";
 import { typography } from "@/src/theme";
 
@@ -13,6 +13,8 @@ export default function TabLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarHeight = getTabBarHeight(insets);
+  const { user } = useAuth();
+  const isCoach = user?.role === "coach";
 
   return (
     <Tabs
@@ -53,6 +55,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <AppIcon name="Home" size={24} color={color} />,
         }}
       />
+      {isCoach ? (
+        <Tabs.Screen
+          name="students"
+          options={{
+            title: "Alunos",
+            tabBarIcon: ({ color }) => <AppIcon name="Users" size={24} color={color} />,
+          }}
+        />
+      ) : null}
       <Tabs.Screen
         name="workout"
         options={{

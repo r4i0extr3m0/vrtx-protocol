@@ -4,6 +4,7 @@ import { createClient, type Session, type SupabaseClient, type User } from "@sup
 
 import { env, hasSupabaseEnv } from "@/src/constants/env";
 import { storage } from "@/src/infra/mmkv";
+import type { ClaimInviteResult, CoachClientLink, CoachClientListItem } from "@/src/types";
 
 const AUTH_TOKEN_KEY = "vrtxprotocol.supabase.auth.token";
 
@@ -117,4 +118,171 @@ export function getPersistedAccessToken(): string | null {
   }
 
   return null;
+}
+
+// ------------------------------------------------------------------
+// VRTX Coach: vínculo personal <-> aluno
+// ------------------------------------------------------------------
+
+export async function listCoachClients(): Promise<{ data?: CoachClientListItem[]; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from("coach_clients")
+      .select("id, client_id, invite_code, status, accepted_at, created_at")
+      .in("status", ["active", "pending"])
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    const rows = (data ?? []) as {
+      id: string;
+      client_id?: string | null;
+      invite_code: string;
+      status: CoachClientLink["status"];
+      accepted_at?: string | null;
+      created_at: string;
+    }[];
+    const clientIds = rows
+      .map((row) => row.client_id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    let profiles: { id: string; name?: string | null; email?: string | null }[] = [];
+    if (clientIds.length > 0) {
+      const profileQuery = await client
+        .from("profiles")
+        .select("id, name, email")
+        .in("id", clientIds);
+      if (!profileQuery.error) {
+        profiles = profileQuery.data ?? [];
+      }
+    }
+
+    const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+    const items: CoachClientListItem[] = rows.map((row) => {
+      const linkedProfile = row.client_id ? profileById.get(row.client_id) : undefined;
+      return {
+        linkId: row.id,
+        clientId: row.client_id ?? null,
+        name: linkedProfile?.name ?? "",
+        email: linkedProfile?.email ?? "",
+        status: row.status,
+        inviteCode: row.invite_code,
+        acceptedAt: row.accepted_at ?? null,
+      };
+    });
+
+    return { data: items };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function createCoachInvite(): Promise<{ code?: string; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc("b2b_create_invite");
+    if (error) {
+      return { error: error.message };
+    }
+    return { code: typeof data === "string" ? data : undefined };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function claimCoachInvite(code: string): Promise<{ data?: ClaimInviteResult; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) {
+      return { error: "Informe o código do seu personal." };
+    }
+
+    const { data, error } = await client.rpc("b2b_claim_invite", { p_code: normalized });
+    if (error) {
+      return { error: error.message };
+    }
+
+    const raw = data as { coach_id?: string; coach_name?: string } | null;
+    if (!raw?.coach_id) {
+      return { error: "Não foi possível concluir o vínculo. Tente novamente." };
+    }
+
+    return {
+      data: {
+        coachId: raw.coach_id,
+        coachName: raw.coach_name,
+      },
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function removeCoachClient(clientId: string): Promise<{ success?: boolean; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { error } = await client.rpc("b2b_remove_client", { p_client_id: clientId });
+    if (error) {
+      return { error: error.message };
+    }
+    return { success: true };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function fetchMyCoach(): Promise<{ coachId?: string; coachName?: string; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from("coach_clients")
+      .select("id, coach_id, status")
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (!data?.coach_id) {
+      return { coachId: undefined, coachName: undefined };
+    }
+
+    const profileQuery = await client
+      .from("profiles")
+      .select("name")
+      .eq("id", data.coach_id as string)
+      .maybeSingle();
+
+    return {
+      coachId: data.coach_id as string,
+      coachName: profileQuery.error ? undefined : (profileQuery.data?.name as string | undefined),
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }

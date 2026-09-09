@@ -31,14 +31,15 @@ export function ProfileScreen() {
   const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const { streak, totalXP } = useGamificationStore();
   const { isPremium, subscriptionType } = usePremiumStore();
-  const {
-    theme,
+  const { theme,
     setTheme,
     units,
     setUnits,
     hapticFeedbackEnabled,
     setHapticFeedbackEnabled,
   } = useSettingsStore();
+
+  const isCoach = user?.role === "coach";
 
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
@@ -80,6 +81,12 @@ export function ProfileScreen() {
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.title, { color: colors.foreground }]}>{user?.email?.split('@')[0] || "Usuário"}</Text>
+            {isCoach ? (
+              <View style={[styles.roleBadge, { backgroundColor: colors.primary + '15' }]}>
+                <AppIcon name="Users" size={12} color={colors.primary} strokeWidth={3} />
+                <Text style={[styles.roleBadgeText, { color: colors.primary }]}>Personal Trainer</Text>
+              </View>
+            ) : null}
             <Pressable onPress={() => router.push("/premium")}>
               <View style={styles.premiumBadge}>
                  <AppIcon name="Zap" size={12} color={isPremium ? colors.primary : colors.muted} strokeWidth={3} />
@@ -167,6 +174,19 @@ export function ProfileScreen() {
         <SectionCard title="Conta e Dados" subtitle="Gerenciamento e segurança." delay={500}>
           <BiometricAuth />
           <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+            {isCoach ? (
+              <AppButton
+                label="Meus Alunos"
+                onPress={() => router.push("/students" as never)}
+                variant="brand"
+              />
+            ) : (
+              <AppButton
+                label="Vincular a um personal"
+                onPress={() => router.push("/join-coach" as never)}
+                variant="secondary"
+              />
+            )}
             <AppButton
               label="Bioimpedância e Corpo"
               onPress={() => router.push("/body-composition" as never)}
@@ -238,6 +258,21 @@ const styles = StyleSheet.create({
   headerInfo: {
     flex: 1,
     gap: 4,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   title: {
     fontSize: 28,
