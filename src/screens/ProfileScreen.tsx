@@ -18,6 +18,7 @@ import { BiometricAuth } from "@/src/components/BiometricAuth";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
 import { ThemeSelector } from "@/src/components/ThemeSelector";
 import { useAuth, useTabBarInset, useTheme, useWorkout } from "@/src/hooks";
+import { useI18n } from "@/src/i18n";
 import { exportToJSON } from "@/src/utils/exportData";
 import { useSettingsStore } from "@/src/store/settingsStore";
 import { usePremiumStore } from "@/src/store/premiumStore";
@@ -40,6 +41,7 @@ export function ProfileScreen() {
   } = useSettingsStore();
 
   const isCoach = user?.role === "coach";
+  const { t } = useI18n();
 
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
@@ -84,7 +86,7 @@ export function ProfileScreen() {
             {isCoach ? (
               <View style={[styles.roleBadge, { backgroundColor: colors.primary + '15' }]}>
                 <AppIcon name="Users" size={12} color={colors.primary} strokeWidth={3} />
-                <Text style={[styles.roleBadgeText, { color: colors.primary }]}>Personal Trainer</Text>
+                <Text style={[styles.roleBadgeText, { color: colors.primary }]}>{t("profile.roleCoach")}</Text>
               </View>
             ) : null}
             <Pressable onPress={() => router.push("/premium")}>
@@ -176,13 +178,13 @@ export function ProfileScreen() {
           <View style={{ gap: spacing.md, marginTop: spacing.md }}>
             {isCoach ? (
               <AppButton
-                label="Meus Alunos"
+                label={t("profile.studentsCta")}
                 onPress={() => router.push("/students" as never)}
                 variant="brand"
               />
             ) : (
               <AppButton
-                label="Vincular a um personal"
+                label={t("profile.joinCoachCta")}
                 onPress={() => router.push("/join-coach" as never)}
                 variant="secondary"
               />

@@ -14,9 +14,11 @@ import { hasSupabaseEnv } from "@/src/constants/env";
 import { getCoachPlanMeta } from "@/src/coach/plans";
 import { useAuth, useTabBarInset, useTheme } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
+import { useI18n } from "@/src/i18n";
 import type { CoachClientListItem } from "@/src/types";
 
 function StatusPill({ status, colors }: { status: CoachClientListItem["status"]; colors: any }) {
+  const { t } = useI18n();
   const isPending = status === "pending";
   const isActive = status === "active";
   const bg = isActive ? colors.success + "18" : isPending ? colors.warning + "18" : colors.muted + "18";
@@ -24,7 +26,9 @@ function StatusPill({ status, colors }: { status: CoachClientListItem["status"];
 
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text style={[styles.pillText, { color: fg }]}>{isActive ? "Ativo" : "Aguardando"}</Text>
+      <Text style={[styles.pillText, { color: fg }]}>
+        {isActive ? t("coach.active") : t("coach.pending")}
+      </Text>
     </View>
   );
 }
@@ -40,6 +44,8 @@ export function CoachStudentsScreen() {
   const [pendingCode, setPendingCode] = useState<string | null>(null);
 
   const planMeta = getCoachPlanMeta(user?.coachPlan);
+  const planId = user?.coachPlan ?? "free";
+  const { t } = useI18n();
   const activeCount = clients.filter((client) => client.status === "active").length;
   const online = hasSupabaseEnv();
 
@@ -71,7 +77,7 @@ export function CoachStudentsScreen() {
     setCreating(false);
 
     if (result.error) {
-      Alert.alert("Não foi possível gerar o convite", result.error);
+      Alert.alert(t("coach.inviteFailTitle"), result.error);
       return;
     }
 
@@ -83,32 +89,36 @@ export function CoachStudentsScreen() {
 
   const handleShareCode = (code: string) => {
     void Share.share({
-      message: `Entre no meu time no VRTX Protocol com o código: ${code}\n\nBaixe o app e, no Perfil, toque em "Vincular a um personal".`,
+      message: t("coach.shareInviteBody", { code }),
     });
   };
 
   const handleRemove = (item: CoachClientListItem) => {
     if (!item.clientId) return;
-    Alert.alert("Remover aluno", `Desvincular ${item.name || "este aluno"}? Ele perde o acesso aos seus treinos.`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Remover",
-        style: "destructive",
-        onPress: async () => {
-          const result = await removeCoachClient(item.clientId as string);
-          if (result.error) {
-            Alert.alert("Falha ao remover", result.error);
-            return;
-          }
-          void reload();
+    Alert.alert(
+      t("coach.removeTitle"),
+      t("coach.removeBody", { name: item.name || t("coach.student") }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("coach.remove"),
+          style: "destructive",
+          onPress: async () => {
+            const result = await removeCoachClient(item.clientId as string);
+            if (result.error) {
+              Alert.alert(t("coach.removeFailTitle"), result.error);
+              return;
+            }
+            void reload();
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const renderItem = ({ item }: { item: CoachClientListItem }) => {
     const isPending = item.status === "pending";
-    const title = item.name || (isPending ? "Aguardando aluno entrar" : "Aluno");
+    const title = item.name || (isPending ? t("coach.awaitingStudent") : t("coach.student"));
 
     return (
       <View style={[styles.studentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -126,7 +136,7 @@ export function CoachStudentsScreen() {
           ) : (
             <Pressable onPress={() => handleShareCode(item.inviteCode)}>
               <Text style={[styles.inviteCode, { color: colors.primary }]}>
-                Código: {item.inviteCode}  ·  toque para enviar
+                {t("coach.codeTap", { code: item.inviteCode })}
               </Text>
             </Pressable>
           )}
@@ -146,17 +156,19 @@ export function CoachStudentsScreen() {
   return (
     <ScreenContainer className="px-5">
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Meus Alunos</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t("coach.myStudents")}</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          {online
-            ? "Vincule alunos e acompanhe cada conta separadamente."
-            : "Vincular alunos requer conexão com o Supabase neste build."}
+          {online ? t("coach.subtitleOnline") : t("coach.subtitleOffline")}
         </Text>
       </View>
 
       <SectionCard
-        title={`Plano ${planMeta.label}`}
-        subtitle={`${activeCount}/${planMeta.cap} vagas em uso · ${planMeta.price}`}
+        title={t("coach.planOf", { plan: t(`coach.plans.${planId}`) })}
+        subtitle={t("coach.seats", {
+          used: activeCount,
+          cap: planMeta.cap,
+          price: planMeta.price,
+        })}
         delay={100}
       >
         <View style={[styles.planBar, { backgroundColor: colors.surfaceAlt }]}>
@@ -171,7 +183,7 @@ export function CoachStudentsScreen() {
           />
         </View>
         <AppButton
-          label={creating ? "Gerando..." : "Novo aluno"}
+          label={creating ? t("coach.generating") : t("coach.newStudent")}
           onPress={handleCreateInvite}
           disabled={!online || creating || activeCount >= planMeta.cap}
           loading={creating}
@@ -180,11 +192,11 @@ export function CoachStudentsScreen() {
         />
         {pendingCode ? (
           <View style={[styles.codeCard, { borderColor: colors.primary, backgroundColor: colors.primary + "12" }]}>
-            <Text style={[styles.codeLabel, { color: colors.muted }]}>Código gerado — envie ao aluno</Text>
+            <Text style={[styles.codeLabel, { color: colors.muted }]}>{t("coach.codeLabel")}</Text>
             <Text style={[styles.codeValue, { color: colors.foreground }]}>{pendingCode}</Text>
             <View style={styles.codeActions}>
-              <AppButton label="Compartilhar" onPress={() => handleShareCode(pendingCode)} variant="secondary" />
-              <AppButton label="Fechar" onPress={() => setPendingCode(null)} variant="ghost" />
+              <AppButton label={t("coach.share")} onPress={() => handleShareCode(pendingCode)} variant="secondary" />
+              <AppButton label={t("coach.close")} onPress={() => setPendingCode(null)} variant="ghost" />
             </View>
           </View>
         ) : null}
@@ -209,11 +221,9 @@ export function CoachStudentsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           loading ? (
-            <Text style={[styles.emptyText, { color: colors.muted }]}>Carregando alunos...</Text>
+            <Text style={[styles.emptyText, { color: colors.muted }]}>{t("coach.emptyLoading")}</Text>
           ) : (
-            <Text style={[styles.emptyText, { color: colors.muted }]}>
-              Nenhum aluno ainda. Toque em Novo aluno para gerar um código de convite.
-            </Text>
+            <Text style={[styles.emptyText, { color: colors.muted }]}>{t("coach.empty")}</Text>
           )
         }
       />

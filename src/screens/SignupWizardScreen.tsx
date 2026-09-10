@@ -7,6 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { AppIcon } from "@/src/components/AppIcon";
 import { useAuth, useTheme } from "@/src/hooks";
+import { useI18n } from "@/src/i18n";
 import { LEGAL_VERSION } from "@/src/legal/legalTexts";
 import { calculateDietGoals, type DietProfile, useDietStore } from "@/src/store/dietStore";
 import { radius, spacing, typography } from "@/src/theme";
@@ -32,6 +33,7 @@ const WORKOUT_OPTIONS = [0, 2, 3, 4, 5, 6];
 
 export function SignupWizardScreen() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const { signUp, updateProfile, isAuthenticated, user } = useAuth();
   const [step, setStep] = useState<Step>(isAuthenticated ? "profile" : "account");
   const [loading, setLoading] = useState(false);
@@ -289,7 +291,7 @@ export function SignupWizardScreen() {
             <Text style={[styles.subtitle, { color: colors.muted }]}>Comece sua jornada e configure seu protocolo inicial.</Text>
 
             <View style={styles.optionGroup}>
-              <Text style={[styles.sectionLabel, { color: colors.muted }]}>Tipo de conta</Text>
+              <Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("signup.accountTypeLabel")}</Text>
               <View style={styles.goalOptions}>
                 <Pressable
                   onPress={() => setAccountType("client")}
@@ -302,10 +304,10 @@ export function SignupWizardScreen() {
                   ]}
                 >
                   <Text style={[styles.goalText, { color: accountType === "client" ? colors.primary : colors.foreground }]}>
-                    Praticante
+                    {t("signup.clientLabel")}
                   </Text>
                   <Text style={[styles.goalHint, { color: colors.muted }]}>
-                    Registro meus treinos. Posso vincular a um personal depois.
+                    {t("signup.clientHint")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -319,10 +321,10 @@ export function SignupWizardScreen() {
                   ]}
                 >
                   <Text style={[styles.goalText, { color: accountType === "coach" ? colors.primary : colors.foreground }]}>
-                    Personal trainer
+                    {t("signup.coachLabel")}
                   </Text>
                   <Text style={[styles.goalHint, { color: colors.muted }]}>
-                    Acompanho alunos e prescrevo treinos.
+                    {t("signup.coachHint")}
                   </Text>
                 </Pressable>
               </View>
@@ -330,7 +332,7 @@ export function SignupWizardScreen() {
 
             {accountType === "coach" ? (
               <TextInput
-                placeholder="CREF (opcional)"
+                placeholder={t("signup.crefPlaceholder")}
                 placeholderTextColor={colors.muted}
                 autoCapitalize="characters"
                 style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.foreground, borderColor: colors.border }]}

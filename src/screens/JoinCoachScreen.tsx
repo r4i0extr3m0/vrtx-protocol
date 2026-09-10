@@ -7,11 +7,13 @@ import { AppIcon } from "@/src/components/AppIcon";
 import { claimCoachInvite, fetchMyCoach } from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { useAuth, useTheme } from "@/src/hooks";
+import { useI18n } from "@/src/i18n";
 import { radius, spacing, typography } from "@/src/theme";
 
 export function JoinCoachScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -48,7 +50,7 @@ export function JoinCoachScreen() {
 
     if (result.error) {
       setError(result.error);
-      Alert.alert("Código inválido", result.error);
+      Alert.alert(t("join.invalidCodeTitle"), result.error);
       return;
     }
 
@@ -56,8 +58,8 @@ export function JoinCoachScreen() {
       setLinked({ coachId: result.data.coachId, coachName: result.data.coachName });
       setCode("");
       Alert.alert(
-        "Vinculado!",
-        `Agora seu personal ${result.data.coachName || ""} poderá enviar seus treinos.`.trim(),
+        t("join.linkedOkTitle"),
+        t("join.linkedOkBody", { coach: result.data.coachName || "" }).trim(),
       );
     }
   };
@@ -67,10 +69,9 @@ export function JoinCoachScreen() {
       <ScreenContainer className="px-5">
         <View style={styles.centerCard}>
           <AppIcon name="Users" size={40} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.foreground }]}>Conta de personal</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("join.coachOnlyTitle")}</Text>
           <Text style={[styles.bodyText, { color: colors.muted }]}>
-            Esta tela é para quem treina com um personal. Sua conta já é de treinador — gerencie seus
-            alunos na aba Alunos.
+            {t("join.coachOnlyBody")}
           </Text>
         </View>
       </ScreenContainer>
@@ -88,35 +89,34 @@ export function JoinCoachScreen() {
           <View style={[styles.avatar, { backgroundColor: colors.primary + "18" }]}>
             <AppIcon name="UserPlus" size={26} color={colors.primary} />
           </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>Vincular a um personal</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("join.title")}</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Peça o código para o seu personal e cole aqui. Seus treinos ficam separados por conta — sem
-            misturar dados.
+            {t("join.subtitle")}
           </Text>
         </View>
 
         {!online ? (
           <View style={[styles.infoCard, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "40" }]}>
             <Text style={[styles.infoText, { color: colors.warning }]}>
-              Vincular requer conexão com o Supabase neste build.
+              {t("join.offline")}
             </Text>
           </View>
         ) : checking ? (
-          <Text style={[styles.infoText, { color: colors.muted, textAlign: "center" }]}>Verificando vínculo...</Text>
+          <Text style={[styles.infoText, { color: colors.muted, textAlign: "center" }]}>{t("join.checking")}</Text>
         ) : linked?.coachId ? (
           <View style={[styles.linkedCard, { backgroundColor: colors.success + "12", borderColor: colors.success }]}>
             <AppIcon name="Check" size={28} color={colors.success} />
             <Text style={[styles.linkedTitle, { color: colors.foreground }]}>
-              Vinculado ao personal {linked.coachName || ""}
+              {t("join.linkedTitle", { coach: linked.coachName || "" })}
             </Text>
             <Text style={[styles.linkedSub, { color: colors.muted }]}>
-              Seus treinos prescritos aparecerão aqui.
+              {t("join.linkedSub")}
             </Text>
           </View>
         ) : (
           <View style={styles.form}>
             <TextInput
-              placeholder="Código (ex.: VRTX-7K2P)"
+              placeholder={t("join.placeholder")}
               placeholderTextColor={colors.muted}
               autoCapitalize="characters"
               autoCorrect={false}
@@ -125,7 +125,7 @@ export function JoinCoachScreen() {
               onChangeText={(value) => setCode(value.replace(/[^A-Za-z0-9-]/g, "").toUpperCase())}
             />
             <AppButton
-              label={loading ? "Vinculando..." : "Vincular"}
+              label={loading ? t("join.actioning") : t("join.action")}
               onPress={handleClaim}
               disabled={!code.trim() || loading}
               loading={loading}

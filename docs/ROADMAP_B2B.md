@@ -144,11 +144,16 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 
 ## 12. Status de implementacao
 
-- [ ] Fase 0 concluida (GO preliminar)
-- [ ] Migration Supabase B2B (roles, planos, coach_clients, RLS)
-- [ ] RPCs de convite (gerar codigo / vincular aluno, com limite do plano)
-- [ ] Auth/signup com "Tipo de conta" (avulso | aluno de PT | personal)
-- [ ] Area coach no app (Meus Alunos, gerar convite, remover aluno)
-- [ ] Fluxo aluno (entrar com codigo)
-- [ ] Limite de alunos por plano (UI + gate)
+- [x] Fase 0 com GO preliminar (1 PT; validar 2+ PTs em paralelo)
+- [x] Migration Supabase B2B escrita (`20260908_b2b_coach_platform.sql`: roles, planos, `coach_clients`, RLS) — pendente aplicar no projeto remoto
+- [x] RPCs de convite (`b2b_create_invite` / `b2b_claim_invite`, com limite do plano)
+- [x] Auth/signup com "Tipo de conta" (praticante | personal) + CREF
+- [x] Area coach no app (Meus Alunos, gerar convite, compartilhar, remover aluno)
+- [x] Fluxo aluno (entrar com codigo + guarda de role)
+- [x] Limite de alunos por plano (UI + gate no RPC)
+- [x] i18n das telas novas (pt/en/es) + mecanismo reativo reativado
+- [ ] Prescricao: coach monta/atribui treino e aluno ve o treino do dia
+- [ ] Aderencia: feito x programado (dashboard do coach)
+- [ ] Medidas/avaliacao corporal enviadas ao coach
 - [ ] Cobranca (adiada — fase posterior)
+
