@@ -79,6 +79,39 @@ export interface ClaimInviteResult {
   coachName?: string;
 }
 
+export interface PrescriptionExercise {
+  id: string;
+  name: string;
+  muscleGroup?: string | null;
+  targetSets: number;
+  targetReps: number;
+  targetWeightKg?: number | null;
+  notes?: string | null;
+}
+
+export type PrescriptionStatus = "active" | "archived";
+
+export interface CoachPrescription {
+  id: string;
+  coachId: string;
+  clientId: string;
+  name: string;
+  notes?: string | null;
+  scheduledFor?: string | null;
+  status: PrescriptionStatus;
+  createdAt: string;
+  exercises: PrescriptionExercise[];
+}
+
+export interface PrescriptionExerciseInput {
+  name: string;
+  muscleGroup?: string | null;
+  sets: number;
+  repsTarget: number;
+  weightKg?: number | null;
+  notes?: string | null;
+}
+
 export interface Exercise {
   id: string;
   name: string;

@@ -152,7 +152,7 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 - [x] Fluxo aluno (entrar com codigo + guarda de role)
 - [x] Limite de alunos por plano (UI + gate no RPC)
 - [x] i18n das telas novas (pt/en/es) + mecanismo reativo reativado
-- [ ] Prescricao: coach monta/atribui treino e aluno ve o treino do dia
+- [x] Prescricao: coach monta/atribui treino e aluno ve o treino do dia (migration `20260909_b2b_prescriptions.sql` — pendente aplicar no remoto)
 - [ ] Aderencia: feito x programado (dashboard do coach)
 - [ ] Medidas/avaliacao corporal enviadas ao coach
 - [ ] Cobranca (adiada — fase posterior)

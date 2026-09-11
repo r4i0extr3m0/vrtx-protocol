@@ -4,7 +4,14 @@ import { createClient, type Session, type SupabaseClient, type User } from "@sup
 
 import { env, hasSupabaseEnv } from "@/src/constants/env";
 import { storage } from "@/src/infra/mmkv";
-import type { ClaimInviteResult, CoachClientLink, CoachClientListItem } from "@/src/types";
+import type {
+  ClaimInviteResult,
+  CoachClientLink,
+  CoachClientListItem,
+  CoachPrescription,
+  PrescriptionExercise,
+  PrescriptionExerciseInput,
+} from "@/src/types";
 
 const AUTH_TOKEN_KEY = "vrtxprotocol.supabase.auth.token";
 
@@ -282,6 +289,188 @@ export async function fetchMyCoach(): Promise<{ coachId?: string; coachName?: st
       coachId: data.coach_id as string,
       coachName: profileQuery.error ? undefined : (profileQuery.data?.name as string | undefined),
     };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+// ------------------------------------------------------------------
+// VRTX Coach: prescricao de treinos
+// ------------------------------------------------------------------
+
+interface PrescriptionRow {
+  id: string;
+  coach_id: string;
+  client_id: string;
+  name: string;
+  notes?: string | null;
+  scheduled_for?: string | null;
+  status: CoachPrescription["status"];
+  created_at: string;
+}
+
+interface PrescriptionExerciseRow {
+  id: string;
+  workout_id: string;
+  name: string;
+  muscle_group?: string | null;
+  target_sets?: number | null;
+  target_reps?: number | null;
+  target_weight_kg?: number | string | null;
+  notes?: string | null;
+  position?: number | null;
+}
+
+function mapPrescriptionExercises(rows: PrescriptionExerciseRow[]): Map<string, PrescriptionExercise[]> {
+  const byWorkout = new Map<string, PrescriptionExercise[]>();
+
+  for (const row of rows) {
+    const list = byWorkout.get(row.workout_id) ?? [];
+    list.push({
+      id: row.id,
+      name: row.name,
+      muscleGroup: row.muscle_group ?? null,
+      targetSets: row.target_sets ?? 3,
+      targetReps: row.target_reps ?? 10,
+      targetWeightKg: row.target_weight_kg === null || row.target_weight_kg === undefined
+        ? null
+        : Number(row.target_weight_kg),
+      notes: row.notes ?? null,
+    });
+    byWorkout.set(row.workout_id, list);
+  }
+
+  return byWorkout;
+}
+
+async function fetchPrescriptions(clientId?: string): Promise<{ data?: CoachPrescription[]; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const baseQuery = client
+      .from("coach_workouts")
+      .select("id, coach_id, client_id, name, notes, scheduled_for, status, created_at")
+      .eq("status", "active");
+
+    const filteredQuery = clientId ? baseQuery.eq("client_id", clientId) : baseQuery;
+    const { data, error } = await filteredQuery.order("created_at", { ascending: false });
+    if (error) {
+      return { error: error.message };
+    }
+
+    const rows = (data ?? []) as PrescriptionRow[];
+    if (rows.length === 0) {
+      return { data: [] };
+    }
+
+    const exerciseQuery = await client
+      .from("coach_workout_exercises")
+      .select("id, workout_id, name, muscle_group, target_sets, target_reps, target_weight_kg, notes, position")
+      .in("workout_id", rows.map((row) => row.id))
+      .order("position", { ascending: true });
+
+    if (exerciseQuery.error) {
+      return { error: exerciseQuery.error.message };
+    }
+
+    const exercisesByWorkout = mapPrescriptionExercises(
+      (exerciseQuery.data ?? []) as PrescriptionExerciseRow[],
+    );
+
+    const items: CoachPrescription[] = rows.map((row) => ({
+      id: row.id,
+      coachId: row.coach_id,
+      clientId: row.client_id,
+      name: row.name,
+      notes: row.notes ?? null,
+      scheduledFor: row.scheduled_for ?? null,
+      status: row.status,
+      createdAt: row.created_at,
+      exercises: exercisesByWorkout.get(row.id) ?? [],
+    }));
+
+    return { data: items };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function listCoachClientPrescriptions(
+  clientId: string,
+): Promise<{ data?: CoachPrescription[]; error?: string }> {
+  return fetchPrescriptions(clientId);
+}
+
+export async function listMyPrescriptions(): Promise<{ data?: CoachPrescription[]; error?: string }> {
+  return fetchPrescriptions();
+}
+
+export async function createCoachPrescription(input: {
+  clientId: string;
+  name: string;
+  notes?: string | null;
+  scheduledFor?: string | null;
+  exercises: PrescriptionExerciseInput[];
+}): Promise<{ data?: { workoutId: string; exerciseCount: number }; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const payload = input.exercises.map((exercise) => ({
+      name: exercise.name,
+      muscle_group: exercise.muscleGroup ?? null,
+      sets: exercise.sets,
+      reps_target: exercise.repsTarget,
+      weight_kg: exercise.weightKg ?? null,
+      notes: exercise.notes ?? null,
+    }));
+
+    const { data, error } = await client.rpc("b2b_assign_workout", {
+      p_client_id: input.clientId,
+      p_name: input.name,
+      p_exercises: payload,
+      p_scheduled_for: input.scheduledFor ?? null,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    const raw = data as { workout_id?: string; exercise_count?: number } | null;
+    if (!raw?.workout_id) {
+      return { error: "Não foi possível salvar o treino. Tente novamente." };
+    }
+
+    return {
+      data: {
+        workoutId: raw.workout_id,
+        exerciseCount: raw.exercise_count ?? payload.length,
+      },
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function archiveCoachPrescription(
+  workoutId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc("b2b_archive_workout", { p_workout_id: workoutId });
+    if (error) {
+      return { error: error.message };
+    }
+    return { success: data === true };
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }

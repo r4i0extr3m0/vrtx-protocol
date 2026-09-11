@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { router } from "expo-router";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -7,14 +7,19 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { SyncStatusPill } from "@/src/components/SyncStatusPill";
 import { AppIcon } from "@/src/components/AppIcon";
-import { useTabBarInset, useWorkout, useTheme } from "@/src/hooks";
+import { useTabBarInset, useWorkout, useTheme, useAuth } from "@/src/hooks";
 import { summarizeWorkout } from "@/src/domain/workout";
+import { buildWorkoutExercises } from "@/src/data/workoutPresets";
+import { listMyPrescriptions } from "@/src/api/supabase";
+import { hasSupabaseEnv } from "@/src/constants/env";
+import { useI18n } from "@/src/i18n";
 import { spacing, typography, radius, shadows } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePremiumStore } from "@/src/store/premiumStore";
 import { useGamificationStore } from "@/src/store/gamificationStore";
 import { useDietStore } from "@/src/store/dietStore";
+import type { CoachPrescription, TemplateExercise } from "@/src/types";
 
 function getCurrentWeekStartMs(): number {
   const date = new Date();
@@ -48,14 +53,35 @@ function getLastWorkoutLabel(workoutDate: string | null): string {
 
 export function HomeScreen() {
   const { colors } = useTheme();
-  const { workouts, activeWorkoutId, createWorkout } = useWorkout();
+  const { workouts, activeWorkoutId, createWorkout, createFromTemplate } = useWorkout();
   const { meals } = useDietStore();
   const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const streak = useGamificationStore((state) => state.streak);
   const totalXP = useGamificationStore((state) => state.totalXP);
   const isPremium = usePremiumStore((state) => state.isPremium);
+  const { user } = useAuth();
+  const { t } = useI18n();
+  const userId = user?.id;
+  const userRole = user?.role;
+  const [prescriptions, setPrescriptions] = useState<CoachPrescription[]>([]);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    if (!hasSupabaseEnv() || !userId || userRole === "coach") {
+      return;
+    }
+
+    let cancelled = false;
+    void listMyPrescriptions().then((result) => {
+      if (cancelled) return;
+      setPrescriptions(result.data ?? []);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, userRole]);
   const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId) ?? null;
   const completedWorkouts = useMemo(
     () =>
@@ -92,6 +118,34 @@ export function HomeScreen() {
       return acc + summarizeWorkout(workout).totalVolume;
     }, 0);
   }, [completedWorkouts]);
+
+  const prescriptionToday = useMemo(
+    () => prescriptions.find((item) => !item.scheduledFor || item.scheduledFor <= today) ?? null,
+    [prescriptions, today],
+  );
+  const upcomingPrescription = useMemo(() => {
+    if (prescriptionToday) return null;
+    return (
+      prescriptions
+        .filter((item) => item.scheduledFor && item.scheduledFor > today)
+        .sort((left, right) => (left.scheduledFor ?? "").localeCompare(right.scheduledFor ?? ""))[0] ?? null
+    );
+  }, [prescriptions, prescriptionToday, today]);
+  const shownPrescription = prescriptionToday ?? upcomingPrescription;
+
+  const handleStartPrescription = (prescription: CoachPrescription) => {
+    const templateExercises: TemplateExercise[] = prescription.exercises.map((exercise) => ({
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      muscleGroup: exercise.muscleGroup ?? "Geral",
+      sets: exercise.targetSets,
+      repsTarget: exercise.targetReps,
+      weightKg: exercise.targetWeightKg ?? undefined,
+    }));
+
+    const draft = createFromTemplate(prescription.name, buildWorkoutExercises(templateExercises));
+    router.push({ pathname: "/workout/[id]", params: { id: draft.id } } as never);
+  };
 
   const handleNewWorkout = () => {
     const draft = createWorkout("Treino rápido");
@@ -202,6 +256,37 @@ export function HomeScreen() {
               </LinearGradient>
             </Pressable>
           </Animated.View>
+
+          {shownPrescription ? (
+            <Animated.View
+              entering={FadeInUp.delay(240)}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+            >
+              <View style={styles.cardHeader}>
+                <View style={[styles.cardIcon, { backgroundColor: colors.primary + "15" }]}>
+                  <AppIcon name="ClipboardList" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.cardHeaderText}>
+                  <Text style={[styles.cardEyebrow, { color: colors.foregroundMuted }]}>
+                    {t("prescription.eyebrow")}
+                  </Text>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                    {shownPrescription.name}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.cardBody, { color: colors.foreground }]}>
+                {prescriptionToday ? t("prescription.forToday") : t("prescription.nextUp")}
+                {" · "}
+                {t("prescription.exercisesCount", { count: shownPrescription.exercises.length })}
+              </Text>
+              <AppButton
+                label={t("prescription.cta")}
+                onPress={() => handleStartPrescription(shownPrescription)}
+                variant="brand"
+              />
+            </Animated.View>
+          ) : null}
 
           <Animated.View entering={FadeInUp.delay(280)} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
             <View style={styles.cardHeader}>

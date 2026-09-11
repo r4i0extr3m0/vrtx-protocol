@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
@@ -144,9 +145,23 @@ export function CoachStudentsScreen() {
         <View style={styles.studentActions}>
           <StatusPill status={item.status} colors={colors} />
           {!isPending ? (
-            <Pressable onPress={() => handleRemove(item)} style={styles.iconButton} hitSlop={10}>
-              <AppIcon name="Trash2" size={18} color={colors.muted} />
-            </Pressable>
+            <View style={styles.rowIcons}>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/prescribe/[clientId]",
+                    params: { clientId: item.clientId as string, clientName: item.name },
+                  } as never)
+                }
+                style={styles.iconButton}
+                hitSlop={10}
+              >
+                <AppIcon name="ClipboardList" size={18} color={colors.primary} />
+              </Pressable>
+              <Pressable onPress={() => handleRemove(item)} style={styles.iconButton} hitSlop={10}>
+                <AppIcon name="Trash2" size={18} color={colors.muted} />
+              </Pressable>
+            </View>
           ) : null}
         </View>
       </View>
@@ -324,6 +339,11 @@ const styles = StyleSheet.create({
   studentActions: {
     alignItems: "flex-end",
     gap: spacing.sm,
+  },
+  rowIcons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
   iconButton: {
     padding: 4,
