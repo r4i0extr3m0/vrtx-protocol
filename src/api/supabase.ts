@@ -5,6 +5,8 @@ import { createClient, type Session, type SupabaseClient, type User } from "@sup
 import { env, hasSupabaseEnv } from "@/src/constants/env";
 import { storage } from "@/src/infra/mmkv";
 import type {
+  BodyMeasurement,
+  BodyMeasurementInput,
   CheckinInput,
   ClaimInviteResult,
   CoachCheckin,
@@ -577,4 +579,122 @@ export async function listCoachCheckins(
 
 export async function listMyCheckins(): Promise<{ data?: CoachCheckin[]; error?: string }> {
   return fetchCheckins();
+}
+
+// ------------------------------------------------------------------
+// VRTX Coach: medidas / avaliacao corporal
+// ------------------------------------------------------------------
+
+interface MeasurementRow {
+  id: string;
+  coach_id: string;
+  client_id: string;
+  measured_on: string;
+  weight_kg?: number | string | null;
+  body_fat_pct?: number | string | null;
+  chest_cm?: number | string | null;
+  waist_cm?: number | string | null;
+  hip_cm?: number | string | null;
+  arm_cm?: number | string | null;
+  thigh_cm?: number | string | null;
+  calf_cm?: number | string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+function toNumberOrNull(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function mapMeasurement(row: MeasurementRow): BodyMeasurement {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    clientId: row.client_id,
+    measuredOn: row.measured_on,
+    weightKg: toNumberOrNull(row.weight_kg),
+    bodyFatPct: toNumberOrNull(row.body_fat_pct),
+    chestCm: toNumberOrNull(row.chest_cm),
+    waistCm: toNumberOrNull(row.waist_cm),
+    hipCm: toNumberOrNull(row.hip_cm),
+    armCm: toNumberOrNull(row.arm_cm),
+    thighCm: toNumberOrNull(row.thigh_cm),
+    calfCm: toNumberOrNull(row.calf_cm),
+    notes: row.notes ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+async function fetchMeasurements(
+  clientId?: string,
+): Promise<{ data?: BodyMeasurement[]; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const baseQuery = client
+      .from("coach_measurements")
+      .select(
+        "id, coach_id, client_id, measured_on, weight_kg, body_fat_pct, chest_cm, waist_cm, hip_cm, arm_cm, thigh_cm, calf_cm, notes, created_at",
+      );
+
+    const filteredQuery = clientId ? baseQuery.eq("client_id", clientId) : baseQuery;
+    const { data, error } = await filteredQuery
+      .order("measured_on", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: ((data ?? []) as MeasurementRow[]).map(mapMeasurement) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function listMyMeasurements(): Promise<{ data?: BodyMeasurement[]; error?: string }> {
+  return fetchMeasurements();
+}
+
+export async function listCoachClientMeasurements(
+  clientId: string,
+): Promise<{ data?: BodyMeasurement[]; error?: string }> {
+  return fetchMeasurements(clientId);
+}
+
+export async function submitMeasurement(
+  input: BodyMeasurementInput,
+): Promise<{ data?: string; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc("b2b_submit_measurement", {
+      p_measured_on: input.measuredOn,
+      p_weight_kg: input.weightKg ?? null,
+      p_body_fat_pct: input.bodyFatPct ?? null,
+      p_chest_cm: input.chestCm ?? null,
+      p_waist_cm: input.waistCm ?? null,
+      p_hip_cm: input.hipCm ?? null,
+      p_arm_cm: input.armCm ?? null,
+      p_thigh_cm: input.thighCm ?? null,
+      p_calf_cm: input.calfCm ?? null,
+      p_notes: input.notes ?? null,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: typeof data === "string" ? data : undefined };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }

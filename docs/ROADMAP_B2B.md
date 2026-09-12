@@ -154,6 +154,6 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 - [x] i18n das telas novas (pt/en/es) + mecanismo reativo reativado
 - [x] Prescricao: coach monta/atribui treino e aluno ve o treino do dia (migration `20260909_b2b_prescriptions.sql` — pendente aplicar no remoto)
 - [x] Aderencia: feito x programado (check-in ao concluir treino prescrito; lista por aluno + tela de detalhe) — migration `20260910_b2b_adherence.sql` pendente aplicar no remoto
-- [ ] Medidas/avaliacao corporal enviadas ao coach
+- [x] Medidas/avaliacao corporal enviadas ao coach (form + historico do aluno; visao do coach com ultima avaliacao e variacao) — migration `20260911_b2b_measurements.sql` pendente aplicar no remoto
 - [ ] Cobranca (adiada — fase posterior)
 

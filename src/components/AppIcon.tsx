@@ -31,6 +31,8 @@ const ICON_MAP: Record<string, string> = {
   'ClipboardList': 'assignment',
   'Apple': 'apple',
   'TrendingUp': 'trending-up',
+  'Ruler': 'straighten',
+  'Scale': 'monitor-weight',
   'User': 'person',
   'Users': 'group',
   'UserPlus': 'person-add',

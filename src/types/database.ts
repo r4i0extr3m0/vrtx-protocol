@@ -138,6 +138,36 @@ export interface CheckinInput {
   notes?: string | null;
 }
 
+export interface BodyMeasurement {
+  id: string;
+  coachId: string;
+  clientId: string;
+  measuredOn: string;
+  weightKg?: number | null;
+  bodyFatPct?: number | null;
+  chestCm?: number | null;
+  waistCm?: number | null;
+  hipCm?: number | null;
+  armCm?: number | null;
+  thighCm?: number | null;
+  calfCm?: number | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface BodyMeasurementInput {
+  measuredOn: string;
+  weightKg?: number | null;
+  bodyFatPct?: number | null;
+  chestCm?: number | null;
+  waistCm?: number | null;
+  hipCm?: number | null;
+  armCm?: number | null;
+  thighCm?: number | null;
+  calfCm?: number | null;
+  notes?: string | null;
+}
+
 export interface Exercise {
   id: string;
   name: string;

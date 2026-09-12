@@ -183,11 +183,18 @@ export function ProfileScreen() {
                 variant="brand"
               />
             ) : (
-              <AppButton
-                label={t("profile.joinCoachCta")}
-                onPress={() => router.push("/join-coach" as never)}
-                variant="secondary"
-              />
+              <>
+                <AppButton
+                  label={t("profile.joinCoachCta")}
+                  onPress={() => router.push("/join-coach" as never)}
+                  variant="secondary"
+                />
+                <AppButton
+                  label={t("measurements.title")}
+                  onPress={() => router.push("/measurements" as never)}
+                  variant="secondary"
+                />
+              </>
             )}
             <AppButton
               label="Bioimpedância e Corpo"

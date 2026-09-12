@@ -199,6 +199,18 @@ export function CoachStudentsScreen() {
               <Pressable
                 onPress={() =>
                   router.push({
+                    pathname: "/coach/measurements/[clientId]",
+                    params: { clientId: item.clientId as string, clientName: item.name },
+                  } as never)
+                }
+                style={styles.iconButton}
+                hitSlop={10}
+              >
+                <AppIcon name="Ruler" size={18} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push({
                     pathname: "/coach/adherence/[clientId]",
                     params: { clientId: item.clientId as string, clientName: item.name },
                   } as never)
