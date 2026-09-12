@@ -29,6 +29,8 @@ import { FocusMode } from "@/src/components/FocusMode";
 import { createExerciseSet, summarizeWorkout } from "@/src/domain/workout";
 import { buildWorkoutExercises, WORKOUT_PRESETS, type WorkoutPreset } from "@/src/data/workoutPresets";
 import { useTabBarInset, useTheme, useWorkout } from "@/src/hooks";
+import { hasSupabaseEnv } from "@/src/constants/env";
+import { recordCheckin } from "@/src/api/supabase";
 import { useGamificationStore } from "@/src/store/gamificationStore";
 import { useExerciseStore } from "@/src/store/exerciseStore";
 import { useTemplateStore } from "@/src/store/templateStore";
@@ -533,6 +535,16 @@ export function WorkoutScreen() {
                 total_volume: summary?.totalVolume ?? 0,
               });
               completeWorkout(workout.id);
+              if (workout.prescriptionId && hasSupabaseEnv()) {
+                void recordCheckin({
+                  prescriptionId: workout.prescriptionId,
+                  workoutName: workout.name,
+                  happenedOn: workout.date,
+                  exerciseCount: workout.exercises.length,
+                  setCount: summary?.setCount ?? 0,
+                  totalVolume: summary?.totalVolume ?? 0,
+                });
+              }
               // XP simples para o MVP: base fixa por treino e bonus se o usuario ja vinha em streak.
               recordActivity("workout", 1);
               if (streakBonus > 0) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
@@ -8,6 +8,7 @@ import { AppIcon } from "@/src/components/AppIcon";
 import { SectionCard } from "@/src/components/SectionCard";
 import {
   createCoachInvite,
+  listCoachCheckins,
   listCoachClients,
   removeCoachClient,
 } from "@/src/api/supabase";
@@ -16,7 +17,14 @@ import { getCoachPlanMeta } from "@/src/coach/plans";
 import { useAuth, useTabBarInset, useTheme } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
 import { useI18n } from "@/src/i18n";
-import type { CoachClientListItem } from "@/src/types";
+import type { CoachCheckin, CoachClientListItem } from "@/src/types";
+
+function daysSince(isoDate: string): number {
+  const target = new Date(`${isoDate}T00:00:00`);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((now.getTime() - target.getTime()) / (24 * 60 * 60 * 1000)));
+}
 
 function StatusPill({ status, colors }: { status: CoachClientListItem["status"]; colors: any }) {
   const { t } = useI18n();
@@ -39,6 +47,7 @@ export function CoachStudentsScreen() {
   const { user } = useAuth();
   const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const [clients, setClients] = useState<CoachClientListItem[]>([]);
+  const [checkins, setCheckins] = useState<CoachCheckin[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,14 +59,40 @@ export function CoachStudentsScreen() {
   const activeCount = clients.filter((client) => client.status === "active").length;
   const online = hasSupabaseEnv();
 
+  const lastCheckinByClient = useMemo(() => {
+    const map = new Map<string, CoachCheckin>();
+    for (const item of checkins) {
+      const current = map.get(item.clientId);
+      if (!current || item.happenedOn > current.happenedOn) {
+        map.set(item.clientId, item);
+      }
+    }
+    return map;
+  }, [checkins]);
+
+  const lastCheckinLabel = (clientId: string): string => {
+    const item = lastCheckinByClient.get(clientId);
+    if (!item) return t("adherence.noCheckins");
+    const days = daysSince(item.happenedOn);
+    if (days === 0) return t("adherence.lastToday");
+    if (days === 1) return t("adherence.lastYesterday");
+    return t("adherence.lastDaysAgo", { days });
+  };
+
   const reload = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await listCoachClients();
-    if (result.error) {
-      setError(result.error);
+    const [clientsResult, checkinsResult] = await Promise.all([
+      listCoachClients(),
+      listCoachCheckins(),
+    ]);
+    if (clientsResult.error) {
+      setError(clientsResult.error);
     } else {
-      setClients(result.data ?? []);
+      setClients(clientsResult.data ?? []);
+    }
+    if (!checkinsResult.error) {
+      setCheckins(checkinsResult.data ?? []);
     }
     setLoading(false);
   }, []);
@@ -131,9 +166,24 @@ export function CoachStudentsScreen() {
             {title}
           </Text>
           {!isPending ? (
-            <Text numberOfLines={1} style={[styles.studentEmail, { color: colors.muted }]}>
-              {item.email}
-            </Text>
+            <>
+              <Text numberOfLines={1} style={[styles.studentEmail, { color: colors.muted }]}>
+                {item.email}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.lastCheckin,
+                  {
+                    color: lastCheckinByClient.get(item.clientId as string)
+                      ? colors.success
+                      : colors.muted,
+                  },
+                ]}
+              >
+                {lastCheckinLabel(item.clientId as string)}
+              </Text>
+            </>
           ) : (
             <Pressable onPress={() => handleShareCode(item.inviteCode)}>
               <Text style={[styles.inviteCode, { color: colors.primary }]}>
@@ -146,6 +196,18 @@ export function CoachStudentsScreen() {
           <StatusPill status={item.status} colors={colors} />
           {!isPending ? (
             <View style={styles.rowIcons}>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/coach/adherence/[clientId]",
+                    params: { clientId: item.clientId as string, clientName: item.name },
+                  } as never)
+                }
+                style={styles.iconButton}
+                hitSlop={10}
+              >
+                <AppIcon name="TrendingUp" size={18} color={colors.success} />
+              </Pressable>
               <Pressable
                 onPress={() =>
                   router.push({
@@ -331,6 +393,10 @@ const styles = StyleSheet.create({
   studentEmail: {
     fontSize: typography.bodySm,
     fontWeight: "600",
+  },
+  lastCheckin: {
+    fontSize: typography.caption,
+    fontWeight: "700",
   },
   inviteCode: {
     fontSize: typography.bodySm,

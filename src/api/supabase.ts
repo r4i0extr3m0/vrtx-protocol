@@ -5,7 +5,9 @@ import { createClient, type Session, type SupabaseClient, type User } from "@sup
 import { env, hasSupabaseEnv } from "@/src/constants/env";
 import { storage } from "@/src/infra/mmkv";
 import type {
+  CheckinInput,
   ClaimInviteResult,
+  CoachCheckin,
   CoachClientLink,
   CoachClientListItem,
   CoachPrescription,
@@ -474,4 +476,105 @@ export async function archiveCoachPrescription(
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+// ------------------------------------------------------------------
+// VRTX Coach: aderencia (check-ins de treino concluido)
+// ------------------------------------------------------------------
+
+interface CheckinRow {
+  id: string;
+  coach_id: string;
+  client_id: string;
+  prescription_id?: string | null;
+  workout_name: string;
+  happened_on: string;
+  exercise_count: number;
+  set_count: number;
+  total_volume: number | string;
+  notes?: string | null;
+  created_at: string;
+}
+
+function mapCheckin(row: CheckinRow): CoachCheckin {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    clientId: row.client_id,
+    prescriptionId: row.prescription_id ?? null,
+    workoutName: row.workout_name,
+    happenedOn: row.happened_on,
+    exerciseCount: row.exercise_count ?? 0,
+    setCount: row.set_count ?? 0,
+    totalVolume: Number(row.total_volume ?? 0),
+    notes: row.notes ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+export async function recordCheckin(
+  input: CheckinInput,
+): Promise<{ success?: boolean; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc("b2b_record_checkin", {
+      p_prescription_id: input.prescriptionId ?? null,
+      p_workout_name: input.workoutName,
+      p_happened_on: input.happenedOn,
+      p_exercise_count: input.exerciseCount,
+      p_set_count: input.setCount,
+      p_total_volume: input.totalVolume,
+      p_notes: input.notes ?? null,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { success: data === true };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function fetchCheckins(clientId?: string): Promise<{ data?: CoachCheckin[]; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const baseQuery = client
+      .from("coach_checkins")
+      .select(
+        "id, coach_id, client_id, prescription_id, workout_name, happened_on, exercise_count, set_count, total_volume, notes, created_at",
+      );
+
+    const filteredQuery = clientId ? baseQuery.eq("client_id", clientId) : baseQuery;
+    const { data, error } = await filteredQuery
+      .order("happened_on", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: ((data ?? []) as CheckinRow[]).map(mapCheckin) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function listCoachCheckins(
+  clientId?: string,
+): Promise<{ data?: CoachCheckin[]; error?: string }> {
+  return fetchCheckins(clientId);
+}
+
+export async function listMyCheckins(): Promise<{ data?: CoachCheckin[]; error?: string }> {
+  return fetchCheckins();
 }

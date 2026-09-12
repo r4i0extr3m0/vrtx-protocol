@@ -42,6 +42,8 @@ export function createWorkoutDraft(partial?: Partial<Workout>): Workout {
     notes: partial?.notes,
     exercises: partial?.exercises ?? [],
     syncStatus: partial?.syncStatus ?? "local",
+    prescriptionId: partial?.prescriptionId,
+    coachId: partial?.coachId,
   };
 }
 

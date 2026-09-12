@@ -36,7 +36,11 @@ interface WorkoutStoreState {
   activeWorkoutId: string | null;
   hydrated: boolean;
   createWorkout: (name?: string) => Workout;
-  createFromTemplate: (templateName: string, exercises: ExerciseEntry[]) => Workout;
+  createFromTemplate: (
+    templateName: string,
+    exercises: ExerciseEntry[],
+    meta?: { prescriptionId?: string; coachId?: string },
+  ) => Workout;
   updateWorkout: (id: string, partial: Partial<Workout>) => void;
   addExercise: (workoutId: string, exercise: ExerciseEntry) => void;
   removeExercise: (workoutId: string, exerciseId: string) => void;
@@ -117,7 +121,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           enqueueWorkoutOperation("update", updatedWorkout);
         }
       },
-      createFromTemplate: (templateName, exercises) => {
+      createFromTemplate: (templateName, exercises, meta) => {
         // Validação
         const validatedExercises = z.array(exerciseEntrySchema).parse(exercises);
 
@@ -125,6 +129,8 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           name: templateName,
           exercises: validatedExercises,
           syncStatus: "pending",
+          prescriptionId: meta?.prescriptionId,
+          coachId: meta?.coachId,
         });
         set((state) => ({
           workouts: [draft, ...state.workouts],

@@ -143,7 +143,10 @@ export function HomeScreen() {
       weightKg: exercise.targetWeightKg ?? undefined,
     }));
 
-    const draft = createFromTemplate(prescription.name, buildWorkoutExercises(templateExercises));
+    const draft = createFromTemplate(prescription.name, buildWorkoutExercises(templateExercises), {
+      prescriptionId: prescription.id,
+      coachId: prescription.coachId,
+    });
     router.push({ pathname: "/workout/[id]", params: { id: draft.id } } as never);
   };
 

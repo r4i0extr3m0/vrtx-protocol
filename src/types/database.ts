@@ -24,6 +24,8 @@ export interface Workout {
   notes?: string;
   exercises: ExerciseEntry[];
   syncStatus: "local" | "pending" | "synced" | "failed";
+  prescriptionId?: string;
+  coachId?: string;
 }
 
 export interface AuthSession {
@@ -109,6 +111,30 @@ export interface PrescriptionExerciseInput {
   sets: number;
   repsTarget: number;
   weightKg?: number | null;
+  notes?: string | null;
+}
+
+export interface CoachCheckin {
+  id: string;
+  coachId: string;
+  clientId: string;
+  prescriptionId?: string | null;
+  workoutName: string;
+  happenedOn: string;
+  exerciseCount: number;
+  setCount: number;
+  totalVolume: number;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface CheckinInput {
+  prescriptionId?: string | null;
+  workoutName: string;
+  happenedOn: string;
+  exerciseCount: number;
+  setCount: number;
+  totalVolume: number;
   notes?: string | null;
 }
 
