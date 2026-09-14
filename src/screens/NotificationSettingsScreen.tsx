@@ -63,6 +63,13 @@ export function NotificationSettingsScreen() {
       } else {
         await Notifications.cancelScheduledNotificationAsync('mealReminder');
       }
+    } else if (key === 'prescriptionAlert') {
+      if (newValue) {
+        const granted = await requestPermissions();
+        if (!granted) {
+          setPreference(key, false);
+        }
+      }
     }
     // TODO: Implementar lógica para streak e PR notifications (serão acionadas por eventos, não agendamento fixo)
   };
@@ -161,6 +168,21 @@ export function NotificationSettingsScreen() {
             <Switch
               onValueChange={() => handleToggle("prNotification")}
               value={preferences.prNotification}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>Novo treino prescrito</Text>
+              <Text style={[styles.settingDesc, { color: colors.muted }]}>Avise quando seu personal enviar um treino.</Text>
+            </View>
+            <Switch
+              onValueChange={() => handleToggle("prescriptionAlert")}
+              value={preferences.prescriptionAlert}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor="#fff"
             />

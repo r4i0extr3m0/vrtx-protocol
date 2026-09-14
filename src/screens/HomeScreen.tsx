@@ -12,6 +12,7 @@ import { summarizeWorkout } from "@/src/domain/workout";
 import { buildWorkoutExercises } from "@/src/data/workoutPresets";
 import { listMyPrescriptions } from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
+import { notifyNewPrescriptions } from "@/src/services/notifications";
 import { useI18n } from "@/src/i18n";
 import { spacing, typography, radius, shadows } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
@@ -19,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { usePremiumStore } from "@/src/store/premiumStore";
 import { useGamificationStore } from "@/src/store/gamificationStore";
 import { useDietStore } from "@/src/store/dietStore";
+import { useNotificationStore } from "@/src/store/notificationStore";
 import type { CoachPrescription, TemplateExercise } from "@/src/types";
 
 function getCurrentWeekStartMs(): number {
@@ -61,6 +63,7 @@ export function HomeScreen() {
   const isPremium = usePremiumStore((state) => state.isPremium);
   const { user } = useAuth();
   const { t } = useI18n();
+  const prescriptionAlert = useNotificationStore((state) => state.preferences.prescriptionAlert);
   const userId = user?.id;
   const userRole = user?.role;
   const [prescriptions, setPrescriptions] = useState<CoachPrescription[]>([]);
@@ -75,13 +78,17 @@ export function HomeScreen() {
     let cancelled = false;
     void listMyPrescriptions().then((result) => {
       if (cancelled) return;
-      setPrescriptions(result.data ?? []);
+      const items = result.data ?? [];
+      setPrescriptions(items);
+      if (prescriptionAlert && items.length > 0) {
+        void notifyNewPrescriptions(items);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [userId, userRole]);
+  }, [userId, userRole, prescriptionAlert]);
   const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId) ?? null;
   const completedWorkouts = useMemo(
     () =>

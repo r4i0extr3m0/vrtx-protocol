@@ -158,40 +158,55 @@ export function CoachStudentsScreen() {
 
     return (
       <View style={[styles.studentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={[styles.avatar, { backgroundColor: colors.surfaceAlt }]}>
-          <AppIcon name={isPending ? "Clock" : "User"} size={18} color={isPending ? colors.warning : colors.primary} />
-        </View>
-        <View style={styles.studentInfo}>
-          <Text numberOfLines={1} style={[styles.studentName, { color: colors.foreground }]}>
-            {title}
-          </Text>
-          {!isPending ? (
-            <>
-              <Text numberOfLines={1} style={[styles.studentEmail, { color: colors.muted }]}>
-                {item.email}
-              </Text>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.lastCheckin,
-                  {
-                    color: lastCheckinByClient.get(item.clientId as string)
-                      ? colors.success
-                      : colors.muted,
-                  },
-                ]}
-              >
-                {lastCheckinLabel(item.clientId as string)}
-              </Text>
-            </>
-          ) : (
-            <Pressable onPress={() => handleShareCode(item.inviteCode)}>
-              <Text style={[styles.inviteCode, { color: colors.primary }]}>
-                {t("coach.codeTap", { code: item.inviteCode })}
-              </Text>
-            </Pressable>
-          )}
-        </View>
+        <Pressable
+          disabled={isPending}
+          onPress={() =>
+            router.push({
+              pathname: "/coach/client/[clientId]",
+              params: {
+                clientId: item.clientId as string,
+                clientName: item.name,
+                clientEmail: item.email,
+              },
+            } as never)
+          }
+          style={styles.studentMain}
+        >
+          <View style={[styles.avatar, { backgroundColor: colors.surfaceAlt }]}>
+            <AppIcon name={isPending ? "Clock" : "User"} size={18} color={isPending ? colors.warning : colors.primary} />
+          </View>
+          <View style={styles.studentInfo}>
+            <Text numberOfLines={1} style={[styles.studentName, { color: colors.foreground }]}>
+              {title}
+            </Text>
+            {!isPending ? (
+              <>
+                <Text numberOfLines={1} style={[styles.studentEmail, { color: colors.muted }]}>
+                  {item.email}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.lastCheckin,
+                    {
+                      color: lastCheckinByClient.get(item.clientId as string)
+                        ? colors.success
+                        : colors.muted,
+                    },
+                  ]}
+                >
+                  {lastCheckinLabel(item.clientId as string)}
+                </Text>
+              </>
+            ) : (
+              <Pressable onPress={() => handleShareCode(item.inviteCode)}>
+                <Text style={[styles.inviteCode, { color: colors.primary }]}>
+                  {t("coach.codeTap", { code: item.inviteCode })}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </Pressable>
         <View style={styles.studentActions}>
           <StatusPill status={item.status} colors={colors} />
           {!isPending ? (
@@ -385,6 +400,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
+  },
+  studentMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
   avatar: {
     width: 42,

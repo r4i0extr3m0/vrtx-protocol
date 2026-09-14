@@ -5,6 +5,7 @@ import { useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppIcon } from "@/src/components/AppIcon";
 import { SectionCard } from "@/src/components/SectionCard";
+import { MeasurementBodyFigure } from "@/src/components/MeasurementBodyFigure";
 import { listCoachClientMeasurements } from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { useI18n } from "@/src/i18n";
@@ -153,12 +154,24 @@ export function CoachMeasurementsScreen() {
         ) : null}
 
         {latest ? (
+          <MeasurementBodyFigure
+            weightKg={latest.weightKg}
+            bodyFatPct={latest.bodyFatPct}
+            chestCm={latest.chestCm}
+            waistCm={latest.waistCm}
+            hipCm={latest.hipCm}
+            armCm={latest.armCm}
+            thighCm={latest.thighCm}
+            calfCm={latest.calfCm}
+          />
+        ) : null}
+
+        {latest ? (
           <SectionCard
             title={t("measurements.latestTitle")}
             subtitle={formatDay(latest.measuredOn)}
             delay={80}
-          >
-            <View style={styles.grid}>
+          >            <View style={styles.grid}>
               {rows.map((row) => (
                 <View key={row.label} style={styles.metric}>
                   <Text style={[styles.metricValue, { color: colors.foreground }]}>{row.value}</Text>

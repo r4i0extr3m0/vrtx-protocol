@@ -9,6 +9,7 @@ interface NotificationPreferences {
   mealReminderTime: string; // HH:mm
   streakNotification: boolean;
   prNotification: boolean;
+  prescriptionAlert: boolean;
 }
 
 interface NotificationStoreState {
@@ -29,6 +30,7 @@ export const useNotificationStore = create<NotificationStoreState>()(
         mealReminderTime: "12:00",
         streakNotification: true,
         prNotification: true,
+        prescriptionAlert: true,
       },
       setPreference: (key, value) =>
         set((state) => ({

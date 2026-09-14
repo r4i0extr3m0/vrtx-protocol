@@ -14,6 +14,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { AppIcon } from "@/src/components/AppIcon";
 import { SectionCard } from "@/src/components/SectionCard";
+import { MeasurementBodyFigure } from "@/src/components/MeasurementBodyFigure";
 import { fetchMyCoach, listMyMeasurements, submitMeasurement } from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { useI18n } from "@/src/i18n";
@@ -166,8 +167,32 @@ export function MeasurementScreen() {
     void load();
   };
 
-  const renderHistory = (item: BodyMeasurement) => {
-    const parts: string[] = [];
+  const liveValues = {
+    weightKg: parseNumber(weight),
+    bodyFatPct: parseNumber(bodyFat),
+    chestCm: parseNumber(chest),
+    waistCm: parseNumber(waist),
+    hipCm: parseNumber(hip),
+    armCm: parseNumber(arm),
+    thighCm: parseNumber(thigh),
+    calfCm: parseNumber(calf),
+  };
+  const hasLiveValues = Object.values(liveValues).some((value) => value !== null);
+  const latestSaved = history[0] ?? null;
+  const figureValues = hasLiveValues
+    ? liveValues
+    : {
+        weightKg: latestSaved?.weightKg ?? null,
+        bodyFatPct: latestSaved?.bodyFatPct ?? null,
+        chestCm: latestSaved?.chestCm ?? null,
+        waistCm: latestSaved?.waistCm ?? null,
+        hipCm: latestSaved?.hipCm ?? null,
+        armCm: latestSaved?.armCm ?? null,
+        thighCm: latestSaved?.thighCm ?? null,
+        calfCm: latestSaved?.calfCm ?? null,
+      };
+
+  const renderHistory = (item: BodyMeasurement) => {    const parts: string[] = [];
     if (item.weightKg !== null && item.weightKg !== undefined) parts.push(`${item.weightKg} kg`);
     if (item.bodyFatPct !== null && item.bodyFatPct !== undefined) parts.push(`${item.bodyFatPct}%`);
     if (item.waistCm !== null && item.waistCm !== undefined) parts.push(`${t("measurements.waist")} ${item.waistCm}`);
@@ -207,6 +232,8 @@ export function MeasurementScreen() {
             <Text style={[styles.title, { color: colors.foreground }]}>{t("measurements.title")}</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>{t("measurements.subtitle")}</Text>
           </View>
+
+          <MeasurementBodyFigure {...figureValues} />
 
           {!online ? (
             <View style={[styles.notice, { backgroundColor: colors.warning + "15" }]}>
