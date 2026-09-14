@@ -17,6 +17,14 @@ interface Props {
   calfCm?: number | null;
 }
 
+const BODY_HALF =
+  "M160 50 L152 54 C144 64 132 74 120 84 C108 104 100 138 96 178 C93 216 94 246 97 274 " +
+  "C99 288 110 290 113 279 C116 254 114 222 116 190 C119 150 127 114 137 98 C139 94 140 92 140 92 " +
+  "C135 110 133 140 134 166 C135 188 138 202 141 214 C143 226 139 240 134 252 " +
+  "C127 274 123 298 122 328 C121 356 123 378 124 396 C125 410 123 420 124 428 L124 442 " +
+  "C124 448 132 450 140 447 C146 445 148 436 147 426 C145 404 148 362 152 331 " +
+  "C155 311 158 297 160 291 Z";
+
 function has(value: number | null | undefined): boolean {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -46,18 +54,15 @@ export function MeasurementBodyFigure({
   const { colors } = useTheme();
   const { t } = useI18n();
 
-  const armFill = has(armCm) ? withAlpha(colors.primary, 0.55) : colors.surfaceAlt;
-  const trunkFill = has(chestCm) || has(waistCm) || has(hipCm)
-    ? withAlpha(colors.primary, 0.5)
-    : colors.surfaceAlt;
-  const legFill = has(thighCm) || has(calfCm) ? withAlpha(colors.primary, 0.5) : colors.surfaceAlt;
-  const stroke = colors.border;
+  const anyValue =
+    has(chestCm) || has(waistCm) || has(hipCm) || has(armCm) || has(thighCm) || has(calfCm);
+  const bodyFill = anyValue ? withAlpha(colors.primary, 0.18) : colors.surfaceAlt;
+  const bodyStroke = anyValue ? withAlpha(colors.primary, 0.55) : colors.border;
+  const armActive = has(armCm);
+  const thighActive = has(thighCm);
+  const calfActive = has(calfCm);
 
-  const centerLabel = (
-    y: number,
-    name: string,
-    value: string,
-  ) => (
+  const centerLabel = (y: number, name: string, value: string, active: boolean) => (
     <G key={name}>
       <Rect
         x={118}
@@ -66,7 +71,7 @@ export function MeasurementBodyFigure({
         height={32}
         rx={10}
         fill={colors.surfaceAlt}
-        stroke={stroke}
+        stroke={active ? withAlpha(colors.primary, 0.6) : colors.border}
         strokeWidth={1}
       />
       <SvgText x={160} y={y - 3} textAnchor="middle" fill={colors.muted} fontSize={9} fontWeight="700">
@@ -77,6 +82,48 @@ export function MeasurementBodyFigure({
       </SvgText>
     </G>
   );
+
+  const sideMarker = (
+    side: "left" | "right",
+    y: number,
+    outerX: number,
+    name: string,
+    value: string,
+    active: boolean,
+  ) => {
+    const isLeft = side === "left";
+    const edgeX = isLeft ? outerX : 320 - outerX;
+    const markerX = isLeft ? outerX + 6 : 320 - outerX - 6;
+    const lineEnd = isLeft ? outerX - 18 : 320 - outerX + 18;
+    const textX = isLeft ? outerX - 22 : 320 - outerX + 22;
+    const anchor = isLeft ? "end" : "start";
+    return (
+      <G key={`${side}-${name}-${y}`}>
+        <Line
+          x1={edgeX}
+          y1={y}
+          x2={lineEnd}
+          y2={y}
+          stroke={active ? withAlpha(colors.primary, 0.5) : colors.border}
+          strokeWidth={1}
+        />
+        <Circle
+          cx={markerX}
+          cy={y}
+          r={4}
+          fill={active ? colors.primary : colors.muted}
+          stroke={colors.surface}
+          strokeWidth={1.5}
+        />
+        <SvgText x={textX} y={y - 4} textAnchor={anchor} fill={colors.muted} fontSize={9} fontWeight="700">
+          {name}
+        </SvgText>
+        <SvgText x={textX} y={y + 11} textAnchor={anchor} fill={colors.foreground} fontSize={13} fontWeight="800">
+          {value}
+        </SvgText>
+      </G>
+    );
+  };
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -99,97 +146,26 @@ export function MeasurementBodyFigure({
         </View>
       </View>
 
-      <Svg width="100%" height={400} viewBox="0 0 320 420">
-        {/* Corpo */}
-        <G>
-          <Circle cx={160} cy={40} r={16} fill={trunkFill} stroke={stroke} strokeWidth={1} />
-          <Path
-            d="M128 66 C124 110, 124 170, 132 220 C136 244, 148 252, 160 252 C172 252, 184 244, 188 220 C196 170, 196 110, 192 66 Z"
-            fill={trunkFill}
-            stroke={stroke}
-            strokeWidth={1}
-          />
-          <Path
-            d="M132 72 C112 90, 96 130, 92 175 C90 190, 100 194, 106 182 C116 158, 126 120, 132 92 Z"
-            fill={armFill}
-            stroke={stroke}
-            strokeWidth={1}
-          />
-          <Path
-            d="M188 72 C208 90, 224 130, 228 175 C230 190, 220 194, 214 182 C204 158, 194 120, 188 92 Z"
-            fill={armFill}
-            stroke={stroke}
-            strokeWidth={1}
-          />
-          <Path
-            d="M150 250 C138 280, 130 330, 128 380 C127 396, 140 400, 146 388 C154 360, 158 300, 160 260 Z"
-            fill={legFill}
-            stroke={stroke}
-            strokeWidth={1}
-          />
-          <Path
-            d="M170 250 C182 280, 190 330, 192 380 C193 396, 180 400, 174 388 C166 360, 162 300, 160 260 Z"
-            fill={legFill}
-            stroke={stroke}
-            strokeWidth={1}
-          />
+      <Svg width="100%" height={420} viewBox="0 0 320 460">
+        {/* Silhueta */}
+        <G fill={bodyFill} stroke={bodyStroke} strokeWidth={1}>
+          <Path d={BODY_HALF} />
+          <Path d={BODY_HALF} transform="translate(320,0) scale(-1,1)" />
+          <Circle cx={160} cy={30} r={21} />
         </G>
 
-        {/* Conectores dos membros */}
-        <Line x1={92} y1={150} x2={128} y2={140} stroke={stroke} strokeWidth={1} />
-        <Line x1={228} y1={150} x2={192} y2={140} stroke={stroke} strokeWidth={1} />
-        <Line x1={128} y1={318} x2={150} y2={300} stroke={stroke} strokeWidth={1} />
-        <Line x1={192} y1={318} x2={170} y2={300} stroke={stroke} strokeWidth={1} />
-        <Line x1={128} y1={390} x2={146} y2={378} stroke={stroke} strokeWidth={1} />
-        <Line x1={192} y1={390} x2={174} y2={378} stroke={stroke} strokeWidth={1} />
-
-        {/* Rotulos membros */}
-        <SvgText x={84} y={144} textAnchor="end" fill={colors.muted} fontSize={9} fontWeight="700">
-          {t("measurements.arm")}
-        </SvgText>
-        <SvgText x={84} y={158} textAnchor="end" fill={colors.foreground} fontSize={13} fontWeight="800">
-          {format(armCm, " cm")}
-        </SvgText>
-
-        <SvgText x={236} y={144} textAnchor="start" fill={colors.muted} fontSize={9} fontWeight="700">
-          {t("measurements.arm")}
-        </SvgText>
-        <SvgText x={236} y={158} textAnchor="start" fill={colors.foreground} fontSize={13} fontWeight="800">
-          {format(armCm, " cm")}
-        </SvgText>
-
-        <SvgText x={120} y={312} textAnchor="end" fill={colors.muted} fontSize={9} fontWeight="700">
-          {t("measurements.thigh")}
-        </SvgText>
-        <SvgText x={120} y={326} textAnchor="end" fill={colors.foreground} fontSize={13} fontWeight="800">
-          {format(thighCm, " cm")}
-        </SvgText>
-
-        <SvgText x={200} y={312} textAnchor="start" fill={colors.muted} fontSize={9} fontWeight="700">
-          {t("measurements.thigh")}
-        </SvgText>
-        <SvgText x={200} y={326} textAnchor="start" fill={colors.foreground} fontSize={13} fontWeight="800">
-          {format(thighCm, " cm")}
-        </SvgText>
-
-        <SvgText x={120} y={384} textAnchor="end" fill={colors.muted} fontSize={9} fontWeight="700">
-          {t("measurements.calf")}
-        </SvgText>
-        <SvgText x={120} y={398} textAnchor="end" fill={colors.foreground} fontSize={13} fontWeight="800">
-          {format(calfCm, " cm")}
-        </SvgText>
-
-        <SvgText x={200} y={384} textAnchor="start" fill={colors.muted} fontSize={9} fontWeight="700">
-          {t("measurements.calf")}
-        </SvgText>
-        <SvgText x={200} y={398} textAnchor="start" fill={colors.foreground} fontSize={13} fontWeight="800">
-          {format(calfCm, " cm")}
-        </SvgText>
+        {/* Marcadores e rotulos dos membros */}
+        {sideMarker("left", 176, 96, t("measurements.arm"), format(armCm, " cm"), armActive)}
+        {sideMarker("right", 176, 96, t("measurements.arm"), format(armCm, " cm"), armActive)}
+        {sideMarker("left", 300, 122, t("measurements.thigh"), format(thighCm, " cm"), thighActive)}
+        {sideMarker("right", 300, 122, t("measurements.thigh"), format(thighCm, " cm"), thighActive)}
+        {sideMarker("left", 392, 124, t("measurements.calf"), format(calfCm, " cm"), calfActive)}
+        {sideMarker("right", 392, 124, t("measurements.calf"), format(calfCm, " cm"), calfActive)}
 
         {/* Rotulos tronco */}
-        {centerLabel(118, t("measurements.chest"), format(chestCm, " cm"))}
-        {centerLabel(196, t("measurements.waist"), format(waistCm, " cm"))}
-        {centerLabel(244, t("measurements.hip"), format(hipCm, " cm"))}
+        {centerLabel(118, t("measurements.chest"), format(chestCm, " cm"), has(chestCm))}
+        {centerLabel(208, t("measurements.waist"), format(waistCm, " cm"), has(waistCm))}
+        {centerLabel(246, t("measurements.hip"), format(hipCm, " cm"), has(hipCm))}
       </Svg>
     </View>
   );
