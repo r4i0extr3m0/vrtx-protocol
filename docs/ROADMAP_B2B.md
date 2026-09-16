@@ -156,5 +156,6 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 - [x] Aderencia: feito x programado (check-in ao concluir treino prescrito; lista por aluno + tela de detalhe) — migration `20260910_b2b_adherence.sql` pendente aplicar no remoto
 - [x] Medidas/avaliacao corporal enviadas ao coach (form + historico do aluno; visao do coach com ultima avaliacao e variacao; mapa corporal visual estilo bioimpedancia) — migration `20260911_b2b_measurements.sql` pendente aplicar no remoto
 - [x] Extras: hub de detalhe do aluno (aderencia/medidas/prescricao num so lugar) e notificacao local de novo treino prescrito
+- [x] Dieta conectada ao treino: coach prescreve metas nutricionais (dia de treino x descanso) e o aluno ve o plano na aba Dieta, com alternancia automatica pelo treino do dia, gasto estimado e saldo calorico — migration `20260912_b2b_nutrition.sql` pendente aplicar no remoto
 - [ ] Cobranca (adiada — fase posterior)
 

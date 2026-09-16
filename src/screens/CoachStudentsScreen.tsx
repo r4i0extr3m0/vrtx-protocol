@@ -247,6 +247,18 @@ export function CoachStudentsScreen() {
               >
                 <AppIcon name="ClipboardList" size={18} color={colors.primary} />
               </Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/coach/nutrition/[clientId]",
+                    params: { clientId: item.clientId as string, clientName: item.name },
+                  } as never)
+                }
+                style={styles.iconButton}
+                hitSlop={10}
+              >
+                <AppIcon name="Utensils" size={18} color={colors.warning} />
+              </Pressable>
               <Pressable onPress={() => handleRemove(item)} style={styles.iconButton} hitSlop={10}>
                 <AppIcon name="Trash2" size={18} color={colors.muted} />
               </Pressable>

@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { router } from "expo-router";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
+import { getMyNutritionPlan, listMyPrescriptions } from "@/src/api/supabase";
+import { hasSupabaseEnv } from "@/src/constants/env";
+import { useI18n } from "@/src/i18n";
+import {
+  estimateWorkoutBurn,
+  findTodayPrescription,
+  selectNutritionTargets,
+} from "@/src/domain/nutrition";
 import { useTabBarInset, useTheme } from "@/src/hooks";
 import { useDietStore } from "@/src/store/dietStore";
 import { radius, spacing, shadows } from "@/src/theme";
 import * as Haptics from "expo-haptics";
 import { toIsoDate } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
+import type { CoachNutritionPlan, CoachPrescription, DailyGoals } from "@/src/types";
 
 const MEAL_ICONS: Record<string, IconName> = {
   breakfast: "Coffee",
@@ -33,6 +42,7 @@ function formatLiters(amountMl: number): string {
 
 export function DietLogScreen() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const {
     meals,
     dailyGoals,
@@ -41,18 +51,51 @@ export function DietLogScreen() {
     goalsConfigured,
     goalsSetupPromptDismissed,
     dismissGoalsSetupPrompt,
+    coachPlanEnabled,
+    setCoachPlanEnabled,
   } = useDietStore();
   const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
   const today = toIsoDate(new Date());
+  const online = hasSupabaseEnv();
   const [setupPromptVisible, setSetupPromptVisible] = useState(false);
+  const [coachPlan, setCoachPlan] = useState<CoachNutritionPlan | null>(null);
+  const [prescriptions, setPrescriptions] = useState<CoachPrescription[]>([]);
 
   const todayMeals = useMemo(() => meals.filter((m) => m.date === today), [meals, today]);
 
   useEffect(() => {
-    if (!goalsConfigured && !goalsSetupPromptDismissed) {
+    if (!online) return;
+    let active = true;
+    Promise.all([getMyNutritionPlan(), listMyPrescriptions()]).then(
+      ([planResult, prescriptionResult]) => {
+        if (!active) return;
+        setCoachPlan(planResult.data ?? null);
+        setPrescriptions(prescriptionResult.data ?? []);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [online]);
+
+  const todayPrescription = useMemo(
+    () => findTodayPrescription(prescriptions, today),
+    [prescriptions, today],
+  );
+  const isTrainingDay = Boolean(todayPrescription);
+  const todayTargets = coachPlan ? selectNutritionTargets(coachPlan, isTrainingDay) : null;
+  const coachGoals: DailyGoals | null =
+    coachPlan && todayTargets ? { ...todayTargets, waterMl: coachPlan.waterMl } : null;
+  const usingCoachPlan = Boolean(coachGoals) && coachPlanEnabled;
+  const activeGoals: DailyGoals = usingCoachPlan && coachGoals ? coachGoals : dailyGoals;
+  const goalsActive = usingCoachPlan || goalsConfigured;
+  const estimatedBurn = todayPrescription ? estimateWorkoutBurn(todayPrescription.exercises) : 0;
+
+  useEffect(() => {
+    if (!goalsActive && !goalsSetupPromptDismissed) {
       setSetupPromptVisible(true);
     }
-  }, [goalsConfigured, goalsSetupPromptDismissed]);
+  }, [goalsActive, goalsSetupPromptDismissed]);
 
   const totals = useMemo(() => {
     return todayMeals.reduce(
@@ -65,28 +108,35 @@ export function DietLogScreen() {
       { calories: 0, protein: 0, carbs: 0, fat: 0 },
     );
   }, [todayMeals]);
-  const remainingCalories = Math.max((dailyGoals.calories ?? 0) - totals.calories, 0);
+  const remainingCalories = Math.max((activeGoals.calories ?? 0) - totals.calories, 0);
   const mealSummary = useMemo(() => {
     return MEAL_SECTIONS.map((section) => {
       const sectionMeals = todayMeals.filter((meal) => meal.mealType === section.key);
       const calories = sectionMeals.reduce((acc, meal) => acc + meal.totalCalories, 0);
       const itemCount = sectionMeals.reduce((acc, meal) => acc + meal.items.length, 0);
-      const targetCalories = goalsConfigured ? Math.round(dailyGoals.calories * section.ratio) : 0;
+      const targetCalories = goalsActive ? Math.round(activeGoals.calories * section.ratio) : 0;
 
       return {
         ...section,
         calories,
         itemCount,
         targetCalories,
-        progress: goalsConfigured ? Math.min(calories / Math.max(targetCalories, 1), 1) : 0,
+        progress: goalsActive ? Math.min(calories / Math.max(targetCalories, 1), 1) : 0,
       };
     });
-  }, [dailyGoals.calories, goalsConfigured, todayMeals]);
+  }, [activeGoals.calories, goalsActive, todayMeals]);
   const macroSummary = [
-    { key: "carbs", label: "Carboidratos", value: totals.carbs, target: dailyGoals.carbs, color: colors.warning },
-    { key: "protein", label: "Proteina", value: totals.protein, target: dailyGoals.protein, color: colors.primary },
-    { key: "fat", label: "Gorduras", value: totals.fat, target: dailyGoals.fat, color: colors.error },
+    { key: "carbs", label: "Carboidratos", value: totals.carbs, target: activeGoals.carbs, color: colors.warning },
+    { key: "protein", label: "Proteina", value: totals.protein, target: activeGoals.protein, color: colors.primary },
+    { key: "fat", label: "Gorduras", value: totals.fat, target: activeGoals.fat, color: colors.error },
   ];
+  const targetColumns = coachPlan
+    ? [
+        { key: "training", label: t("nutrition.trainingDay"), targets: coachPlan.trainingDay, active: isTrainingDay },
+        { key: "rest", label: t("nutrition.restDay"), targets: coachPlan.restDay, active: !isTrainingDay },
+      ]
+    : [];
+  const netCalories = totals.calories - estimatedBurn;
 
   const handleAddWater = (amount: number) => {
     addWater(amount);
@@ -116,15 +166,118 @@ export function DietLogScreen() {
           </View>
         </Animated.View>
 
+        {coachPlan ? (
+          <Animated.View entering={FadeInUp.delay(160)}>
+            <View style={[styles.coachCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+              <View style={styles.coachHeader}>
+                <View style={[styles.coachIcon, { backgroundColor: colors.primary + "15" }]}>
+                  <AppIcon name="Utensils" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.coachHeaderText}>
+                  <Text style={[styles.coachTitle, { color: colors.foreground }]}>
+                    {t("nutrition.coachPlanTitle")}
+                  </Text>
+                  <Text style={[styles.coachHint, { color: colors.muted }]}>
+                    {t("nutrition.todayLabel", {
+                      type: isTrainingDay ? t("nutrition.trainingDay") : t("nutrition.restDay"),
+                    })}
+                  </Text>
+                </View>
+                <Switch
+                  value={coachPlanEnabled}
+                  onValueChange={setCoachPlanEnabled}
+                  trackColor={{ false: colors.surfaceAlt, true: colors.primary + "66" }}
+                  thumbColor={coachPlanEnabled ? colors.primary : colors.muted}
+                />
+              </View>
+              <View style={styles.coachColumns}>
+                {targetColumns.map((column) => (
+                  <View
+                    key={column.key}
+                    style={[
+                      styles.targetColumn,
+                      {
+                        backgroundColor: column.active ? colors.primary + "12" : colors.surfaceAlt,
+                        borderColor: column.active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.targetLabel,
+                        { color: column.active ? colors.primary : colors.muted },
+                      ]}
+                    >
+                      {column.label}
+                    </Text>
+                    <Text style={[styles.targetCalories, { color: colors.foreground }]}>
+                      {column.targets.calories} kcal
+                    </Text>
+                    <Text style={[styles.targetMacros, { color: colors.muted }]}>
+                      P {column.targets.protein} · C {column.targets.carbs} · G {column.targets.fat}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {todayPrescription ? (
+          <Animated.View entering={FadeInDown.delay(180)}>
+            <View style={[styles.workoutCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+              <View style={styles.coachHeader}>
+                <View style={[styles.coachIcon, { backgroundColor: colors.success + "15" }]}>
+                  <AppIcon name="Dumbbell" size={20} color={colors.success} />
+                </View>
+                <View style={styles.coachHeaderText}>
+                  <Text style={[styles.coachTitle, { color: colors.foreground }]}>
+                    {t("nutrition.workoutTodayTitle")}
+                  </Text>
+                  <Text style={[styles.coachHint, { color: colors.muted }]}>
+                    {t("nutrition.workoutTodayHint", {
+                      name: todayPrescription.name,
+                      count: todayPrescription.exercises.length,
+                    })}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.burnRow}>
+                <View style={styles.burnItem}>
+                  <Text style={[styles.burnLabel, { color: colors.muted }]}>
+                    {t("nutrition.estimatedBurn")}
+                  </Text>
+                  <Text style={[styles.burnValue, { color: colors.foreground }]}>
+                    {t("nutrition.burnValue", { value: estimatedBurn })}
+                  </Text>
+                </View>
+                <View style={styles.burnItem}>
+                  <Text style={[styles.burnLabel, { color: colors.muted }]}>
+                    {t("nutrition.netTitle")}
+                  </Text>
+                  <Text style={[styles.burnValue, { color: netCalories >= 0 ? colors.foreground : colors.success }]}>
+                    {netCalories} kcal
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.burnHint, { color: colors.muted }]}>
+                {t("nutrition.netHint", { consumed: totals.calories, burned: estimatedBurn })}
+              </Text>
+            </View>
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInUp.delay(200)}>
           <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
-            {goalsConfigured ? (
+            {goalsActive ? (
               <>
                 <View style={styles.summaryActionsRow}>
                   <View>
                     <Text style={[styles.summaryTitle, { color: colors.foreground }]}>Resumo do dia</Text>
                     <Text style={[styles.protocolHint, { color: colors.muted }]}>
-                      Proteina alta sustenta performance e recuperacao.
+                      {usingCoachPlan
+                        ? t("nutrition.usingPlan")
+                        : "Proteina alta sustenta performance e recuperacao."}
                     </Text>
                   </View>
                   <View style={styles.summaryActions}>
@@ -148,7 +301,7 @@ export function DietLogScreen() {
                   <View style={styles.summaryMeta}>
                     <Text style={[styles.summaryKicker, { color: colors.muted }]}>Restantes</Text>
                     <Text style={[styles.summaryMetaText, { color: colors.muted }]}>Consumidas: {totals.calories} kcal</Text>
-                    <Text style={[styles.summaryMetaText, { color: colors.muted }]}>Meta: {dailyGoals.calories} kcal</Text>
+                    <Text style={[styles.summaryMetaText, { color: colors.muted }]}>Meta: {activeGoals.calories} kcal</Text>
                   </View>
                 </View>
 
@@ -263,7 +416,7 @@ export function DietLogScreen() {
                 </View>
                 <View>
                   <Text style={[styles.waterValueText, { color: colors.foreground }]}>{formatLiters(waterIntake)}</Text>
-                  <Text style={[styles.waterHint, { color: colors.muted }]}>Meta do dia: {dailyGoals.waterMl ?? 2500} ml</Text>
+                  <Text style={[styles.waterHint, { color: colors.muted }]}>Meta do dia: {activeGoals.waterMl ?? 2500} ml</Text>
                 </View>
               </View>
             </View>
@@ -611,5 +764,91 @@ const styles = StyleSheet.create({
   modalFooter: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  coachCard: {
+    borderWidth: 1,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  workoutCard: {
+    borderWidth: 1,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  coachHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  coachIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  coachHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  coachTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+  coachHint: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  coachColumns: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  targetColumn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: 2,
+  },
+  targetLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  targetCalories: {
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+  targetMacros: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  burnRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  burnItem: {
+    flex: 1,
+    gap: 2,
+  },
+  burnLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  burnValue: {
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+  burnHint: {
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

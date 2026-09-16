@@ -12,7 +12,9 @@ import type {
   CoachCheckin,
   CoachClientLink,
   CoachClientListItem,
+  CoachNutritionPlan,
   CoachPrescription,
+  NutritionPlanInput,
   PrescriptionExercise,
   PrescriptionExerciseInput,
 } from "@/src/types";
@@ -686,6 +688,140 @@ export async function submitMeasurement(
       p_arm_cm: input.armCm ?? null,
       p_thigh_cm: input.thighCm ?? null,
       p_calf_cm: input.calfCm ?? null,
+      p_notes: input.notes ?? null,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: typeof data === "string" ? data : undefined };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+// ------------------------------------------------------------------
+// VRTX Coach: plano nutricional (coach -> aluno)
+// ------------------------------------------------------------------
+
+interface NutritionPlanRow {
+  id: string;
+  coach_id: string;
+  client_id: string;
+  training_calories: number | string;
+  training_protein: number | string;
+  training_carbs: number | string;
+  training_fat: number | string;
+  rest_calories: number | string;
+  rest_protein: number | string;
+  rest_carbs: number | string;
+  rest_fat: number | string;
+  water_ml: number | string;
+  notes?: string | null;
+  status: CoachNutritionPlan["status"];
+  created_at: string;
+  updated_at: string;
+}
+
+function mapNutritionPlan(row: NutritionPlanRow): CoachNutritionPlan {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    clientId: row.client_id,
+    trainingDay: {
+      calories: Number(row.training_calories ?? 0),
+      protein: Number(row.training_protein ?? 0),
+      carbs: Number(row.training_carbs ?? 0),
+      fat: Number(row.training_fat ?? 0),
+    },
+    restDay: {
+      calories: Number(row.rest_calories ?? 0),
+      protein: Number(row.rest_protein ?? 0),
+      carbs: Number(row.rest_carbs ?? 0),
+      fat: Number(row.rest_fat ?? 0),
+    },
+    waterMl: Number(row.water_ml ?? 2500),
+    notes: row.notes ?? null,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function fetchNutritionPlan(
+  clientId?: string,
+): Promise<{ data?: CoachNutritionPlan[]; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const baseQuery = client
+      .from("coach_nutrition_plans")
+      .select(
+        "id, coach_id, client_id, training_calories, training_protein, training_carbs, training_fat, rest_calories, rest_protein, rest_carbs, rest_fat, water_ml, notes, status, created_at, updated_at",
+      )
+      .eq("status", "active");
+
+    const filteredQuery = clientId ? baseQuery.eq("client_id", clientId) : baseQuery;
+    const { data, error } = await filteredQuery
+      .order("updated_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: ((data ?? []) as NutritionPlanRow[]).map(mapNutritionPlan) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function getMyNutritionPlan(): Promise<{
+  data?: CoachNutritionPlan | null;
+  error?: string;
+}> {
+  const result = await fetchNutritionPlan();
+  if (result.error) {
+    return { error: result.error };
+  }
+  return { data: result.data?.[0] ?? null };
+}
+
+export async function getCoachClientNutritionPlan(
+  clientId: string,
+): Promise<{ data?: CoachNutritionPlan | null; error?: string }> {
+  const result = await fetchNutritionPlan(clientId);
+  if (result.error) {
+    return { error: result.error };
+  }
+  return { data: result.data?.[0] ?? null };
+}
+
+export async function upsertCoachNutritionPlan(
+  clientId: string,
+  input: NutritionPlanInput,
+): Promise<{ data?: string; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc("b2b_upsert_nutrition_plan", {
+      p_client_id: clientId,
+      p_training_calories: Math.round(input.trainingDay.calories),
+      p_training_protein: Math.round(input.trainingDay.protein),
+      p_training_carbs: Math.round(input.trainingDay.carbs),
+      p_training_fat: Math.round(input.trainingDay.fat),
+      p_rest_calories: Math.round(input.restDay.calories),
+      p_rest_protein: Math.round(input.restDay.protein),
+      p_rest_carbs: Math.round(input.restDay.carbs),
+      p_rest_fat: Math.round(input.restDay.fat),
+      p_water_ml: Math.round(input.waterMl),
       p_notes: input.notes ?? null,
     });
 

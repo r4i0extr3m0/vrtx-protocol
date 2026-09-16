@@ -168,6 +168,35 @@ export interface BodyMeasurementInput {
   notes?: string | null;
 }
 
+export interface NutritionTargets {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export type NutritionPlanStatus = "active" | "archived";
+
+export interface CoachNutritionPlan {
+  id: string;
+  coachId: string;
+  clientId: string;
+  trainingDay: NutritionTargets;
+  restDay: NutritionTargets;
+  waterMl: number;
+  notes?: string | null;
+  status: NutritionPlanStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NutritionPlanInput {
+  trainingDay: NutritionTargets;
+  restDay: NutritionTargets;
+  waterMl: number;
+  notes?: string | null;
+}
+
 export interface Exercise {
   id: string;
   name: string;

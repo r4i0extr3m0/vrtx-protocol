@@ -8,6 +8,7 @@ import { AppButton } from "@/src/components/AppButton";
 import { AppIcon } from "@/src/components/AppIcon";
 import { SectionCard } from "@/src/components/SectionCard";
 import {
+  getCoachClientNutritionPlan,
   listCoachCheckins,
   listCoachClientMeasurements,
   listCoachClientPrescriptions,
@@ -16,7 +17,12 @@ import { hasSupabaseEnv } from "@/src/constants/env";
 import { useI18n } from "@/src/i18n";
 import { useTabBarInset, useTheme } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
-import type { BodyMeasurement, CoachCheckin, CoachPrescription } from "@/src/types";
+import type {
+  BodyMeasurement,
+  CoachCheckin,
+  CoachNutritionPlan,
+  CoachPrescription,
+} from "@/src/types";
 
 function daysSince(isoDate: string): number {
   const target = new Date(`${isoDate}T00:00:00`);
@@ -67,6 +73,7 @@ export function StudentDetailScreen() {
   const [checkins, setCheckins] = useState<CoachCheckin[]>([]);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [prescriptions, setPrescriptions] = useState<CoachPrescription[]>([]);
+  const [nutritionPlan, setNutritionPlan] = useState<CoachNutritionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +102,13 @@ export function StudentDetailScreen() {
     setCheckins(checkinResult.data ?? []);
     setMeasurements(measurementResult.data ?? []);
     setPrescriptions(prescriptionResult.data ?? []);
+
+    const nutritionResult = await getCoachClientNutritionPlan(clientId);
+    if (nutritionResult.error) {
+      setError(nutritionResult.error);
+    } else {
+      setNutritionPlan(nutritionResult.data ?? null);
+    }
     setLoading(false);
   }, [clientId]);
 
@@ -226,6 +240,30 @@ export function StudentDetailScreen() {
                 label={t("studentDetail.prescribe")}
                 variant="brand"
                 onPress={() => navigate("/prescribe/[clientId]")}
+              />
+            </View>
+          </SummaryRow>
+
+          <SummaryRow
+            icon="Utensils"
+            iconColor={colors.warning}
+            title={t("nutrition.coachTitle")}
+            hint={
+              nutritionPlan
+                ? `${nutritionPlan.trainingDay.calories} / ${nutritionPlan.restDay.calories} kcal`
+                : t("nutrition.coachEmpty")
+            }
+          >
+            <View style={styles.rowFooter}>
+              <Text numberOfLines={1} style={[styles.rowMeta, { color: colors.muted }]}>
+                {nutritionPlan
+                  ? `${t("nutrition.trainingDay")} · ${t("nutrition.restDay")}`
+                  : t("nutrition.coachEmpty")}
+              </Text>
+              <AppButton
+                label={t("studentDetail.open")}
+                variant="secondary"
+                onPress={() => navigate("/coach/nutrition/[clientId]")}
               />
             </View>
           </SummaryRow>

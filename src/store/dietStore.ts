@@ -88,6 +88,7 @@ interface DietStoreState {
   goalsConfigured: boolean;
   goalsLockedManually: boolean;
   goalsSetupPromptDismissed: boolean;
+  coachPlanEnabled: boolean;
   hydrated: boolean;
   addMeal: (meal: Omit<Meal, "id" | "createdAt" | "updatedAt" | "syncStatus">) => Meal;
   updateMeal: (id: string, partial: Partial<Meal>) => void;
@@ -99,6 +100,7 @@ interface DietStoreState {
   setGoalsConfigured: (value: boolean) => void;
   setGoalsLockedManually: (value: boolean) => void;
   dismissGoalsSetupPrompt: () => void;
+  setCoachPlanEnabled: (value: boolean) => void;
   addFood: (food: Omit<Food, "id" | "syncStatus">) => Food;
   addWater: (amountMl: number) => void;
   resetWater: () => void;
@@ -214,6 +216,7 @@ export const useDietStore = create<DietStoreState>()(
       goalsConfigured: false,
       goalsLockedManually: false,
       goalsSetupPromptDismissed: false,
+      coachPlanEnabled: true,
       hydrated: false,
       addMeal: (mealData) => {
         const validated = mealSchema.parse(mealData);
@@ -312,6 +315,9 @@ export const useDietStore = create<DietStoreState>()(
       },
       dismissGoalsSetupPrompt: () => {
         set({ goalsSetupPromptDismissed: true });
+      },
+      setCoachPlanEnabled: (value) => {
+        set({ coachPlanEnabled: value });
       },
       addFood: (foodData) => {
         const validated = foodSchema.parse(foodData);
@@ -416,6 +422,7 @@ export const useDietStore = create<DietStoreState>()(
           goalsConfigured: persistedState?.goalsConfigured ?? hasDietHistory,
           goalsLockedManually: persistedState?.goalsLockedManually ?? false,
           goalsSetupPromptDismissed: persistedState?.goalsSetupPromptDismissed ?? hasDietHistory,
+          coachPlanEnabled: persistedState?.coachPlanEnabled ?? true,
         };
       },
       onRehydrateStorage: () => (state) => {
