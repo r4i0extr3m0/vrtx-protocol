@@ -6,21 +6,39 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { AppIcon, IconName } from "@/src/components/AppIcon";
-import { getMyNutritionPlan, listMyPrescriptions } from "@/src/api/supabase";
+import {
+  getMyNutritionPlan,
+  listMyNutritionCheckins,
+  listMyPrescriptions,
+  recordNutritionCheckin,
+} from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { useI18n } from "@/src/i18n";
 import {
+  calculateNutritionAdherence,
+  collectMealReminders,
   estimateWorkoutBurn,
   findTodayPrescription,
+  nutritionMealToDietItems,
   selectNutritionTargets,
+  sortNutritionMeals,
+  sumNutritionMeal,
 } from "@/src/domain/nutrition";
+import { cancelMealReminders, getMealRemindersEnabled, scheduleMealReminders } from "@/src/services/notifications";
 import { useTabBarInset, useTheme } from "@/src/hooks";
 import { useDietStore } from "@/src/store/dietStore";
 import { radius, spacing, shadows } from "@/src/theme";
 import * as Haptics from "expo-haptics";
 import { toIsoDate } from "@/src/utils";
 import { trackEvent, ANALYTICS_EVENTS } from "@/src/services/analytics";
-import type { CoachNutritionPlan, CoachPrescription, DailyGoals } from "@/src/types";
+import type {
+  CoachNutritionPlan,
+  CoachPrescription,
+  DailyGoals,
+  NutritionCheckin,
+  NutritionMeal,
+  NutritionMealType,
+} from "@/src/types";
 
 const MEAL_ICONS: Record<string, IconName> = {
   breakfast: "Coffee",
@@ -28,6 +46,28 @@ const MEAL_ICONS: Record<string, IconName> = {
   dinner: "Moon",
   snack: "Apple",
 };
+
+const PLAN_MEAL_ICONS: Record<NutritionMealType, IconName> = {
+  breakfast: "Coffee",
+  morningSnack: "Coffee",
+  lunch: "Utensils",
+  afternoonSnack: "Apple",
+  dinner: "Moon",
+  supper: "Moon",
+};
+
+const PLAN_TO_LOG_TYPE: Record<NutritionMealType, "breakfast" | "lunch" | "dinner" | "snack"> = {
+  breakfast: "breakfast",
+  morningSnack: "snack",
+  lunch: "lunch",
+  afternoonSnack: "snack",
+  dinner: "dinner",
+  supper: "snack",
+};
+
+function fmtNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(1)));
+}
 
 const MEAL_SECTIONS = [
   { key: "breakfast", label: "Cafe da manha", ratio: 0.25 },
@@ -47,6 +87,7 @@ export function DietLogScreen() {
     meals,
     dailyGoals,
     waterIntake,
+    addMeal,
     addWater,
     goalsConfigured,
     goalsSetupPromptDismissed,
@@ -60,17 +101,22 @@ export function DietLogScreen() {
   const [setupPromptVisible, setSetupPromptVisible] = useState(false);
   const [coachPlan, setCoachPlan] = useState<CoachNutritionPlan | null>(null);
   const [prescriptions, setPrescriptions] = useState<CoachPrescription[]>([]);
+  const [checkins, setCheckins] = useState<NutritionCheckin[]>([]);
+  const [loggingMealId, setLoggingMealId] = useState<string | null>(null);
+  const [remindersEnabled, setRemindersEnabled] = useState(getMealRemindersEnabled);
+  const [remindersBusy, setRemindersBusy] = useState(false);
 
   const todayMeals = useMemo(() => meals.filter((m) => m.date === today), [meals, today]);
 
   useEffect(() => {
     if (!online) return;
     let active = true;
-    Promise.all([getMyNutritionPlan(), listMyPrescriptions()]).then(
-      ([planResult, prescriptionResult]) => {
+    Promise.all([getMyNutritionPlan(), listMyPrescriptions(), listMyNutritionCheckins()]).then(
+      ([planResult, prescriptionResult, checkinResult]) => {
         if (!active) return;
         setCoachPlan(planResult.data ?? null);
         setPrescriptions(prescriptionResult.data ?? []);
+        setCheckins(checkinResult.data ?? []);
       },
     );
     return () => {
@@ -137,6 +183,118 @@ export function DietLogScreen() {
       ]
     : [];
   const netCalories = totals.calories - estimatedBurn;
+
+  const plannedMeals = useMemo(
+    () => sortNutritionMeals((coachPlan?.meals ?? []).filter((meal) => meal.items.length > 0)),
+    [coachPlan],
+  );
+  const todayCheckins = useMemo(
+    () => checkins.filter((checkin) => checkin.happenedOn === today),
+    [checkins, today],
+  );
+  const mealReminders = useMemo(() => {
+    if (plannedMeals.length === 0) return [];
+    return collectMealReminders(plannedMeals, t("nutrition.plannedMeals"));
+  }, [plannedMeals, t]);
+  const nutritionAdherence = useMemo(() => {
+    if (plannedMeals.length === 0) return null;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 6);
+    const cutoffIso = toIsoDate(cutoff);
+    const recent = checkins.filter((checkin) => checkin.happenedOn >= cutoffIso);
+    return calculateNutritionAdherence(plannedMeals.length, recent, 7);
+  }, [checkins, plannedMeals.length]);
+
+  const handleConsumeMeal = async (meal: NutritionMeal) => {
+    const targets = sumNutritionMeal(meal);
+    addMeal({
+      date: today,
+      mealType: PLAN_TO_LOG_TYPE[meal.type],
+      items: nutritionMealToDietItems(meal),
+      totalCalories: targets.calories,
+      totalProtein: targets.protein,
+      totalCarbs: targets.carbs,
+      totalFat: targets.fat,
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    trackEvent(ANALYTICS_EVENTS.DIET_MEAL_ADDED, {
+      entry_type: "planned_meal",
+      meal_type: PLAN_TO_LOG_TYPE[meal.type],
+      calories: targets.calories,
+    });
+
+    if (!online) return;
+    setLoggingMealId(meal.id);
+    const result = await recordNutritionCheckin({
+      mealId: meal.id,
+      mealType: meal.type,
+      happenedOn: today,
+      followed: true,
+      calories: targets.calories,
+    });
+    setLoggingMealId(null);
+    if (!result.error) {
+      setCheckins((current) => [
+        ...current.filter((item) => !(item.mealId === meal.id && item.happenedOn === today)),
+        {
+          id: `local-${meal.id}-${today}`,
+          coachId: coachPlan?.coachId ?? "",
+          clientId: coachPlan?.clientId ?? "",
+          mealId: meal.id,
+          mealType: meal.type,
+          happenedOn: today,
+          followed: true,
+          calories: targets.calories,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    }
+  };
+
+  const handleAdjustMeal = async (meal: NutritionMeal) => {
+    if (online) {
+      const result = await recordNutritionCheckin({
+        mealId: meal.id,
+        mealType: meal.type,
+        happenedOn: today,
+        followed: false,
+        calories: 0,
+      });
+      if (!result.error) {
+        setCheckins((current) => [
+          ...current.filter((item) => !(item.mealId === meal.id && item.happenedOn === today)),
+          {
+            id: `local-${meal.id}-${today}`,
+            coachId: coachPlan?.coachId ?? "",
+            clientId: coachPlan?.clientId ?? "",
+            mealId: meal.id,
+            mealType: meal.type,
+            happenedOn: today,
+            followed: false,
+            calories: 0,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      }
+    }
+    router.push({ pathname: "/diet/add-meal", params: { mealType: PLAN_TO_LOG_TYPE[meal.type] } } as never);
+  };
+
+  const handleToggleReminders = async () => {
+    if (remindersBusy) return;
+    setRemindersBusy(true);
+    try {
+      if (remindersEnabled) {
+        await cancelMealReminders();
+        setRemindersEnabled(false);
+      } else {
+        const scheduled = await scheduleMealReminders(mealReminders);
+        setRemindersEnabled(scheduled > 0);
+      }
+    } finally {
+      setRemindersBusy(false);
+    }
+  };
 
   const handleAddWater = (amount: number) => {
     addWater(amount);
@@ -219,6 +377,150 @@ export function DietLogScreen() {
                   </View>
                 ))}
               </View>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {plannedMeals.length ? (
+          <Animated.View entering={FadeInUp.delay(190)} style={styles.sectionBlock}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                {t("nutrition.plannedMeals")}
+              </Text>
+              {mealReminders.length ? (
+                <Pressable
+                  onPress={handleToggleReminders}
+                  disabled={remindersBusy}
+                  style={styles.summaryLink}
+                >
+                  <Text
+                    style={[
+                      styles.summaryLinkText,
+                      { color: remindersEnabled ? colors.success : colors.primary },
+                    ]}
+                  >
+                    {remindersEnabled ? t("nutrition.remindersEnabled") : t("nutrition.remindersTitle")}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {plannedMeals.map((meal, index) => {
+              const mealTargets = sumNutritionMeal(meal);
+              const checkin = todayCheckins.find((item) => item.mealId === meal.id);
+              const busy = loggingMealId === meal.id;
+
+              return (
+                <Animated.View
+                  key={meal.id}
+                  entering={FadeInDown.delay(220 + index * 60)}
+                  style={[styles.plannedMealCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+                >
+                  <View style={styles.plannedMealHeader}>
+                    <View style={[styles.mealRowIcon, { backgroundColor: colors.primary + "15" }]}>
+                      <AppIcon name={PLAN_MEAL_ICONS[meal.type]} size={18} color={colors.primary} />
+                    </View>
+                    <View style={styles.plannedMealInfo}>
+                      <Text style={[styles.plannedMealTitle, { color: colors.foreground }]}>
+                        {meal.title?.trim() || t(`nutrition.mealTypes.${meal.type}`)}
+                      </Text>
+                      <Text style={[styles.plannedMealMeta, { color: colors.muted }]}>
+                        {meal.time ? `${meal.time} · ` : ""}
+                        {mealTargets.calories} kcal · P {fmtNumber(mealTargets.protein)} · C{" "}
+                        {fmtNumber(mealTargets.carbs)} · G {fmtNumber(mealTargets.fat)}
+                      </Text>
+                    </View>
+                    {checkin ? (
+                      <View
+                        style={[
+                          styles.checkinBadge,
+                          { backgroundColor: (checkin.followed ? colors.success : colors.warning) + "22" },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.checkinBadgeText,
+                            { color: checkin.followed ? colors.success : colors.warning },
+                          ]}
+                        >
+                          {t("nutrition.consumedBadge")}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.plannedItems}>
+                    {meal.items.map((item) => (
+                      <View key={item.id}>
+                        <Text style={[styles.plannedItemText, { color: colors.foreground }]}>
+                          {fmtNumber(item.quantity)} {item.unit} · {item.name}
+                        </Text>
+                        {item.options?.length ? (
+                          <Text style={[styles.plannedItemOptions, { color: colors.muted }]}>
+                            {t("nutrition.substitutions")}: {item.options.map((option) => option.name).join(" / ")}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+
+                  {meal.notes?.trim() ? (
+                    <Text style={[styles.plannedNotes, { color: colors.muted }]}>{meal.notes}</Text>
+                  ) : null}
+
+                  {!checkin ? (
+                    <View style={styles.plannedActions}>
+                      <Pressable
+                        onPress={() => handleConsumeMeal(meal)}
+                        disabled={busy}
+                        style={[styles.consumeBtn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
+                      >
+                        <AppIcon name="Check" size={15} color="#04101f" />
+                        <Text style={styles.consumeBtnText}>{t("nutrition.consumeMeal")}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleAdjustMeal(meal)}
+                        style={[styles.adjustBtn, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}
+                      >
+                        <Text style={[styles.adjustBtnText, { color: colors.muted }]}>
+                          {t("nutrition.adjustMeal")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </Animated.View>
+              );
+            })}
+          </Animated.View>
+        ) : null}
+
+        {nutritionAdherence ? (
+          <Animated.View entering={FadeInDown.delay(240)}>
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+              <View style={styles.summaryActionsRow}>
+                <View style={styles.adherenceHeaderText}>
+                  <Text style={[styles.summaryTitle, { color: colors.foreground }]}>
+                    {t("nutrition.adherenceTitle")}
+                  </Text>
+                  <Text style={[styles.protocolHint, { color: colors.muted }]}>
+                    {t("nutrition.adherenceMeals", {
+                      followed: nutritionAdherence.followedMeals,
+                      planned: nutritionAdherence.plannedMeals,
+                    })}
+                  </Text>
+                </View>
+                <Text style={[styles.adherenceRate, { color: colors.primary }]}>
+                  {Math.round(nutritionAdherence.rate * 100)}%
+                </Text>
+              </View>
+              <View style={[styles.macroBarTrack, styles.adherenceTrack, { backgroundColor: colors.surfaceAlt }]}>
+                <View
+                  style={[styles.macroBarFill, { backgroundColor: colors.primary, width: `${nutritionAdherence.rate * 100}%` }]}
+                />
+              </View>
+              <Text style={[styles.burnHint, { color: colors.muted }]}>
+                {t("nutrition.adherenceAvg", { value: nutritionAdherence.avgCalories })}
+              </Text>
             </View>
           </Animated.View>
         ) : null}
@@ -618,6 +920,103 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: -0.5,
+  },
+  plannedMealCard: {
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  plannedMealHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  plannedMealInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  plannedMealTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+  plannedMealMeta: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  checkinBadge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  checkinBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  plannedItems: {
+    gap: 4,
+    paddingLeft: 2,
+  },
+  plannedItemText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  plannedItemOptions: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 1,
+  },
+  plannedNotes: {
+    fontSize: 12,
+    fontWeight: "600",
+    fontStyle: "italic",
+  },
+  plannedActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: 2,
+  },
+  consumeBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+  },
+  consumeBtnText: {
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+    color: "#04101f",
+  },
+  adjustBtn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+  },
+  adjustBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+  },
+  adherenceHeaderText: {
+    flex: 1,
+  },
+  adherenceRate: {
+    fontSize: 26,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  adherenceTrack: {
+    marginTop: spacing.sm,
   },
   emptyStateCard: {
     borderWidth: 1,

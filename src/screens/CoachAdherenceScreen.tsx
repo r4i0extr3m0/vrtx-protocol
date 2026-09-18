@@ -5,13 +5,18 @@ import { useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppIcon } from "@/src/components/AppIcon";
 import { SectionCard } from "@/src/components/SectionCard";
-import { listCoachCheckins } from "@/src/api/supabase";
+import {
+  getCoachClientNutritionPlan,
+  listCoachCheckins,
+  listCoachNutritionCheckins,
+} from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
+import { calculateNutritionAdherence } from "@/src/domain/nutrition";
 import { useI18n } from "@/src/i18n";
 import { useTabBarInset, useTheme } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
 import { formatVolume } from "@/src/utils";
-import type { CoachCheckin } from "@/src/types";
+import type { CoachCheckin, CoachNutritionPlan, NutritionCheckin, NutritionMealType } from "@/src/types";
 
 function formatDay(isoDate: string): string {
   const parts = isoDate.split("-");
@@ -27,6 +32,8 @@ function daysAgo(isoDate: string): number {
   return Math.max(0, Math.round(diff / (24 * 60 * 60 * 1000)));
 }
 
+const NUTRITION_WINDOW_DAYS = 7;
+
 export function CoachAdherenceScreen() {
   const params = useLocalSearchParams<{ clientId?: string; clientName?: string }>();
   const clientId = typeof params.clientId === "string" ? params.clientId : "";
@@ -36,11 +43,15 @@ export function CoachAdherenceScreen() {
   const { contentPaddingBottom, scrollIndicatorBottom } = useTabBarInset();
 
   const [checkins, setCheckins] = useState<CoachCheckin[]>([]);
+  const [nutritionCheckins, setNutritionCheckins] = useState<NutritionCheckin[]>([]);
+  const [nutritionPlan, setNutritionPlan] = useState<CoachNutritionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const online = hasSupabaseEnv();
   const title = clientName || t("adherence.clientFallback");
+
+  const mealTypeLabel = (type: NutritionMealType): string => t(`nutrition.mealTypes.${type}`);
 
   const load = useCallback(async () => {
     if (!clientId) {
@@ -49,12 +60,18 @@ export function CoachAdherenceScreen() {
     }
     setLoading(true);
     setError(null);
-    const result = await listCoachCheckins(clientId);
-    if (result.error) {
-      setError(result.error);
+    const [checkinResult, nutritionCheckinResult, planResult] = await Promise.all([
+      listCoachCheckins(clientId),
+      listCoachNutritionCheckins(clientId),
+      getCoachClientNutritionPlan(clientId),
+    ]);
+    if (checkinResult.error) {
+      setError(checkinResult.error);
     } else {
-      setCheckins(result.data ?? []);
+      setCheckins(checkinResult.data ?? []);
     }
+    setNutritionCheckins(nutritionCheckinResult.data ?? []);
+    setNutritionPlan(planResult.data ?? null);
     setLoading(false);
   }, [clientId]);
 
@@ -80,6 +97,22 @@ export function CoachAdherenceScreen() {
       { count: 0, volume: 0 },
     );
   }, [checkins]);
+
+  const nutritionAdherence = useMemo(() => {
+    const mealsPerDay = (nutritionPlan?.meals ?? []).filter((meal) => meal.items.length > 0).length;
+    if (mealsPerDay === 0) return null;
+    const windowStart = Date.now() - NUTRITION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const recent = nutritionCheckins.filter((item) => {
+      const timestamp = new Date(`${item.happenedOn}T00:00:00`).getTime();
+      return Number.isFinite(timestamp) && timestamp >= windowStart;
+    });
+    return calculateNutritionAdherence(mealsPerDay, recent, NUTRITION_WINDOW_DAYS);
+  }, [nutritionCheckins, nutritionPlan]);
+
+  const recentNutritionCheckins = useMemo(
+    () => nutritionCheckins.slice(0, 12),
+    [nutritionCheckins],
+  );
 
   const renderCheckin = (item: CoachCheckin) => {
     const days = daysAgo(item.happenedOn);
@@ -184,6 +217,87 @@ export function CoachAdherenceScreen() {
         ) : (
           <View style={styles.list}>{checkins.map(renderCheckin)}</View>
         )}
+
+        {nutritionAdherence ? (
+          <SectionCard
+            title={t("nutrition.adherenceTitle")}
+            subtitle={t("nutrition.adherenceMeals", {
+              followed: nutritionAdherence.followedMeals,
+              planned: nutritionAdherence.plannedMeals,
+            })}
+            delay={140}
+          >
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={[styles.statValue, { color: colors.foreground }]}>
+                  {Math.round(nutritionAdherence.rate * 100)}%
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>
+                  {t("nutrition.adherenceTitle")}
+                </Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={[styles.statValue, { color: colors.foreground }]}>
+                  {nutritionAdherence.followedMeals}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>
+                  {t("nutrition.consumeMeal")}
+                </Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={[styles.statValue, { color: colors.foreground }]}>
+                  {nutritionAdherence.avgCalories}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>
+                  {t("nutrition.calories")}
+                </Text>
+              </View>
+            </View>
+          </SectionCard>
+        ) : null}
+
+        {recentNutritionCheckins.length ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              {t("nutrition.recentCheckins")}
+            </Text>
+            <View style={styles.list}>
+              {recentNutritionCheckins.map((item) => (
+                <View
+                  key={item.id}
+                  style={[styles.checkinCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <View
+                    style={[
+                      styles.checkinIcon,
+                      { backgroundColor: (item.followed ? colors.success : colors.warning) + "18" },
+                    ]}
+                  >
+                    <AppIcon
+                      name="Utensils"
+                      size={18}
+                      color={item.followed ? colors.success : colors.warning}
+                    />
+                  </View>
+                  <View style={styles.checkinBody}>
+                    <View style={styles.checkinTop}>
+                      <Text numberOfLines={1} style={[styles.checkinName, { color: colors.foreground }]}>
+                        {mealTypeLabel(item.mealType)}
+                      </Text>
+                      <Text style={[styles.checkinDate, { color: colors.muted }]}>
+                        {formatDay(item.happenedOn)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.checkinMeta, { color: colors.muted }]}>
+                      {item.followed ? t("nutrition.consumedBadge") : t("nutrition.notFollowed")}
+                      {item.calories > 0 ? ` · ${item.calories} kcal` : ""}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </ScreenContainer>
   );

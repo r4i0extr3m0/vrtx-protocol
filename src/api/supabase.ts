@@ -3,6 +3,7 @@ import "react-native-url-polyfill/auto";
 import { createClient, type Session, type SupabaseClient, type User } from "@supabase/supabase-js";
 
 import { env, hasSupabaseEnv } from "@/src/constants/env";
+import { NUTRITION_MEAL_ORDER } from "@/src/domain/nutrition";
 import { storage } from "@/src/infra/mmkv";
 import type {
   BodyMeasurement,
@@ -14,6 +15,12 @@ import type {
   CoachClientListItem,
   CoachNutritionPlan,
   CoachPrescription,
+  NutritionCheckin,
+  NutritionCheckinInput,
+  NutritionFoodItem,
+  NutritionItemOption,
+  NutritionMeal,
+  NutritionMealType,
   NutritionPlanInput,
   PrescriptionExercise,
   PrescriptionExerciseInput,
@@ -719,9 +726,86 @@ interface NutritionPlanRow {
   rest_fat: number | string;
   water_ml: number | string;
   notes?: string | null;
+  meals?: unknown;
   status: CoachNutritionPlan["status"];
   created_at: string;
   updated_at: string;
+}
+
+function toFiniteNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sanitizeNutritionOptions(raw: unknown): NutritionItemOption[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+
+  const options: NutritionItemOption[] = [];
+  raw.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object") return;
+    const value = entry as Record<string, unknown>;
+    const name = typeof value.name === "string" ? value.name.trim() : "";
+    if (!name) return;
+    options.push({
+      id: typeof value.id === "string" ? value.id : `option-${index}`,
+      name,
+      quantity: toFiniteNumber(value.quantity),
+      unit: typeof value.unit === "string" && value.unit ? value.unit : "g",
+      calories: toFiniteNumber(value.calories),
+      protein: toFiniteNumber(value.protein),
+      carbs: toFiniteNumber(value.carbs),
+      fat: toFiniteNumber(value.fat),
+    });
+  });
+
+  return options.length > 0 ? options : undefined;
+}
+
+function sanitizeNutritionMeals(raw: unknown): NutritionMeal[] {
+  if (!Array.isArray(raw)) return [];
+
+  const meals: NutritionMeal[] = [];
+
+  raw.forEach((entry, mealIndex) => {
+    if (!entry || typeof entry !== "object") return;
+    const value = entry as Record<string, unknown>;
+    const type = value.type as NutritionMealType;
+    if (!NUTRITION_MEAL_ORDER.includes(type)) return;
+
+    const itemsRaw = Array.isArray(value.items) ? value.items : [];
+    const items: NutritionFoodItem[] = [];
+
+    itemsRaw.forEach((itemRaw, itemIndex) => {
+      if (!itemRaw || typeof itemRaw !== "object") return;
+      const item = itemRaw as Record<string, unknown>;
+      const name = typeof item.name === "string" ? item.name.trim() : "";
+      if (!name) return;
+      items.push({
+        id: typeof item.id === "string" ? item.id : `item-${itemIndex}`,
+        foodId: typeof item.foodId === "string" ? item.foodId : null,
+        name,
+        quantity: toFiniteNumber(item.quantity),
+        unit: typeof item.unit === "string" && item.unit ? item.unit : "g",
+        calories: toFiniteNumber(item.calories),
+        protein: toFiniteNumber(item.protein),
+        carbs: toFiniteNumber(item.carbs),
+        fat: toFiniteNumber(item.fat),
+        note: typeof item.note === "string" ? item.note : null,
+        options: sanitizeNutritionOptions(item.options),
+      });
+    });
+
+    meals.push({
+      id: typeof value.id === "string" ? value.id : `meal-${mealIndex}`,
+      type,
+      title: typeof value.title === "string" ? value.title : null,
+      time: typeof value.time === "string" ? value.time : null,
+      notes: typeof value.notes === "string" ? value.notes : null,
+      items,
+    });
+  });
+
+  return meals;
 }
 
 function mapNutritionPlan(row: NutritionPlanRow): CoachNutritionPlan {
@@ -743,6 +827,7 @@ function mapNutritionPlan(row: NutritionPlanRow): CoachNutritionPlan {
     },
     waterMl: Number(row.water_ml ?? 2500),
     notes: row.notes ?? null,
+    meals: sanitizeNutritionMeals(row.meals),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -761,7 +846,7 @@ async function fetchNutritionPlan(
     const baseQuery = client
       .from("coach_nutrition_plans")
       .select(
-        "id, coach_id, client_id, training_calories, training_protein, training_carbs, training_fat, rest_calories, rest_protein, rest_carbs, rest_fat, water_ml, notes, status, created_at, updated_at",
+        "id, coach_id, client_id, training_calories, training_protein, training_carbs, training_fat, rest_calories, rest_protein, rest_carbs, rest_fat, water_ml, notes, meals, status, created_at, updated_at",
       )
       .eq("status", "active");
 
@@ -823,6 +908,7 @@ export async function upsertCoachNutritionPlan(
       p_rest_fat: Math.round(input.restDay.fat),
       p_water_ml: Math.round(input.waterMl),
       p_notes: input.notes ?? null,
+      p_meals: input.meals ?? [],
     });
 
     if (error) {
@@ -833,4 +919,103 @@ export async function upsertCoachNutritionPlan(
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+// ------------------------------------------------------------------
+// VRTX Coach: check-in nutricional (aderencia de dieta)
+// ------------------------------------------------------------------
+
+interface NutritionCheckinRow {
+  id: string;
+  coach_id: string;
+  client_id: string;
+  meal_id: string;
+  meal_type: string;
+  happened_on: string;
+  followed: boolean;
+  calories: number | string;
+  created_at: string;
+}
+
+function mapNutritionCheckin(row: NutritionCheckinRow): NutritionCheckin {
+  const type = row.meal_type as NutritionMealType;
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    clientId: row.client_id,
+    mealId: row.meal_id,
+    mealType: NUTRITION_MEAL_ORDER.includes(type) ? type : "lunch",
+    happenedOn: row.happened_on,
+    followed: Boolean(row.followed),
+    calories: Number(row.calories ?? 0),
+    createdAt: row.created_at,
+  };
+}
+
+export async function recordNutritionCheckin(
+  input: NutritionCheckinInput,
+): Promise<{ error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { error } = await client.rpc("b2b_record_nutrition_checkin", {
+      p_meal_id: input.mealId,
+      p_meal_type: input.mealType,
+      p_happened_on: input.happenedOn,
+      p_calories: Math.round(input.calories),
+      p_followed: input.followed,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return {};
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function fetchNutritionCheckins(
+  clientId?: string,
+): Promise<{ data?: NutritionCheckin[]; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const baseQuery = client
+      .from("coach_nutrition_checkins")
+      .select("id, coach_id, client_id, meal_id, meal_type, happened_on, followed, calories, created_at");
+
+    const filteredQuery = clientId ? baseQuery.eq("client_id", clientId) : baseQuery;
+    const { data, error } = await filteredQuery
+      .order("happened_on", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: ((data ?? []) as NutritionCheckinRow[]).map(mapNutritionCheckin) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function listCoachNutritionCheckins(
+  clientId: string,
+): Promise<{ data?: NutritionCheckin[]; error?: string }> {
+  return fetchNutritionCheckins(clientId);
+}
+
+export async function listMyNutritionCheckins(): Promise<{
+  data?: NutritionCheckin[];
+  error?: string;
+}> {
+  return fetchNutritionCheckins();
 }

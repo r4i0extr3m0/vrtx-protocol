@@ -14,13 +14,15 @@ import { useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { AppButton } from "@/src/components/AppButton";
 import { AppIcon } from "@/src/components/AppIcon";
+import { NutritionMealPlanner } from "@/src/components/NutritionMealPlanner";
 import { SectionCard } from "@/src/components/SectionCard";
 import { getCoachClientNutritionPlan, upsertCoachNutritionPlan } from "@/src/api/supabase";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { useI18n } from "@/src/i18n";
 import { useTabBarInset, useTheme } from "@/src/hooks";
 import { radius, spacing, typography } from "@/src/theme";
-import type { NutritionPlanInput, NutritionTargets } from "@/src/types";
+import type { NutritionMeal, NutritionMealType, NutritionPlanInput, NutritionTargets } from "@/src/types";
+import { createId } from "@/src/utils";
 
 interface NumericFieldProps {
   label: string;
@@ -87,6 +89,19 @@ function parseTargets(form: TargetForm): NutritionTargets | null {
   return { calories, protein, carbs, fat };
 }
 
+const DEFAULT_MEAL_TYPES: NutritionMealType[] = ["breakfast", "lunch", "afternoonSnack", "dinner"];
+
+function createDefaultMeals(): NutritionMeal[] {
+  return DEFAULT_MEAL_TYPES.map((type) => ({
+    id: createId("meal"),
+    type,
+    title: null,
+    time: null,
+    notes: null,
+    items: [],
+  }));
+}
+
 export function CoachNutritionScreen() {
   const params = useLocalSearchParams<{ clientId?: string; clientName?: string }>();
   const clientId = typeof params.clientId === "string" ? params.clientId : "";
@@ -99,6 +114,7 @@ export function CoachNutritionScreen() {
   const [rest, setRest] = useState<TargetForm>(toForm(DEFAULTS.restDay));
   const [waterMl, setWaterMl] = useState(String(DEFAULTS.waterMl));
   const [notes, setNotes] = useState("");
+  const [meals, setMeals] = useState<NutritionMeal[]>(createDefaultMeals);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +137,9 @@ export function CoachNutritionScreen() {
       setRest(toForm(result.data.restDay));
       setWaterMl(String(result.data.waterMl));
       setNotes(result.data.notes ?? "");
+      if (result.data.meals.length > 0) {
+        setMeals(result.data.meals);
+      }
     }
     setLoading(false);
   }, [clientId]);
@@ -152,6 +171,7 @@ export function CoachNutritionScreen() {
       restDay: restTargets,
       waterMl: water,
       notes: notes.trim() || null,
+      meals: meals.filter((meal) => meal.items.length > 0 || Boolean(meal.title?.trim())),
     });
     setSaving(false);
 
@@ -252,7 +272,11 @@ export function CoachNutritionScreen() {
             {renderTargetFields(rest, setRest)}
           </SectionCard>
 
-          <SectionCard title={t("nutrition.water")} delay={180}>
+          <SectionCard title={t("nutrition.mealsTitle")} icon="Utensils" delay={180} subtitle={t("nutrition.mealsHint")}>
+            <NutritionMealPlanner meals={meals} onChange={setMeals} />
+          </SectionCard>
+
+          <SectionCard title={t("nutrition.water")} delay={240}>
             <NumericField
               label={t("nutrition.waterLabel")}
               value={waterMl}

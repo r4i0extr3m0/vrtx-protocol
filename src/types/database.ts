@@ -177,6 +177,48 @@ export interface NutritionTargets {
 
 export type NutritionPlanStatus = "active" | "archived";
 
+export type NutritionMealType =
+  | "breakfast"
+  | "morningSnack"
+  | "lunch"
+  | "afternoonSnack"
+  | "dinner"
+  | "supper";
+
+export interface NutritionItemOption {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface NutritionFoodItem {
+  id: string;
+  foodId?: string | null;
+  name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  note?: string | null;
+  options?: NutritionItemOption[];
+}
+
+export interface NutritionMeal {
+  id: string;
+  type: NutritionMealType;
+  title?: string | null;
+  time?: string | null;
+  notes?: string | null;
+  items: NutritionFoodItem[];
+}
+
 export interface CoachNutritionPlan {
   id: string;
   coachId: string;
@@ -185,6 +227,7 @@ export interface CoachNutritionPlan {
   restDay: NutritionTargets;
   waterMl: number;
   notes?: string | null;
+  meals: NutritionMeal[];
   status: NutritionPlanStatus;
   createdAt: string;
   updatedAt: string;
@@ -195,6 +238,38 @@ export interface NutritionPlanInput {
   restDay: NutritionTargets;
   waterMl: number;
   notes?: string | null;
+  meals?: NutritionMeal[];
+}
+
+export interface NutritionCheckin {
+  id: string;
+  coachId: string;
+  clientId: string;
+  mealId: string;
+  mealType: NutritionMealType;
+  happenedOn: string;
+  followed: boolean;
+  calories: number;
+  createdAt: string;
+}
+
+export interface NutritionCheckinInput {
+  mealId: string;
+  mealType: NutritionMealType;
+  happenedOn: string;
+  followed: boolean;
+  calories: number;
+}
+
+export interface TacoFood {
+  id: string;
+  name: string;
+  category: string;
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+  defaultUnit?: string;
 }
 
 export interface Exercise {

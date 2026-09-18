@@ -3,10 +3,14 @@ import * as Notifications from "expo-notifications";
 
 import { storage } from "@/src/infra/mmkv";
 import i18n from "@/src/i18n";
+import type { MealReminder } from "@/src/domain/nutrition";
 import type { CoachPrescription } from "@/src/types";
 
 const SEEN_KEY = "vrtxprotocol.prescriptions.seen";
 const CHANNEL_ID = "prescriptions";
+const MEAL_CHANNEL_ID = "meals";
+const MEAL_REMINDERS_KEY = "vrtxprotocol.mealReminders.enabled";
+const MEAL_REMINDER_PREFIX = "meal-reminder-";
 
 let handlerConfigured = false;
 
@@ -117,4 +121,88 @@ export async function notifyNewPrescriptions(
   }
 
   return sent;
+}
+
+// ------------------------------------------------------------------
+// Lembretes de refeicao (agendados a partir do plano do coach)
+// ------------------------------------------------------------------
+
+export function getMealRemindersEnabled(): boolean {
+  return storage.getString(MEAL_REMINDERS_KEY) === "1";
+}
+
+async function ensureMealChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+
+  try {
+    await Notifications.setNotificationChannelAsync(MEAL_CHANNEL_ID, {
+      name: "Lembretes de refeição",
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  } catch (error) {
+    console.warn("[notifications] meal channel setup failed", error);
+  }
+}
+
+async function clearScheduledMealReminders(): Promise<void> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      scheduled
+        .filter((item) => item.identifier?.startsWith(MEAL_REMINDER_PREFIX))
+        .map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier)),
+    );
+  } catch (error) {
+    console.warn("[notifications] clear meal reminders failed", error);
+  }
+}
+
+export async function cancelMealReminders(): Promise<void> {
+  storage.set(MEAL_REMINDERS_KEY, "0");
+  await clearScheduledMealReminders();
+}
+
+/**
+ * Agenda um lembrete diario para cada refeicao com horario definido no plano.
+ * Retorna quantos lembretes foram agendados.
+ */
+export async function scheduleMealReminders(reminders: MealReminder[]): Promise<number> {
+  if (reminders.length === 0) {
+    await cancelMealReminders();
+    return 0;
+  }
+
+  configureHandler();
+
+  const granted = await ensureNotificationPermission();
+  if (!granted) return 0;
+
+  await ensureMealChannel();
+  await clearScheduledMealReminders();
+
+  let scheduled = 0;
+  for (const reminder of reminders) {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${MEAL_REMINDER_PREFIX}${reminder.mealId}`,
+        content: {
+          title: reminder.title,
+          body: i18n.t("notifications.mealReminderBody"),
+          data: { mealId: reminder.mealId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: reminder.hour,
+          minute: reminder.minute,
+          channelId: MEAL_CHANNEL_ID,
+        },
+      });
+      scheduled += 1;
+    } catch (error) {
+      console.warn("[notifications] meal reminder schedule failed", error);
+    }
+  }
+
+  storage.set(MEAL_REMINDERS_KEY, scheduled > 0 ? "1" : "0");
+  return scheduled;
 }
