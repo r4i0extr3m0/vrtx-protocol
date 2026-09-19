@@ -2,7 +2,8 @@
 
 > Documento de estrategia e execucao do pivot de VRTX Protocol (app fitness B2C) para
 > plataforma de prescricao e acompanhamento para personal trainers (B2B2C).
-> Data: 08/09/2026. Status: VALIDACAO (fase de entrevistas com PTs antes de codar).
+> Data: 08/09/2026. Ultima atualizacao: 19/09/2026.
+> Status: MVP B2B2C implementado no app (validacao com mais PTs em paralelo).
 
 ---
 
@@ -47,7 +48,9 @@ composicao corporal como features de avaliacao.
 
 ## 5. MVP — escopo
 
-**Lado treinador (dashboard web)**
+> Nota: o MVP foi entregue **dentro do proprio app** (modo `coach`), sem dashboard web no MVP — decisao registrada na secao 11. A lista abaixo e o escopo funcional original.
+
+**Lado treinador (modo coach no app)**
 1. Login/role `coach`
 2. Cadastro de aluno + convite por link/QR/WhatsApp
 3. Montagem de treino (reusa biblioteca de exercicios/presets/dominio existentes)
@@ -62,7 +65,10 @@ composicao corporal como features de avaliacao.
 4. Devolver status automaticamente (fila de sync ja existe)
 5. Enviar avaliacao corporal/medidas ao PT
 
-**FORA do MVP:** dieta/reconhecimento de comida, chat de IA para aluno, social.
+**FORA do MVP (original):** dieta/reconhecimento de comida, chat de IA para aluno, social.
+
+> Atualizacao: a **dieta por refeicao** entrou no escopo depois do MVP inicial (junto de aderencia e medidas — ver secao 12). Seguem fora: reconhecimento de comida por camera, chat de IA para o aluno e social.
+
 Gamificacao vira bonus de engajamento. Assimetria/composicao corporal = feature paga ao PT.
 
 ## 6. Mudancas no modelo de dados (Supabase/Postgres)

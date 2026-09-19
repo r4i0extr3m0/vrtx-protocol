@@ -1,10 +1,10 @@
-# IronLog — Instruções para Instalar APK no Dispositivo
+# VRTX Protocol — Instruções para Instalar APK no Dispositivo
 
 ## ✅ APK Gerado com Sucesso!
 
-O APK foi compilado com sucesso em:
+O APK é compilado em:
 ```
-c:\Users\victo\ironlog\android\app\build\outputs\apk\release\app-release.apk
+android/app/build/outputs/apk/release/app-release.apk
 ```
 
 **Tamanho**: ~50-60 MB
@@ -28,7 +28,7 @@ c:\Users\victo\ironlog\android\app\build\outputs\apk\release\app-release.apk
 ### 2. Instalar APK
 
 ```bash
-adb install c:\Users\victo\ironlog\android\app\build\outputs\apk\release\app-release.apk
+adb install android/app/build/outputs/apk/release/app-release.apk
 ```
 
 **Esperado**:
@@ -39,10 +39,9 @@ Success
 ### 3. Abrir App
 
 ```bash
-adb shell am start -n com.ironlog.app/.MainActivity
-```
+adb shell am start -n com.vrtxprotocol.app/.MainActivity
 
-Ou abrir manualmente no dispositivo procurando por "IronLog"
+Ou abrir manualmente no dispositivo procurando por "VRTX Protocol"
 
 ---
 
@@ -70,8 +69,8 @@ Ou abrir manualmente no dispositivo procurando por "IronLog"
 - APK pode estar corrompido
 - Tentar novamente:
   ```bash
-  adb uninstall com.ironlog.app
-  adb install c:\Users\victo\ironlog\android\app\build\outputs\apk\release\app-release.apk
+  adb uninstall com.vrtxprotocol.app
+  adb install android/app/build/outputs/apk/release/app-release.apk
   ```
 
 ### Erro: "Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE]"
@@ -99,11 +98,15 @@ Ou abrir manualmente no dispositivo procurando por "IronLog"
    - Verificar se sincroniza
 
 3. **Navegação**
-   - Testar abas: Home, Treino, Histórico, Estatísticas
+   - Testar abas: Home, Treino, Histórico, Estatísticas, Dieta, Perfil (e "Meus Alunos" no modo coach)
    - Testar criação de treino
    - Testar visualização de histórico
 
-4. **Performance**
+4. **Modo coach (se aplicável)**
+   - Aplicar as migrations B2B no Supabase (ver `docs/SUPABASE_SETUP.md`)
+   - Cadastrar como "personal", gerar um convite e entrar com o código em outro dispositivo
+
+5. **Performance**
    - Verificar se app responde rápido
    - Verificar se não há travamentos
    - Verificar se animações são suaves

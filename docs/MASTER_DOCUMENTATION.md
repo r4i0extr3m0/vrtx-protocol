@@ -10,7 +10,19 @@ O **VRTX Protocol** e um aplicativo mobile premium de fitness, nutricao e acompa
 - mecanismos de engajamento, streaks e gamificacao;
 - operacao resiliente em ambiente mobile, com base tecnica preparada para sincronizacao, observabilidade e evolucao comercial.
 
-O projeto combina uma aplicacao mobile, um backend Node.js com tRPC, integracoes com Supabase, servicos de analytics/monitoramento e uma API complementar para recursos de IA.
+O projeto combina uma aplicacao mobile, uma API de dados no Supabase (Auth/DB/RLS), um backend Node.js opcional com tRPC, servicos de analytics/monitoramento e uma API complementar para recursos de IA.
+
+### 1.1 Reposicionamento B2B2C (estado atual)
+
+O VRTX Protocol nasceu como app fitness B2C (freemium + RevenueCat). Apos analise de mercado, o produto foi reposicionado para **B2B2C**: o **personal trainer** paga a assinatura e prescreve treino/nutricao; o **aluno** usa o app de graca.
+
+- Produto: **VRTX Coach** (modo coach + app do aluno no mesmo binario).
+- Papeis: `profiles.role` (`user` = praticante | `coach` = personal) + `cref` para coach.
+- Vinculo: codigo de convite `VRTX-XXXXXX` gerado pelo coach; isolamento por RLS.
+- Planos do PT (referencia): Basico (5 alunos), Plus (10), Premier (20); limite HARD no vinculo desde o MVP.
+- Escopo entregue ate agora: convite/vinculo, prescricao de treino, aderencia (feito x programado), avaliacoes/medidas corporais com mapa visual e plano nutricional com metas treino x descanso + menu por refeicao.
+- Documento canonico do pivot (decisoes, pricing, roadmap, riscos e status): `docs/ROADMAP_B2B.md`.
+- Cobranca permanece fora do escopo atual (fase posterior).
 
 ## 2. Visao do Produto
 
@@ -28,10 +40,15 @@ O VRTX Protocol busca entregar uma central de performance pessoal para usuarios 
 
 ### 2.3 Perfil de uso
 
-O projeto e aderente a usuarios que desejam:
+O produto atende dois perfis no mesmo app:
+
+**Personal trainer / dono de studio (coach).** Quer prescrever treino e dieta, entregar um app de qualidade ao aluno (nao PDF) e enxergar aderencia sem depender de WhatsApp/Excel.
+
+**Praticante (aluno ou usuario solo).** Quer:
 
 - registrar treinos e acompanhar evolucao historica;
 - monitorar ingestao alimentar e metas caloricas/macros;
+- seguir o plano prescrito pelo coach (quando vinculado) ou usar o app de forma autonoma (solo, gratis);
 - visualizar indicadores e estatisticas;
 - receber valor adicional por recursos premium, IA e personalizacao.
 
@@ -40,7 +57,8 @@ O projeto e aderente a usuarios que desejam:
 ### 3.1 Autenticacao e acesso
 
 - login por email e senha;
-- fluxo de criacao de conta;
+- fluxo de criacao de conta com escolha de papel: praticante (`user`) ou personal (`coach`, com CREF);
+- vinculo coach-aluno por codigo de convite (`VRTX-XXXXXX`), com guarda de papel;
 - fluxo de confirmacao de email;
 - `signup-wizard` como onboarding autenticado principal no estado atual do app;
 - wizard de cadastro/perfil em multiplas etapas com conta, perfil base, rotina, objetivo e composicao corporal opcional;
@@ -83,6 +101,17 @@ O projeto e aderente a usuarios que desejam:
 - exclusao de conta via Edge Function dedicada;
 - telas auxiliares como premium, sync status, camera e callback OAuth.
 
+### 3.6 Modo coach (B2B2C)
+
+- area "Meus Alunos": lista de alunos, geracao de convite, compartilhamento e remocao;
+- entrada por codigo de convite no lado do aluno + limite de alunos por plano (UI e RPC);
+- prescricao de treino: coach monta/atribui e o aluno ve o treino do dia;
+- aderencia: feito x programado (check-in ao concluir treino prescrito, lista por aluno e detalhe);
+- avaliacoes/medidas corporais enviadas pelo aluno, com historico e variacao, incluindo mapa corporal visual estilo bioimpedancia;
+- nutricao: metas para dia de treino x descanso, alternancia automatica pelo treino do dia, gasto estimado e saldo calorico;
+- plano por refeicao: menu do dia (cafe, almoco, lanche, jantar) com horario, itens e substituicoes; aluno marca "Consumi"/"Ajustei"; aderencia nutricional; lembretes locais; busca no banco TACO;
+- hub de detalhe do aluno concentrando aderencia, medidas e prescricao.
+
 ## 4. Estrutura de Navegacao
 
 O projeto utiliza **Expo Router** com estrutura baseada em arquivos.
@@ -100,20 +129,21 @@ O projeto utiliza **Expo Router** com estrutura baseada em arquivos.
   - `history`;
   - `statistics`;
   - `diet`;
+  - `students` (Meus Alunos — exibida no modo coach);
   - `profile`.
 
 ### 4.3 Rotas complementares
 
-- `login`;
-- `signup-wizard`;
-- `forgot-password`;
-- `terms-and-privacy`;
-- `camera`;
-- `profile`;
-- `gamification`;
-- `diet/*`;
-- `history/[id]`;
-- `workout/[id]`;
+- `login`, `signup-wizard`, `forgot-password`, `onboarding`;
+- `join-coach` (aluno entra com codigo de convite);
+- `coach/client/[clientId]` (hub do aluno);
+- `coach/adherence/[clientId]`, `coach/measurements/[clientId]`, `coach/nutrition/[clientId]`;
+- `prescribe/[clientId]` (montagem/atribuicao de treino);
+- `measurements` (avaliacao corporal do aluno);
+- `diet/*` (`index`, `add-meal`, `goals`);
+- `history/[id]`, `workout/[id]`;
+- `templates`, `exercises`, `reports`, `asymmetry`, `body-composition`, `ai-coach`;
+- `premium`, `settings`, `delete-account`, `sync-status`, `terms-and-privacy`, `camera`;
 - `oauth/callback`.
 
 ## 5. Arquitetura Tecnica
@@ -149,10 +179,14 @@ O repositorio contem uma camada de servidor em `server/` com:
 
 O ecossistema de dados contempla:
 
-- **Supabase** para autenticacao e servicos relacionados;
-- **Drizzle ORM** e migracoes em `drizzle/`;
-- suporte a configuracao por variaveis de ambiente;
+- **Supabase** para autenticacao e dados operacionais do app;
+- as **migrations canonicas da plataforma B2B vivem em `supabase/migrations/`** (`20260908` a `20260913`), com RLS por `auth.uid()`, papeis (`coach`/`user`) e RPCs `security definer` que validam o vinculo coach-aluno (inclusive limite de alunos por plano);
+- Edge Functions do Supabase para operacoes server-side (ex.: `delete-user-account`);
+- **Drizzle ORM** e o diretorio `drizzle/` como camada legada/opcional (nao e a fonte de verdade do schema B2B);
+- configuracao por variaveis de ambiente (`EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`);
 - estrutura para politicas, sincronizacao e expansao do backend.
+
+> Enquanto as migrations B2B nao forem aplicadas no projeto remoto, as telas de coach falham nos RPCs. Ordem de aplicacao e passos em `docs/SUPABASE_SETUP.md`.
 
 ### 5.4 Observabilidade e monetizacao
 
@@ -345,30 +379,35 @@ Os detalhes operacionais de configuracao permanecem documentados em:
 Pelo conjunto de telas, servicos e documentacao existente, o projeto ja contempla:
 
 - uma base funcional ampla para treino, nutricao e engajamento;
+- a plataforma **B2B2C (modo coach)** implementada no app: convite/vinculo, prescricao, aderencia, medidas e nutricao por refeicao;
 - identidade visual premium e forte orientacao a UX;
 - preparacao para analytics, monetizacao e IA;
 - infraestrutura suficiente para continuar iterando produto e distribuicao.
 
 As proximas evolucoes naturais incluem:
 
+- aplicar as migrations B2B (`20260908` a `20260913`) no projeto Supabase remoto;
 - endurecimento do fluxo de autenticacao em producao;
 - consolidacao do onboarding e signup wizard;
 - reducao adicional de ruido de logs e warnings;
 - ampliacao de cobertura de testes;
-- refinamento da camada premium e dos fluxos assistidos por IA.
+- cobranca do personal trainer (fase posterior) e refinamento dos fluxos assistidos por IA.
 
 ## 13. Mapa da Documentacao
 
 Todos os documentos do projeto foram centralizados em `docs/`. Os principais sao:
 
 - `docs/README.md`
+- `docs/ROADMAP_B2B.md` (canonico do pivot B2B2C)
 - `docs/ARCHITECTURE.md`
-- `docs/FEATURES.md`
 - `docs/SUPABASE_SETUP.md`
-- `docs/MONITORING_SETUP.md`
 - `docs/INSTALLATION.md`
+- `docs/MONITORING_SETUP.md`
 - `docs/TESTING_REPORT.md`
-- `docs/ROADMAP.md`
+- `docs/DOCUMENTATION_AUDIT.md`
 - `docs/logs do app.md`
+- `server/README.md`, `ai-api/README.md`
 
-Este arquivo deve ser tratado como a referencia principal para entendimento executivo e tecnico do projeto. Os demais documentos funcionam como anexos especializados por tema.
+`docs/ROADMAP.md`, `docs/FEATURES.md` e `docs/SUMMARY.md` sao documentos legados da fase B2C (misturam entregue e aspiracional) e devem ser lidos apenas como historico.
+
+Este arquivo deve ser tratado como a referencia principal para entendimento executivo e tecnico do projeto, sempre em conjunto com `docs/ROADMAP_B2B.md` (estrategia atual). Os demais documentos funcionam como anexos especializados por tema.

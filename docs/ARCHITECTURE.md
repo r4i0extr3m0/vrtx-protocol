@@ -1,12 +1,14 @@
-# IronLog — Arquitetura Técnica
+# VRTX Protocol — Arquitetura Técnica
 
 ## 1. Visão Geral
 
-IronLog é um aplicativo mobile offline-first construído com **React Native (Expo)** e **Supabase**. A arquitetura prioriza:
+VRTX Protocol é um aplicativo mobile offline-first construído com **React Native (Expo)**, **Supabase** (Auth/DB/RLS) e camadas opcionais em `server/` (Node/tRPC) e `ai-api/` (FastAPI). A arquitetura prioriza:
 - **Offline-First**: Funciona 100% sem internet
 - **Sincronização Delta**: Envia apenas mudanças para o servidor
 - **Privacidade**: Dados criptografados localmente
 - **Performance**: 60 FPS constante com FlashList
+
+> **Reposicionamento B2B2C (estado atual).** O app roda em dois modos no mesmo binário: **coach** (personal trainer) e **aluno/praticante**. O papel vem de `profiles.role` (`coach` | `user`); a relação coach-aluno é criada por código de convite e isolada por RLS, com RPCs `security definer` validando o vínculo (inclusive limite de alunos por plano). O schema canônico da plataforma B2B está em `supabase/migrations/20260908...20260913`. Estratégia e roadmap: `docs/ROADMAP_B2B.md`.
 
 ---
 
@@ -47,18 +49,29 @@ IronLog é um aplicativo mobile offline-first construído com **React Native (Ex
 ## 3. Estrutura de Pastas
 
 ```
-ironlog/
+vrtx-protocol/
 ├── app/                          # Rotas Expo Router
 │   ├── _layout.tsx              # Layout raiz com AuthGate
 │   ├── (tabs)/                  # Navegação com abas
-│   │   ├── _layout.tsx          # Layout das abas
+│   │   ├── _layout.tsx          # Layout das abas (condicionais por papel)
 │   │   ├── index.tsx            # Home
-│   │   ├── workout/             # Registro de treino
-│   │   ├── history/             # Histórico
-│   │   └── statistics.tsx       # Estatísticas
-│   ├── oauth/
-│   │   └── callback.tsx         # OAuth callback handler
+│   │   ├── workout.tsx          # Registro de treino
+│   │   ├── history.tsx          # Histórico
+│   │   ├── statistics.tsx       # Estatísticas
+│   │   ├── diet.tsx             # Dieta
+│   │   ├── students.tsx         # Meus Alunos (modo coach)
+│   │   └── profile.tsx          # Perfil
+│   ├── coach/                   # Área do coach (B2B2C)
+│   │   ├── client/[clientId].tsx        # Hub do aluno
+│   │   ├── adherence/[clientId].tsx     # Aderência
+│   │   ├── measurements/[clientId].tsx  # Medidas
+│   │   └── nutrition/[clientId].tsx     # Plano nutricional
+│   ├── prescribe/[clientId].tsx # Montagem/atribuição de treino
+│   ├── join-coach.tsx           # Entrada por código de convite
+│   ├── diet/                    # index, add-meal, goals
+│   ├── oauth/callback.tsx       # OAuth callback handler
 │   ├── login.tsx                # Tela de login
+│   ├── signup-wizard.tsx        # Onboarding autenticado
 │   └── ...                      # Outras telas
 │
 ├── src/
@@ -78,6 +91,11 @@ ironlog/
 │   │       ├── WorkoutService.ts
 │   │       └── ...
 │   │
+│   ├── coach/                   # Regras/utilitários do modo coach
+│   ├── data/                    # Bases curadas (ex.: tacoFoods.ts)
+│   ├── i18n/                    # Traduções pt/en/es (chaves aninhadas por dot-path)
+│   ├── types/                   # Tipos de domínio e do banco (database.ts)
+│   │
 │   ├── hooks/                   # Custom hooks
 │   │   ├── useAuth.ts           # Hook de autenticação
 │   │   ├── useWorkout.ts        # Hook de treino
@@ -93,6 +111,12 @@ ironlog/
 │   │   ├── HomeScreen.tsx
 │   │   ├── WorkoutScreen.tsx
 │   │   ├── HistoryScreen.tsx
+│   │   ├── CoachStudentsScreen.tsx      # Meus Alunos
+│   │   ├── CoachPrescriptionScreen.tsx  # Prescrição
+│   │   ├── CoachAdherenceScreen.tsx     # Aderência (treino + nutrição)
+│   │   ├── CoachMeasurementsScreen.tsx  # Medidas/avaliação
+│   │   ├── CoachNutritionScreen.tsx     # Plano nutricional + refeições
+│   │   ├── StudentDetailScreen.tsx      # Hub do aluno
 │   │   └── ...
 │   │
 │   ├── store/                   # Zustand stores
@@ -146,8 +170,9 @@ ironlog/
 ├── drizzle/                     # Migrations SQL
 │   └── ...
 │
+├── ai-api/                      # API opcional de IA (Python/FastAPI)
 ├── supabase/                    # Configuração Supabase
-│   └── ...
+│   └── migrations/              # Migrations canônicas (inclui as B2B 20260908+)
 │
 ├── global.css                   # Estilos globais
 ├── tailwind.config.js           # Configuração Tailwind
@@ -333,8 +358,15 @@ const useWorkoutStore = create<WorkoutState>()(
 │   ├── index               # Home
 │   ├── workout             # Registro de treino
 │   ├── history             # Histórico
-│   └── statistics          # Estatísticas
+│   ├── statistics          # Estatísticas
+│   ├── diet                # Dieta
+│   ├── students            # Meus Alunos (modo coach)
+│   └── profile             # Perfil
+├── coach/                  # Área do coach (client, adherence, measurements, nutrition)
+├── prescribe/[clientId]    # Prescrição de treino
+├── join-coach              # Entrada por código de convite
 ├── login                   # Tela de login
+├── signup-wizard           # Onboarding autenticado
 ├── oauth/callback          # OAuth callback
 └── [outros]                # Outras telas
 ```
@@ -346,6 +378,7 @@ O `AuthGate` em `app/_layout.tsx` controla o fluxo:
 2. Se autenticado → Redireciona para `(tabs)`
 3. Se não autenticado → Redireciona para `login`
 4. Protege rotas que requerem autenticação
+5. Aplica guarda de papel: rotas `coach/*` exigem `profiles.role = 'coach'`; o aluno sem vínculo é direcionado a `join-coach`
 
 ---
 
@@ -485,4 +518,4 @@ eas submit --platform android
 
 ---
 
-**Última atualização**: 31 de Março de 2026
+**Última atualização**: 19 de Setembro de 2026 (alinhado ao pivot B2B2C — ver `docs/ROADMAP_B2B.md`)

@@ -1,4 +1,4 @@
-# IronLog — Guia de Instalação
+# VRTX Protocol — Guia de Instalação
 
 ## 📱 Instalação Rápida
 
@@ -7,19 +7,22 @@ A forma mais rápida de testar o app em desenvolvimento:
 
 ```bash
 # 1. Clonar repositório
-git clone https://github.com/r4i0extr3m0/ironlog.git
-cd ironlog
+git clone https://github.com/r4i0extr3m0/vrtx-protocol.git
+cd vrtx-protocol
 
 # 2. Instalar dependências
 pnpm install
 
 # 3. Configurar variáveis de ambiente
-cp .env.example .env.local
-# Editar .env.local com suas credenciais Supabase
+cp .env.example .env
+# Editar .env com suas credenciais Supabase (ver docs/SUPABASE_SETUP.md)
 
-# 4. Rodar em desenvolvimento
-npx expo start --android
-# Escanear QR code com Expo Go no dispositivo
+# 4. Rodar em desenvolvimento (Metro na porta 8082)
+pnpm dev:metro
+# Para subir também a camada opcional de backend:
+# pnpm dev
+
+# 5. Escanear o QR code no dispositivo (Dev Client / Expo Go)
 ```
 
 ### Via APK (Produção)
@@ -71,8 +74,8 @@ export PATH=$PATH:$ANDROID_HOME/platform-tools
 ### Passo 1: Clonar Repositório
 
 ```bash
-git clone https://github.com/r4i0extr3m0/ironlog.git
-cd ironlog
+git clone https://github.com/r4i0extr3m0/vrtx-protocol.git
+cd vrtx-protocol
 ```
 
 ### Passo 2: Instalar Dependências
@@ -89,13 +92,15 @@ npm install
 
 ```bash
 # Copiar arquivo de exemplo
-cp .env.example .env.local
+cp .env.example .env
 
-# Editar .env.local com suas credenciais
+# Editar .env com suas credenciais
 # EXPO_PUBLIC_SUPABASE_URL=sua_url
-# EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave
-# EXPO_PUBLIC_FOOD_API_URL=sua_api_url
+# EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave_publica
+# EXPO_PUBLIC_AI_API_URL=http://localhost:8000
 ```
+
+> Não use arquivos `.env.local`: o app carrega as variáveis de `.env` (ver `scripts/load-env.js`).
 
 ### Passo 4: Conectar Dispositivo
 
@@ -110,10 +115,12 @@ adb devices
 
 ### Passo 5: Rodar em Desenvolvimento
 
-#### Opção A: Via Expo Go (Mais Rápido)
+#### Opção A: Via Metro / Dev Client (Mais Rápido)
 ```bash
-npx expo start --android
-# Escanear QR code com Expo Go
+pnpm dev:metro
+# Metro sobe na porta 8082; escaneie o QR code no Dev Client
+# Alternativa direta:
+npx expo start --android --port 8082
 ```
 
 #### Opção B: Via APK (Mais Realista)
@@ -129,7 +136,7 @@ cd android
 adb install app/build/outputs/apk/release/app-release.apk
 
 # Abrir app
-adb shell am start -n com.ironlog.app/.MainActivity
+adb shell am start -n com.vrtxprotocol.app/.MainActivity
 ```
 
 ---
@@ -143,8 +150,8 @@ adb shell am start -n com.ironlog.app/.MainActivity
 **Solução**:
 ```bash
 # Opção 1: Usar ADB reverse (USB)
-adb reverse tcp:8085 tcp:8085
-npx expo start --android --localhost
+adb reverse tcp:8082 tcp:8082
+npx expo start --android --localhost --port 8082
 
 # Opção 2: Usar WiFi (mesmo network)
 # Verificar IP da máquina
@@ -153,7 +160,7 @@ ipconfig              # Windows
 
 # Configurar no dispositivo
 # Expo Go > Dev Settings > Debug server host & port
-# Inserir: seu-ip:8085
+# Inserir: seu-ip:8082
 ```
 
 ### Erro: "MMKV initialization failed"
@@ -165,7 +172,7 @@ ipconfig              # Windows
 # App usa memory storage como fallback
 # Dados não serão persistidos entre sessões
 # Reinstalar app resolve:
-adb uninstall com.ironlog.app
+adb uninstall com.vrtxprotocol.app
 adb install app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -176,7 +183,7 @@ adb install app/build/outputs/apk/release/app-release.apk
 **Solução**:
 ```bash
 # 1. Verificar variáveis de ambiente
-cat .env.local
+cat .env
 
 # 2. Verificar conexão de internet
 ping 8.8.8.8
@@ -219,17 +226,20 @@ cd android
 
 ### Após Instalação
 1. **Abrir app** e fazer login com email/senha
-2. **Criar primeiro treino** para testar funcionalidade
-3. **Desabilitar internet** para testar offline-first
-4. **Sincronizar** quando conectar novamente
+2. **Aplicar as migrations B2B** no Supabase, na ordem `20260908` a `20260913` (ver `docs/SUPABASE_SETUP.md`)
+3. **Criar primeiro treino** para testar funcionalidade
+4. **Modo coach**: cadastre-se como "personal" no `signup-wizard`, gere um convite e entre com o código em outro dispositivo
+5. **Desabilitar internet** para testar offline-first
+6. **Sincronizar** quando conectar novamente
 
 ### Desenvolvimento
 1. Fazer alterações no código
 2. Salvar arquivo (Metro recarrega automaticamente)
 3. Testar no dispositivo
+4. Antes de commitar: `pnpm typecheck`, `pnpm lint` e `pnpm test`
 
 ### Contribuição
-Veja [CONTRIBUTING.md](CONTRIBUTING.md) para contribuir com melhorias
+Veja `../CONTRIBUTING.md` para contribuir com melhorias
 
 ---
 
@@ -248,7 +258,7 @@ Veja [CONTRIBUTING.md](CONTRIBUTING.md) para contribuir com melhorias
 R: Sim, use `npx expo start --android` e selecione o emulador
 
 **P: Preciso de conta Supabase?**
-R: Sim, crie em [supabase.com](https://supabase.com)
+R: Sim para login e recursos de coach; crie em [supabase.com](https://supabase.com) e aplique as migrations (ver `docs/SUPABASE_SETUP.md`)
 
 **P: Funciona offline?**
 R: Sim, 100% offline-first. Sincroniza quando conectar
@@ -257,7 +267,7 @@ R: Sim, 100% offline-first. Sincroniza quando conectar
 R: Sim, use `npx expo start --ios` (requer macOS)
 
 **P: Como contribuir?**
-R: Veja [CONTRIBUTING.md](CONTRIBUTING.md)
+R: Veja `../CONTRIBUTING.md`
 
 ---
 
