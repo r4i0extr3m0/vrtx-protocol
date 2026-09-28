@@ -4,4 +4,4 @@ ios/
 node_modules/
 dist/
 _zip_inspect/
-*.png
+vrtx-*.png
