@@ -439,11 +439,16 @@ describe("authStore", () => {
       },
       error: null,
     });
-    const invoke = vi.fn().mockResolvedValue({
-      data: { ok: true },
-      error: null,
-    });
+    const getSupabaseFunctionUrl = vi.fn(() => "https://example.supabase.co/functions/v1/delete-user-account");
+    const getSupabaseAnonKey = vi.fn(() => "anon-key");
     const resetPremium = vi.fn();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
 
     vi.doMock("@/src/infra/mmkv", () => ({
       mmkvJsonStorage: storage,
@@ -457,9 +462,10 @@ describe("authStore", () => {
       getCurrentSession: vi.fn(),
       getCurrentUser: vi.fn(),
       getPersistedAccessToken: vi.fn(() => null),
+      getSupabaseAnonKey,
+      getSupabaseFunctionUrl,
       getSupabaseClient: vi.fn(() => ({
         auth: { signInWithPassword, signOut },
-        functions: { invoke },
       })),
     }));
     vi.doMock("@/src/store/premiumStore", () => ({
@@ -469,6 +475,7 @@ describe("authStore", () => {
     }));
 
     const { useAuthStore } = await import("../src/store/authStore");
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
     useAuthStore.setState({
       user: {
         id: "user-1",
@@ -485,18 +492,27 @@ describe("authStore", () => {
       hasHydrated: true,
     });
 
-    const result = await useAuthStore.getState().deleteAccount("Test123456!");
+    let result: Awaited<ReturnType<typeof useAuthStore.getState.deleteAccount>>;
+    try {
+      result = await useAuthStore.getState().deleteAccount("Test123456!");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
 
     expect(result).toEqual({ success: true });
     expect(signInWithPassword).toHaveBeenCalledWith({
       email: "user@example.com",
       password: "Test123456!",
     });
-    expect(invoke).toHaveBeenCalledWith("delete-user-account", {
-      headers: {
-        Authorization: "Bearer access-token-1",
-      },
-      body: {},
+    expect(getSupabaseFunctionUrl).toHaveBeenCalledWith("delete-user-account");
+    expect(fetchMock).toHaveBeenCalledWith("https://example.supabase.co/functions/v1/delete-user-account", {
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: expect.any(String),
+        apikey: "anon-key",
+        "Content-Type": "application/json",
+      }),
+      body: "{}",
     });
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(clearPersistedAuthSession).toHaveBeenCalledTimes(1);
