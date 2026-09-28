@@ -1,11 +1,6 @@
 {
-  "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm exec expo export --platform web",
   "outputDirectory": "dist",
-  "cleanUrls": true,
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "cleanUrls": true
 }
