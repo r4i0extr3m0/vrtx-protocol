@@ -1,4 +1,7 @@
-# IronLog — Resumo de Melhorias e Documentações
+# VRTX Protocol - Resumo Histórico
+
+> Conteúdo legado do ciclo B2C. Consulte [`ROADMAP_B2B.md`](ROADMAP_B2B.md) e
+> [`MASTER_DOCUMENTATION.md`](MASTER_DOCUMENTATION.md) para decisões vigentes.
 
 ## 📋 O Que Foi Feito
 

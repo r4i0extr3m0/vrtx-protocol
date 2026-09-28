@@ -1,4 +1,7 @@
-# IronLog — Roadmap Público
+# VRTX Protocol — Roadmap Histórico
+
+> Este arquivo preserva o roadmap B2C original. Para o produto atual, use
+> [`ROADMAP_B2B.md`](ROADMAP_B2B.md), que e a fonte canonica do pivot B2B2C.
 
 ## Visão Geral
 IronLog é um diário de treino offline-first com foco em privacidade, performance e análise de assimetria muscular. Este roadmap detalha o plano de desenvolvimento para os próximos 12 meses.
@@ -201,7 +204,7 @@ Este roadmap é público e aberto a contribuições. Se você quer ajudar:
 4. **Submeta um PR** com descrição clara
 5. **Aguarde review** da comunidade
 
-Veja [CONTRIBUTING.md](CONTRIBUTING.md) para mais detalhes.
+Veja [CONTRIBUTING.md](../CONTRIBUTING.md) para mais detalhes.
 
 ---
 

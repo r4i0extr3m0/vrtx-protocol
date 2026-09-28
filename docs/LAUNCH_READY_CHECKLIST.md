@@ -1,5 +1,9 @@
 # Launch Ready
 
+> Este checklist cobre o aplicativo legado/tecnico. Para vender o VRTX Coach, use
+> tambem [`COMMERCIAL_LAUNCH.md`](COMMERCIAL_LAUNCH.md). Os checks abaixo precisam ser
+> executados novamente no checkout atual antes de marcar itens como concluidos.
+
 ## Changelog
 
 - Home simplificada para o Command Center com `Hoje`, `Status` e `Proxima acao`.
@@ -10,9 +14,9 @@
 
 ## Checklist
 
-- [x] `pnpm -s typecheck`
-- [x] `pnpm -s lint`
-- [x] `pnpm -s test`
+- [ ] `pnpm -s typecheck`
+- [ ] `pnpm -s lint`
+- [ ] `pnpm -s test`
 - [x] Metro iniciado em modo dev-client na porta `8082`
 - [x] Dev-client Android aberto via deep link em `com.vrtxprotocol.app/.MainActivity`
 - [ ] Navegacao visual completa no aparelho: `Home -> Treino -> Status -> Home`

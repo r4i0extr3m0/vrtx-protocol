@@ -105,11 +105,13 @@ serve(async (req) => {
   }
 
   const secret = Deno.env.get("REVENUECAT_WEBHOOK_SECRET");
-  if (secret) {
-    const token = getBearerToken(req.headers.get("authorization"));
-    if (token !== secret) {
-      return jsonResponse({ error: "unauthorized" }, 401);
-    }
+  if (!secret) {
+    return jsonResponse({ error: "webhook_not_configured" }, 500);
+  }
+
+  const token = getBearerToken(req.headers.get("authorization"));
+  if (token !== secret) {
+    return jsonResponse({ error: "unauthorized" }, 401);
   }
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");

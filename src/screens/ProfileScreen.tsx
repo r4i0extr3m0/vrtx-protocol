@@ -177,11 +177,18 @@ export function ProfileScreen() {
           <BiometricAuth />
           <View style={{ gap: spacing.md, marginTop: spacing.md }}>
             {isCoach ? (
-              <AppButton
-                label={t("profile.studentsCta")}
-                onPress={() => router.push("/students" as never)}
-                variant="brand"
-              />
+              <>
+                <AppButton
+                  label={t("profile.studentsCta")}
+                  onPress={() => router.push("/students" as never)}
+                  variant="brand"
+                />
+                <AppButton
+                  label="Plano e assinatura"
+                  onPress={() => router.push("/billing" as never)}
+                  variant="secondary"
+                />
+              </>
             ) : (
               <>
                 <AppButton

@@ -1,8 +1,15 @@
 # Backend Development Guide
 
+> Esta camada e opcional e ainda contem referencias do template Manus/tRPC. Ela nao e
+> o backend canonico do fluxo B2B2C: auth, RLS, vinculo coach-aluno, prescricao,
+> aderencia, medidas e nutricao ficam no Supabase. Consulte `docs/INTEROPERABILITY.md`
+> antes de adicionar uma rota aqui.
+
 This guide covers server-side features including authentication, database, tRPC API, and integrations. **Only read this if your app needs these capabilities.**
 
-For VRTX Protocol, treat `docs/README.md` and `docs/MASTER_DOCUMENTATION.md` as the canonical project references. This file is a specialized implementation guide for the optional `server/` + `drizzle/` stack.
+For VRTX Protocol, treat `docs/README.md`, `docs/MASTER_DOCUMENTATION.md` and
+`docs/ROADMAP_B2B.md` as the canonical project references. This file is a specialized
+implementation guide for the optional `server/` + `drizzle/` stack.
 
 ---
 

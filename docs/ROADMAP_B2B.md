@@ -2,8 +2,7 @@
 
 > Documento de estrategia e execucao do pivot de VRTX Protocol (app fitness B2C) para
 > plataforma de prescricao e acompanhamento para personal trainers (B2B2C).
-> Data: 08/09/2026. Ultima atualizacao: 19/09/2026.
-> Status: MVP B2B2C implementado no app (validacao com mais PTs em paralelo).
+> Data: 08/09/2026. Status: VALIDACAO (fase de entrevistas com PTs antes de codar).
 
 ---
 
@@ -48,9 +47,7 @@ composicao corporal como features de avaliacao.
 
 ## 5. MVP — escopo
 
-> Nota: o MVP foi entregue **dentro do proprio app** (modo `coach`), sem dashboard web no MVP — decisao registrada na secao 11. A lista abaixo e o escopo funcional original.
-
-**Lado treinador (modo coach no app)**
+**Lado treinador (dashboard web)**
 1. Login/role `coach`
 2. Cadastro de aluno + convite por link/QR/WhatsApp
 3. Montagem de treino (reusa biblioteca de exercicios/presets/dominio existentes)
@@ -65,11 +62,11 @@ composicao corporal como features de avaliacao.
 4. Devolver status automaticamente (fila de sync ja existe)
 5. Enviar avaliacao corporal/medidas ao PT
 
-**FORA do MVP (original):** dieta/reconhecimento de comida, chat de IA para aluno, social.
-
-> Atualizacao: a **dieta por refeicao** entrou no escopo depois do MVP inicial (junto de aderencia e medidas — ver secao 12). Seguem fora: reconhecimento de comida por camera, chat de IA para o aluno e social.
-
+**FORA do MVP:** reconhecimento de comida, chat de IA para aluno, social.
 Gamificacao vira bonus de engajamento. Assimetria/composicao corporal = feature paga ao PT.
+
+> Dieta nao esta fora do MVP atual: metas nutricionais e plano por refeicao foram implementados
+> nas migrations `20260912_b2b_nutrition.sql` e `20260913_b2b_nutrition_meals.sql`.
 
 ## 6. Mudancas no modelo de dados (Supabase/Postgres)
 
@@ -143,7 +140,7 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 - **Vinculo:** codigo de convite unico (ex.: VRTX-XXXXXX) gerado pelo coach; aluno
   entra com o codigo dentro do app. Nada de dados misturados: isolamento por RLS.
 - **Limite de alunos:** HARD por plano desde o MVP (gate no momento do vinculo),
-  mesmo sem cobranca implementada.
+  com enforcement adicional pelo status da assinatura Stripe.
 - **Usuario avulso (solo):** MANTIDO. Conta `client` sem coach continua logando treinos
   com versao limitada gratuita (e o que o VRTX ja faz). Sem canibalizacao: o que o PT
   paga e a gestao de alunos, nao o proprio log. Hero do produto = coach; solo = funil.
@@ -151,18 +148,18 @@ Objetivo: confirmar dor, fluxo e disposicao de pagar — nao pedir opiniao sobre
 ## 12. Status de implementacao
 
 - [x] Fase 0 com GO preliminar (1 PT; validar 2+ PTs em paralelo)
-- [x] Migration Supabase B2B escrita (`20260908_b2b_coach_platform.sql`: roles, planos, `coach_clients`, RLS) — pendente aplicar no projeto remoto
+- [x] Migrations Supabase B2B aplicadas no projeto remoto (`20260908` a `20260919`)
 - [x] RPCs de convite (`b2b_create_invite` / `b2b_claim_invite`, com limite do plano)
 - [x] Auth/signup com "Tipo de conta" (praticante | personal) + CREF
 - [x] Area coach no app (Meus Alunos, gerar convite, compartilhar, remover aluno)
 - [x] Fluxo aluno (entrar com codigo + guarda de role)
 - [x] Limite de alunos por plano (UI + gate no RPC)
 - [x] i18n das telas novas (pt/en/es) + mecanismo reativo reativado
-- [x] Prescricao: coach monta/atribui treino e aluno ve o treino do dia (migration `20260909_b2b_prescriptions.sql` — pendente aplicar no remoto)
-- [x] Aderencia: feito x programado (check-in ao concluir treino prescrito; lista por aluno + tela de detalhe) — migration `20260910_b2b_adherence.sql` pendente aplicar no remoto
-- [x] Medidas/avaliacao corporal enviadas ao coach (form + historico do aluno; visao do coach com ultima avaliacao e variacao; mapa corporal visual estilo bioimpedancia) — migration `20260911_b2b_measurements.sql` pendente aplicar no remoto
+- [x] Prescricao: coach monta/atribui treino e aluno ve o treino do dia (migration `20260909_b2b_prescriptions.sql`)
+- [x] Aderencia: feito x programado (check-in ao concluir treino prescrito; lista por aluno + tela de detalhe) — migration `20260910_b2b_adherence.sql`
+- [x] Medidas/avaliacao corporal enviadas ao coach (form + historico do aluno; visao do coach com ultima avaliacao e variacao; mapa corporal visual estilo bioimpedancia) — migration `20260911_b2b_measurements.sql`
 - [x] Extras: hub de detalhe do aluno (aderencia/medidas/prescricao num so lugar) e notificacao local de novo treino prescrito
-- [x] Dieta conectada ao treino: coach prescreve metas nutricionais (dia de treino x descanso) e o aluno ve o plano na aba Dieta, com alternancia automatica pelo treino do dia, gasto estimado e saldo calorico — migration `20260912_b2b_nutrition.sql` pendente aplicar no remoto
-- [x] Plano por refeicao (estilo diario alimentar): coach monta o menu do dia (cafe, almoco, lanche, jantar) com horario, itens e substituicoes; aluno marca "Consumi"/"Ajustei" por refeicao; aderencia nutricional (7 dias) no painel do coach e no diario; lembretes locais de refeicao; busca de alimentos no banco TACO (curado) ou entrada livre — migration `20260913_b2b_nutrition_meals.sql` pendente aplicar no remoto
-- [ ] Cobranca (adiada — fase posterior)
+- [x] Dieta conectada ao treino: coach prescreve metas nutricionais (dia de treino x descanso) e o aluno ve o plano na aba Dieta, com alternancia automatica pelo treino do dia, gasto estimado e saldo calorico — migration `20260912_b2b_nutrition.sql`
+- [x] Plano por refeicao (estilo diario alimentar): coach monta o menu do dia (cafe, almoco, lanche, jantar) com horario, itens e substituicoes; aluno marca "Consumi"/"Ajustei" por refeicao; aderencia nutricional (7 dias) no painel do coach e no diario; lembretes locais de refeicao; busca de alimentos no banco TACO (curado) ou entrada livre — migration `20260913_b2b_nutrition_meals.sql`
+- [x] Fundacao comercial Stripe: assinatura, checkout, webhook e enforcement de plano — migration `20260919_b2b_stripe_billing.sql`
 

@@ -1,4 +1,7 @@
-# IronLog - Funcionalidades Implementadas
+# VRTX Protocol - Funcionalidades e Histórico
+
+> Este inventário contém itens legados e aspiracionais. O estado atual do produto e o
+> escopo B2B2C devem ser conferidos em [`ROADMAP_B2B.md`](ROADMAP_B2B.md).
 
 ## Fase 1: Autenticação e Onboarding Aprimorado ✅
 

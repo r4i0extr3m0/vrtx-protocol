@@ -358,7 +358,7 @@ export const useAuthStore = create<AuthStoreState>()(
                 terms_accepted_at: legalAcceptance.acceptedAt,
                 terms_version: legalAcceptance.version ?? LEGAL_VERSION,
                 privacy_version: legalAcceptance.version ?? LEGAL_VERSION,
-                ...(isCoach ? { role: "coach", coachPlan: "basic", cref: accountOptions?.cref ?? "" } : {}),
+                ...(isCoach ? { role: "coach", coachPlan: "free", cref: accountOptions?.cref ?? "" } : {}),
               },
             },
           });
@@ -377,7 +377,7 @@ export const useAuthStore = create<AuthStoreState>()(
                 ? {
                     role: "coach",
                     cref: accountOptions?.cref ?? null,
-                    coach_plan: "basic",
+                    coach_plan: "free",
                   }
                 : { role: "client" }),
             });

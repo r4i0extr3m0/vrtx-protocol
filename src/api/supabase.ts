@@ -140,6 +140,28 @@ export function getPersistedAccessToken(): string | null {
   return null;
 }
 
+export async function createCoachCheckoutSession(
+  plan: "basic" | "plus" | "premier",
+): Promise<{ url?: string; error?: string }> {
+  if (!hasSupabaseEnv()) {
+    return { error: "Supabase não configurado." };
+  }
+
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke("create-checkout-session", {
+      body: { plan },
+    });
+    if (error) return { error: error.message };
+    const url = (data as { url?: unknown } | null)?.url;
+    return typeof url === "string" && url.length > 0
+      ? { url }
+      : { error: "O checkout não retornou uma URL válida." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 // ------------------------------------------------------------------
 // VRTX Coach: vínculo personal <-> aluno
 // ------------------------------------------------------------------

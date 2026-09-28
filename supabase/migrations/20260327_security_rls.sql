@@ -12,6 +12,8 @@ CREATE POLICY "Usuários podem ver seu próprio perfil" ON profiles
   FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Usuários podem atualizar seu próprio perfil" ON profiles
   FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Usuários podem inserir seu próprio perfil" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Políticas genéricas para tabelas com 'user_id'
 -- (exercises, templates, workouts, meals, foods, gamification)

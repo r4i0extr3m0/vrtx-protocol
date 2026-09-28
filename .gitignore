@@ -73,6 +73,9 @@ Thumbs.db
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 
+# Supabase CLI local project link metadata
+supabase/.temp/
+
 # Python (AI API)
 __pycache__/
 *.pyc

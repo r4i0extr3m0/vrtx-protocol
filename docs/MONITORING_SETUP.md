@@ -7,20 +7,20 @@ Este documento descreve como configurar Firebase, Sentry e PostHog no projeto Ir
 Os seguintes arquivos foram criados com placeholders e precisam ser preenchidos com suas chaves reais:
 
 ### 1. `.env.local` (Variáveis de Ambiente)
-Localização: `c:\Users\victo\ironlog\.env.local`
+Localização: `.env` na raiz do VRTX Protocol
 
 Preencha com suas chaves reais:
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://kweokxwnknygrtxmplwd.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_secret_YDWaNRJzArnDqIeEyh0gKQ_nzf7auPF
-EXPO_PUBLIC_FOOD_API_URL=https://api.ironlog.ai/v1/recognize
+EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-publica-anon
+EXPO_PUBLIC_AI_API_URL=http://localhost:8000
 EXPO_PUBLIC_SENTRY_DSN=https://your-dsn@sentry.io/project-id
 EXPO_PUBLIC_POSTHOG_API_KEY=phc_your_key_here
 EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 ### 2. `sentry.properties` (Configuração Sentry)
-Localização: `c:\Users\victo\ironlog\sentry.properties`
+Localização: `sentry.properties` na raiz do projeto
 
 Preencha com seus dados do Sentry:
 ```
@@ -30,7 +30,7 @@ auth.token=SEU_AUTH_TOKEN
 ```
 
 ### 3. `google-services.json` (Configuração Firebase)
-Localização: `c:\Users\victo\ironlog\google-services.json`
+Localização: `google-services.json` na raiz do projeto
 
 **Importante**: Este arquivo contém credenciais sensíveis e está no `.gitignore`. 
 Baixe o arquivo real do Firebase Console e substitua o placeholder.
@@ -143,7 +143,7 @@ await testUserIdentification('user_123', 'user@example.com');
 ## 🔒 Segurança
 
 - **Nunca commite** `google-services.json` ou chaves reais no repositório
-- Use `.env.local` para variáveis locais (já está no `.gitignore`)
+- Use `.env` para variáveis locais (já está no `.gitignore`)
 - Mantenha `sentry.properties` fora do repositório público
 - Use variáveis de ambiente com prefixo `EXPO_PUBLIC_` apenas para dados públicos
 

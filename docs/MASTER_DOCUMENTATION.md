@@ -24,6 +24,17 @@ O VRTX Protocol nasceu como app fitness B2C (freemium + RevenueCat). Apos analis
 - Documento canonico do pivot (decisoes, pricing, roadmap, riscos e status): `docs/ROADMAP_B2B.md`.
 - Cobranca permanece fora do escopo atual (fase posterior).
 
+## 1.1 Estado de produto: B2B2C
+
+O produto atual e o **VRTX Coach**. O cliente pagante e o personal trainer (`coach`),
+que gerencia alunos (`client`) no mesmo app. O aluno pode continuar usando a conta solo
+sem coach; quando vinculado, recebe treino, acompanhamento de aderencia, avaliacao corporal
+e plano nutricional. Convites, limites de alunos e isolamento entre tenants ficam no
+Supabase, com `profiles.role`, `profiles.coach_plan` e `coach_clients`.
+
+O escopo e o status executavel estao em [`ROADMAP_B2B.md`](ROADMAP_B2B.md). `ROADMAP.md`,
+`FEATURES.md` e `SUMMARY.md` sao historicos/aspiracionais e nao substituem esse documento.
+
 ## 2. Visao do Produto
 
 ### 2.1 Proposta de valor
@@ -85,6 +96,8 @@ O produto atende dois perfis no mesmo app:
 - configuracao inicial de metas nutricionais a partir do cadastro;
 - calculo de progresso calorico e macros;
 - banner e fluxo para camera/IA aplicada a alimentacao.
+- no fluxo B2B2C, o coach pode prescrever metas para dias de treino/descanso e um menu por
+  refeicao; o aluno registra "Consumi" ou "Ajustei".
 
 ### 3.4 Performance e engajamento
 
@@ -185,6 +198,8 @@ O ecossistema de dados contempla:
 - **Drizzle ORM** e o diretorio `drizzle/` como camada legada/opcional (nao e a fonte de verdade do schema B2B);
 - configuracao por variaveis de ambiente (`EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`);
 - estrutura para politicas, sincronizacao e expansao do backend.
+- migrations Supabase B2B em `supabase/migrations/20260908` a `20260919`, aplicadas nessa ordem;
+  elas sao a fonte de verdade do multi-tenant.
 
 > Enquanto as migrations B2B nao forem aplicadas no projeto remoto, as telas de coach falham nos RPCs. Ordem de aplicacao e passos em `docs/SUPABASE_SETUP.md`.
 
@@ -195,7 +210,7 @@ O projeto integra ou prepara integracao com:
 - **Sentry** para erros e monitoramento;
 - **Firebase Analytics**;
 - **PostHog**;
-- **RevenueCat** para monetizacao e assinatura premium.
+- **Stripe Billing** para assinaturas B2B do coach; RevenueCat permanece legado do fluxo B2C.
 
 ### 5.5 IA e recursos complementares
 
@@ -234,7 +249,7 @@ Existe uma API dedicada em `ai-api/` baseada em **FastAPI**, voltada a recomenda
 - Sentry
 - Firebase Analytics / Crashlytics
 - PostHog
-- RevenueCat
+- Stripe Billing
 
 ### 6.5 Ferramentas de desenvolvimento
 

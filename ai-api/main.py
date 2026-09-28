@@ -86,7 +86,8 @@ SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
 # Segurança: em produção, NÃO confie em user_id via header/body.
 # Use o token do Supabase (Authorization: Bearer <access_token>).
-ALLOW_INSECURE_USER_ID = os.environ.get("ALLOW_INSECURE_USER_ID", "true").lower() == "true"
+# Only enable the header/body identity fallback during explicit local development.
+ALLOW_INSECURE_USER_ID = os.environ.get("ALLOW_INSECURE_USER_ID", "false").lower() == "true"
 
 
 # Fallback local para dev (quando Redis não está configurado).
