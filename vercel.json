@@ -1,6 +1,6 @@
 {
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm exec expo export --platform web",
+  "buildCommand": "pnpm exec expo export --platform web && node scripts/patch-web-modules.mjs",
   "outputDirectory": "dist",
   "cleanUrls": true
 }
