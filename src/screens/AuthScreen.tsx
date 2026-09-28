@@ -373,6 +373,15 @@ export function AuthScreen() {
                         {mode === "login" ? "Criar conta" : "Ja tenho conta"}
                       </Text>
                     </Pressable>
+
+                    <Pressable
+                      onPress={handleContinueOffline}
+                      accessibilityLabel="Explorar como visitante"
+                      style={styles.guestButton}
+                    >
+                      <Text style={[styles.guestButtonText, { color: colors.primary }]}>Explorar como visitante</Text>
+                      <Text style={[styles.guestButtonHint, { color: colors.muted }]}>Navegacao local sem criar conta</Text>
+                    </Pressable>
                   </View>
                 </>
               )}
@@ -655,6 +664,18 @@ const styles = StyleSheet.create({
     fontSize: typography.size.base,
     fontWeight: "700",
     letterSpacing: 0.2,
+  },
+  guestButton: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  guestButtonText: {
+    fontSize: typography.body,
+    fontWeight: "800",
+  },
+  guestButtonHint: {
+    fontSize: typography.bodySm,
   },
   footer: {
     alignItems: "center",
