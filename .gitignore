@@ -72,6 +72,8 @@ Thumbs.db
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
+_zip_inspect/
+vrtx-*.png
 
 # Supabase CLI local project link metadata
 supabase/.temp/
