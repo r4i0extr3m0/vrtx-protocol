@@ -492,12 +492,13 @@ describe("authStore", () => {
       hasHydrated: true,
     });
 
-    let result: Awaited<ReturnType<typeof useAuthStore.getState.deleteAccount>>;
-    try {
-      result = await useAuthStore.getState().deleteAccount("Test123456!");
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    const result = await (async () => {
+      try {
+        return await useAuthStore.getState().deleteAccount("Test123456!");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    })();
 
     expect(result).toEqual({ success: true });
     expect(signInWithPassword).toHaveBeenCalledWith({
