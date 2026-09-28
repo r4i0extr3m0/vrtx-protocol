@@ -18,6 +18,7 @@ describe("exerciseStore", () => {
     }));
 
     const { useExerciseStore } = await import("../src/store/exerciseStore");
+    useExerciseStore.setState({ exercises: [] });
     const exercise = useExerciseStore.getState().createExercise({
       name: "Supino reto",
       muscleGroup: "Peito",
@@ -42,6 +43,7 @@ describe("exerciseStore", () => {
     }));
 
     const { useExerciseStore } = await import("../src/store/exerciseStore");
+    useExerciseStore.setState({ exercises: [] });
     const exercise = useExerciseStore.getState().createExercise({ name: "Agachamento", muscleGroup: "Pernas" });
     useExerciseStore.getState().updateExercise(exercise.id, { name: "Agachamento livre" });
 
@@ -63,6 +65,7 @@ describe("exerciseStore", () => {
     }));
 
     const { useExerciseStore } = await import("../src/store/exerciseStore");
+    useExerciseStore.setState({ exercises: [] });
     const exercise = useExerciseStore.getState().createExercise({ name: "Remada", muscleGroup: "Costas" });
     useExerciseStore.getState().deleteExercise(exercise.id);
 
