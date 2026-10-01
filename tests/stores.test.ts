@@ -492,7 +492,7 @@ describe("authStore", () => {
       hasHydrated: true,
     });
 
-    let result: Awaited<ReturnType<typeof useAuthStore.getState.deleteAccount>>;
+    let result: { success: boolean; message?: string };
     try {
       result = await useAuthStore.getState().deleteAccount("Test123456!");
     } finally {

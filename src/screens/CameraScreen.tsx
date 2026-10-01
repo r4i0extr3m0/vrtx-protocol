@@ -82,7 +82,7 @@ export function CameraScreen() {
   };
 
   return (
-    <ScreenContainer className="bg-black">
+    <ScreenContainer className="bg-black" webContentMaxWidth={false}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

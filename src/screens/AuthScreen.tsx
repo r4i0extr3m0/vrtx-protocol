@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -25,6 +26,7 @@ import { radius, spacing, typography } from "@/src/theme";
 export function AuthScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { signIn, signUp, status, isAuthenticated, setGuestMode } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -34,6 +36,8 @@ export function AuthScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const supabaseReady = useMemo(() => hasSupabaseEnv(), []);
+  const isWeb = Platform.OS === "web";
+  const webContentWidth = Math.min(Math.max(width - 32, 360), 860);
   const metrics = useMemo(
     () =>
       supabaseReady
@@ -149,22 +153,23 @@ export function AuthScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.content,
-              {
-                paddingTop: Math.max(insets.top + spacing.lg, 44),
-              },
-            ]}
-          >
-            <View pointerEvents="none" style={styles.background}>
+          <View style={[styles.contentShell, isWeb ? { maxWidth: webContentWidth } : null]}>
+            <View
+              style={[
+                styles.content,
+                {
+                  paddingTop: Math.max(insets.top + spacing.lg, 44),
+                },
+              ]}
+            >
+              <View pointerEvents="none" style={styles.background}>
               <View style={[styles.orbLarge, { backgroundColor: colors.primaryGlow }]} />
               <View style={[styles.orbSmall, { backgroundColor: "rgba(255,255,255,0.05)" }]} />
               <View style={[styles.gridLine, styles.gridTop, { borderColor: colors.border }]} />
               <View style={[styles.gridLine, styles.gridBottom, { borderColor: colors.border }]} />
             </View>
 
-            <View style={styles.topBar}>
+              <View style={styles.topBar}>
               <View style={[styles.statusPill, { borderColor: colors.borderStrong, backgroundColor: "rgba(255,255,255,0.03)" }]}>
                 <View style={[styles.statusDot, { backgroundColor: supabaseReady ? colors.success : colors.warning }]} />
                 <Text style={[styles.statusPillText, { color: colors.foregroundMuted }]}>
@@ -174,7 +179,7 @@ export function AuthScreen() {
               <Text style={[styles.topMeta, { color: colors.muted }]}>VRTX 2026</Text>
             </View>
 
-            <View style={styles.hero}>
+              <View style={styles.hero}>
               <Text style={[styles.eyebrow, { color: colors.foregroundMuted }]}>Bem-vindo</Text>
               <Text style={[styles.title, { color: colors.foreground }]}>
                 {mode === "login" ? "Entrar na sua conta" : "Criar sua conta"}
@@ -188,7 +193,7 @@ export function AuthScreen() {
               </Text>
             </View>
 
-            <View style={styles.metricsRow}>
+              <View style={styles.metricsRow}>
               {metrics.map((item) => (
                 <View
                   key={item.label}
@@ -206,7 +211,7 @@ export function AuthScreen() {
               ))}
             </View>
 
-            <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]}>
+              <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]}>
               <View style={[styles.formHeader, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.formEyebrow, { color: colors.foregroundMuted }]}>
                   {supabaseReady ? "Acesso a conta" : "Modo offline"}
@@ -378,7 +383,7 @@ export function AuthScreen() {
               )}
             </View>
             
-            <View style={styles.footer}>
+              <View style={styles.footer}>
               <Text style={[styles.statusFooter, { color: colors.success }]}>
                 Tudo pronto para voce comecar
               </Text>
@@ -387,6 +392,7 @@ export function AuthScreen() {
                   Termos de servico e privacidade
                 </Text>
               </Pressable>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -401,6 +407,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  contentShell: {
+    width: "100%",
+    alignSelf: "center",
   },
   content: {
     flex: 1,

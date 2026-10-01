@@ -1,4 +1,4 @@
-import { View, type ViewProps } from "react-native";
+import { Platform, StyleSheet, View, type ViewProps } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 
@@ -23,6 +23,10 @@ export interface ScreenContainerProps extends ViewProps {
    * Additional className for the SafeAreaView (content layer).
    */
   safeAreaClassName?: string;
+  /**
+   * Optional max width for web content. Set false to disable web framing.
+   */
+  webContentMaxWidth?: number | false;
 }
 
 /**
@@ -34,9 +38,12 @@ export function ScreenContainer({
   className,
   containerClassName,
   safeAreaClassName,
+  webContentMaxWidth = 1120,
   style,
   ...props
 }: ScreenContainerProps) {
+  const shouldFrameWebContent = Platform.OS === "web" && webContentMaxWidth !== false;
+
   return (
     <View
       className={cn(
@@ -55,10 +62,27 @@ export function ScreenContainer({
         <Animated.View 
           entering={FadeIn.duration(450)}
           className={cn("flex-1", className)}
+          style={shouldFrameWebContent ? styles.webFrame : undefined}
         >
-          {children}
+          {shouldFrameWebContent ? (
+            <View style={[styles.webContent, { maxWidth: webContentMaxWidth }]}>
+              {children}
+            </View>
+          ) : (
+            children
+          )}
         </Animated.View>
       </SafeAreaView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  webFrame: {
+    alignItems: "center",
+  },
+  webContent: {
+    width: "100%",
+    flex: 1,
+  },
+});

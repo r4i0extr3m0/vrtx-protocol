@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet, useWindowDimensions } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { BlurView } from "@/src/components/BlurView";
@@ -13,10 +13,13 @@ import { typography } from "@/src/theme";
 export default function TabLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const tabBarHeight = getTabBarHeight(insets);
   const { user } = useAuth();
   const { t } = useI18n();
   const isCoach = user?.role === "coach";
+  const isWeb = Platform.OS === "web";
+  const webTabBarWidth = Math.min(Math.max(width - 40, 360), 1080);
 
   return (
     <Tabs
@@ -27,7 +30,7 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
           fontFamily: typography.family.body,
-          fontSize: 11,
+          fontSize: isWeb ? 12 : 11,
           fontWeight: '700',
           paddingBottom: 4,
           lineHeight: 14,
@@ -40,6 +43,16 @@ export default function TabLayout() {
           height: tabBarHeight,
           elevation: 0,
           paddingTop: 6,
+          ...(isWeb
+            ? {
+                alignSelf: "center",
+                width: webTabBarWidth,
+                marginBottom: Math.max(insets.bottom, 10),
+                borderRadius: 18,
+                overflow: "hidden",
+                borderWidth: 1,
+              }
+            : null),
         },
         tabBarBackground: () => (
           <BlurView 
