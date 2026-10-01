@@ -1,4 +1,4 @@
-import { View, type ViewProps } from "react-native";
+import { Platform, View, type ViewProps } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 
@@ -52,9 +52,10 @@ export function ScreenContainer({
         className={cn("flex-1", safeAreaClassName)}
         style={style}
       >
-        <Animated.View 
+        <Animated.View
           entering={FadeIn.duration(450)}
           className={cn("flex-1", className)}
+          style={Platform.OS === "web" ? styles.webContent : undefined}
         >
           {children}
         </Animated.View>
@@ -62,3 +63,11 @@ export function ScreenContainer({
     </View>
   );
 }
+
+const styles = {
+  webContent: {
+    width: "100%" as const,
+    maxWidth: 1440,
+    alignSelf: "center" as const,
+  },
+};

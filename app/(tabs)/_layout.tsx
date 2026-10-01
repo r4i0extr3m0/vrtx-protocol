@@ -35,6 +35,7 @@ export default function TabLayout() {
           lineHeight: 14,
           ...(Platform.OS === "web" ? { textAlign: "left", flex: 1 } : {}),
         },
+        tabBarLabelPosition: Platform.OS === "web" ? "beside-icon" : "below-icon",
         tabBarStyle: {
           position: Platform.OS === "web" ? "fixed" : "absolute",
           borderTopColor: colors.border,
