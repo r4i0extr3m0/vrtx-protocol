@@ -75,15 +75,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <AppIcon name="Home" size={24} color={color} />,
         }}
       />
-      {isCoach ? (
-        <Tabs.Screen
-          name="students"
-          options={{
-            title: t("coach.tabLabel"),
-            tabBarIcon: ({ color }) => <AppIcon name="Users" size={24} color={color} />,
-          }}
-        />
-      ) : null}
+      <Tabs.Screen
+        name="students"
+        options={{
+          href: isCoach ? "/students" : null,
+          title: t("coach.tabLabel"),
+          tabBarIcon: ({ color }) => <AppIcon name="Users" size={24} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="workout"
         options={{

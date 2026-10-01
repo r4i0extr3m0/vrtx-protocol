@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { router } from "expo-router";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
@@ -246,7 +246,7 @@ export function HomeScreen() {
         </Animated.View>
 
         <View style={styles.stack}>
-          <Animated.View entering={FadeInUp.delay(200)}>
+          <Animated.View entering={FadeInUp.delay(200)} style={Platform.OS === "web" ? (styles.desktopMain as any) : undefined}>
             <Pressable onPress={handlePrimaryAction}>
               <LinearGradient
                 colors={colors.brandGradient}
@@ -270,7 +270,7 @@ export function HomeScreen() {
           {shownPrescription ? (
             <Animated.View
               entering={FadeInUp.delay(240)}
-              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
+              style={[styles.card, Platform.OS === "web" ? (styles.desktopCard as any) : undefined, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}
             >
               <View style={styles.cardHeader}>
                 <View style={[styles.cardIcon, { backgroundColor: colors.primary + "15" }]}>
@@ -298,7 +298,7 @@ export function HomeScreen() {
             </Animated.View>
           ) : null}
 
-          <Animated.View entering={FadeInUp.delay(280)} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+          <Animated.View entering={FadeInUp.delay(280)} style={[styles.card, Platform.OS === "web" ? (styles.desktopCard as any) : undefined, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
             <View style={styles.cardHeader}>
               <View style={[styles.cardIcon, { backgroundColor: colors.primary + "15" }]}>
                 <AppIcon name="BarChart" size={20} color={colors.primary} />
@@ -342,7 +342,7 @@ export function HomeScreen() {
             />
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(360)} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
+          <Animated.View entering={FadeInUp.delay(360)} style={[styles.card, Platform.OS === "web" ? (styles.desktopCard as any) : undefined, { backgroundColor: colors.surface, borderColor: colors.border }, shadows.card]}>
             <View style={styles.cardHeader}>
               <View style={[styles.cardIcon, { backgroundColor: colors.warning + "15" }]}>
                 <AppIcon name="Zap" size={20} color={colors.warning} />
@@ -403,6 +403,13 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: spacing.md,
+    ...(Platform.OS === "web" ? { flexDirection: "row", flexWrap: "wrap" as const } : {}),
+  },
+  desktopMain: {
+    ...(Platform.OS === "web" ? { width: "100%" as const } : {}),
+  },
+  desktopCard: {
+    ...(Platform.OS === "web" ? { flexBasis: 0, flexGrow: 1, minWidth: 360 } : {}),
   },
   card: {
     borderRadius: radius.xxl,
