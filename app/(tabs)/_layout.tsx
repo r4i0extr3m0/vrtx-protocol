@@ -49,6 +49,7 @@ export default function TabLayout() {
           paddingTop: Platform.OS === "web" ? 92 : 6,
           paddingBottom: Platform.OS === "web" ? 24 : 0,
           paddingHorizontal: Platform.OS === "web" ? 12 : 0,
+          zIndex: Platform.OS === "web" ? 20 : 0,
         },
         tabBarItemStyle: Platform.OS === "web" ? {
           width: "100%",
