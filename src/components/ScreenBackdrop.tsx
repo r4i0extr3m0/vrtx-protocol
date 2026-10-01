@@ -19,11 +19,12 @@ export function ScreenBackdrop() {
       {/* Background Gradient - Simulating Radial with Linear as fallback for stability */}
       <LinearGradient
         colors={colors.bgGradient as any || ["#121212", "#080808"]}
+        pointerEvents="none"
         style={StyleSheet.absoluteFill}
       />
 
       {/* Blueprint Grid System */}
-      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+      <Svg pointerEvents="none" width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
           <Pattern
             id="grid"
