@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { BlurView } from "@/src/components/BlurView";
@@ -21,27 +21,44 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        tabBarPosition: Platform.OS === "web" ? "left" : "bottom",
+        sceneStyle: Platform.OS === "web" ? { marginLeft: 248 } : undefined,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
           fontFamily: typography.family.body,
-          fontSize: 11,
+          fontSize: Platform.OS === "web" ? 13 : 11,
           fontWeight: '700',
-          paddingBottom: 4,
+          paddingBottom: Platform.OS === "web" ? 0 : 4,
           lineHeight: 14,
+          ...(Platform.OS === "web" ? { textAlign: "left", flex: 1 } : {}),
         },
         tabBarStyle: {
-          position: 'absolute',
-          borderTopWidth: 1,
+          position: Platform.OS === "web" ? "fixed" : "absolute",
           borderTopColor: colors.border,
-          backgroundColor: 'transparent',
-          height: tabBarHeight,
+          borderRightWidth: Platform.OS === "web" ? 1 : 0,
+          borderRightColor: colors.border,
+          borderTopWidth: Platform.OS === "web" ? 0 : 1,
+          backgroundColor: Platform.OS === "web" ? colors.surface : 'transparent',
+          width: Platform.OS === "web" ? 248 : undefined,
+          height: Platform.OS === "web" ? "100%" : tabBarHeight,
           elevation: 0,
-          paddingTop: 6,
+          paddingTop: Platform.OS === "web" ? 92 : 6,
+          paddingBottom: Platform.OS === "web" ? 24 : 0,
+          paddingHorizontal: Platform.OS === "web" ? 12 : 0,
         },
-        tabBarBackground: () => (
+        tabBarItemStyle: Platform.OS === "web" ? {
+          width: "100%",
+          height: 48,
+          borderRadius: 12,
+          paddingHorizontal: 14,
+          marginVertical: 4,
+          flexDirection: "row",
+          justifyContent: "flex-start",
+        } : undefined,
+        tabBarBackground: () => Platform.OS === "web" ? null : (
           <BlurView 
             intensity={30} 
             tint="dark" 
