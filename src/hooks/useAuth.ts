@@ -15,6 +15,8 @@ export function useAuth() {
   const setGuestMode = useAuthStore((state) => state.setGuestMode);
   const updateProfile = useAuthStore((state) => state.updateProfile);
   const enableBiometrics = useAuthStore((state) => state.enableBiometrics);
+  const resetPassword = useAuthStore((state) => state.resetPassword);
+  const updatePassword = useAuthStore((state) => state.updatePassword);
 
   return useMemo(
     () => ({
@@ -30,7 +32,9 @@ export function useAuth() {
       setGuestMode,
       updateProfile,
       enableBiometrics,
+      resetPassword,
+      updatePassword,
     }),
-    [enableBiometrics, hasHydrated, hydrateAuth, isAuthenticated, session, setGuestMode, signIn, signOut, signUp, status, updateProfile, user],
+    [enableBiometrics, hasHydrated, hydrateAuth, isAuthenticated, resetPassword, session, setGuestMode, signIn, signOut, signUp, status, updatePassword, updateProfile, user],
   );
 }
