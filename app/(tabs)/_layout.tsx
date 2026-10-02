@@ -37,7 +37,7 @@ export default function TabLayout() {
         },
         tabBarLabelPosition: Platform.OS === "web" ? "beside-icon" : "below-icon",
         tabBarStyle: {
-          position: Platform.OS === "web" ? "fixed" : "absolute",
+          position: (Platform.OS === "web" ? "fixed" : "absolute") as any,
           borderTopColor: colors.border,
           borderRightWidth: Platform.OS === "web" ? 1 : 0,
           borderRightColor: colors.border,

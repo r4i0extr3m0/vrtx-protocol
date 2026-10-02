@@ -21,8 +21,14 @@ import { useAuth, useTheme } from "@/src/hooks";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { LEGAL_VERSION } from "@/src/legal/legalTexts";
 import { radius, spacing, typography } from "@/src/theme";
+import { WebAuthScreen } from "@/src/screens/web/WebAuthScreen";
 
 export function AuthScreen() {
+  if (Platform.OS === "web") return <WebAuthScreen />;
+  return <AuthScreenNative />;
+}
+
+function AuthScreenNative() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { signIn, signUp, status, isAuthenticated, setGuestMode } = useAuth();
