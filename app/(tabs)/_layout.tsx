@@ -22,7 +22,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarPosition: Platform.OS === "web" ? "left" : "bottom",
-        sceneStyle: Platform.OS === "web" ? { marginLeft: 248 } : undefined,
+        sceneStyle: Platform.OS === "web" ? { marginLeft: 0 } : undefined,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         headerShown: false,
@@ -38,6 +38,7 @@ export default function TabLayout() {
         tabBarLabelPosition: Platform.OS === "web" ? "beside-icon" : "below-icon",
         tabBarStyle: {
           position: (Platform.OS === "web" ? "fixed" : "absolute") as any,
+          display: Platform.OS === "web" ? "none" : undefined,
           borderTopColor: colors.border,
           borderRightWidth: Platform.OS === "web" ? 1 : 0,
           borderRightColor: colors.border,
