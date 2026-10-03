@@ -22,7 +22,7 @@ const navItems = [
   { label: "Nutrição", icon: "Apple", route: "/diet" },
   { label: "Progresso", icon: "BarChart", route: "/statistics" },
   { label: "Histórico", icon: "Clock", route: "/history" },
-  { label: "Alunos", icon: "Users", route: "/students", coachOnly: true },
+  { label: "Espaço do coach", icon: "Users", route: "/students" },
 ];
 
 export function WebShell({ children, eyebrow = "Painel de controle", title = "Seu ritmo, com clareza.", backRoute, backLabel = "Voltar" }: PropsWithChildren<{ eyebrow?: string; title?: string; backRoute?: string; backLabel?: string }>) {
@@ -31,6 +31,14 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const compact = width < 980;
+  const showBack = pathname !== "/" && pathname !== "/(tabs)";
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.push((backRoute ?? "/") as never);
+  };
   return (
     <View style={[styles.shell, { backgroundColor: colors.background }]}>
       <View pointerEvents="none" style={styles.ambientGlow} />
@@ -42,7 +50,7 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
         </View> : null}
         <View style={styles.navList}>
           {!compact ? <Text style={[styles.navLabel, { color: colors.muted }]}>Navegação</Text> : null}
-          {navItems.filter((item) => !item.coachOnly || user?.role === "coach").map((item) => {
+          {navItems.map((item) => {
             const isActive = item.route === "/(tabs)" ? pathname === "/" || pathname === "/(tabs)" : pathname === item.route || pathname.startsWith(`${item.route}/`);
             return (
             <Pressable
@@ -69,7 +77,7 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
       </View>
       <View style={styles.main}>
         <View style={[styles.topbar, compact && styles.topbarCompact, { borderBottomColor: colors.border }]}>
-          <View style={styles.topHeading}>{backRoute ? <Pressable onPress={() => router.push(backRoute as never)} style={[styles.backLink, { borderColor: colors.border }]}><AppIcon name="ArrowLeft" size={15} color={colors.muted} /><Text style={[styles.backLinkText, { color: colors.foregroundMuted }]}>{backLabel}</Text></Pressable> : null}<View><Text style={[styles.topEyebrow, { color: colors.muted }]}>{eyebrow}</Text><Text style={[styles.topTitle, { color: colors.foreground }]}>{title}</Text></View></View>
+          <View style={styles.topHeading}>{showBack ? <Pressable onPress={handleBack} style={[styles.backLink, { borderColor: colors.border }]} accessibilityLabel="Voltar"><AppIcon name="ArrowLeft" size={15} color={colors.muted} /><Text style={[styles.backLinkText, { color: colors.foregroundMuted }]}>{backLabel}</Text></Pressable> : null}<View><Text style={[styles.topEyebrow, { color: colors.muted }]}>{eyebrow}</Text><Text style={[styles.topTitle, { color: colors.foreground }]}>{title}</Text></View></View>
           <View style={styles.topActions}>{!compact ? <View style={[styles.livePill, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.foregroundMuted }]}>Dados locais sincronizados</Text></View> : null}<Pressable onPress={() => router.push("/settings" as never)} style={[styles.settings, { backgroundColor: colors.surface, borderColor: colors.border }]}><AppIcon name="Settings" size={18} color={colors.muted} /></Pressable></View>
         </View>
         <Animated.View key={pathname} entering={FadeInUp.duration(320)} style={styles.content}>{children}</Animated.View>
