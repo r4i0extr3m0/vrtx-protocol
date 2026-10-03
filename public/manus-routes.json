@@ -1,0 +1,164 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "title": "VRTX Protocol"
+    },
+    {
+      "path": "/onboarding",
+      "title": "Introdução"
+    },
+    {
+      "path": "/login",
+      "title": "Entrar"
+    },
+    {
+      "path": "/signup-wizard",
+      "title": "Configuração inicial"
+    },
+    {
+      "path": "/forgot-password",
+      "title": "Recuperar senha"
+    },
+    {
+      "path": "/terms-and-privacy",
+      "title": "Termos e privacidade"
+    },
+    {
+      "path": "/(tabs)",
+      "title": "Visão geral"
+    },
+    {
+      "path": "/(tabs)/students",
+      "title": "Alunos"
+    },
+    {
+      "path": "/(tabs)/workout",
+      "title": "Treino"
+    },
+    {
+      "path": "/(tabs)/statistics",
+      "title": "Progresso"
+    },
+    {
+      "path": "/(tabs)/diet",
+      "title": "Nutrição"
+    },
+    {
+      "path": "/(tabs)/profile",
+      "title": "Perfil"
+    },
+    {
+      "path": "/(tabs)/history",
+      "title": "Histórico"
+    },
+    {
+      "path": "/workout",
+      "title": "Treino"
+    },
+    {
+      "path": "/workout/:id",
+      "title": "Detalhes do treino"
+    },
+    {
+      "path": "/diet",
+      "title": "Nutrição"
+    },
+    {
+      "path": "/diet/add-meal",
+      "title": "Registrar refeição"
+    },
+    {
+      "path": "/diet/goals",
+      "title": "Metas de nutrição"
+    },
+    {
+      "path": "/statistics",
+      "title": "Progresso"
+    },
+    {
+      "path": "/history",
+      "title": "Histórico"
+    },
+    {
+      "path": "/history/:id",
+      "title": "Detalhes do histórico"
+    },
+    {
+      "path": "/profile",
+      "title": "Perfil"
+    },
+    {
+      "path": "/settings",
+      "title": "Configurações"
+    },
+    {
+      "path": "/ai-coach",
+      "title": "Coach IA"
+    },
+    {
+      "path": "/students",
+      "title": "Alunos"
+    },
+    {
+      "path": "/templates",
+      "title": "Modelos"
+    },
+    {
+      "path": "/exercises",
+      "title": "Exercícios"
+    },
+    {
+      "path": "/reports",
+      "title": "Relatórios"
+    },
+    {
+      "path": "/premium",
+      "title": "VRTX Pro"
+    },
+    {
+      "path": "/billing",
+      "title": "Assinatura"
+    },
+    {
+      "path": "/gamification",
+      "title": "Conquistas"
+    },
+    {
+      "path": "/measurements",
+      "title": "Medidas"
+    },
+    {
+      "path": "/body-composition",
+      "title": "Composição corporal"
+    },
+    {
+      "path": "/asymmetry",
+      "title": "Assimetria"
+    },
+    {
+      "path": "/join-coach",
+      "title": "Conectar coach"
+    },
+    {
+      "path": "/sync-status",
+      "title": "Sincronização"
+    },
+    {
+      "path": "/camera",
+      "title": "Câmera"
+    },
+    {
+      "path": "/delete-account",
+      "title": "Excluir conta"
+    },
+    {
+      "path": "/oauth/callback",
+      "title": "Callback OAuth"
+    },
+    {
+      "path": "/workout/new",
+      "title": "Montar treino"
+    }
+  ]
+}

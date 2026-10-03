@@ -12,6 +12,7 @@ export const PUBLIC_ROUTES = new Set([
   "/login",
   "/signup-wizard",
   "/forgot-password",
+  "/reset-password",
   "/terms-and-privacy",
   "/oauth/callback",
 ]);
