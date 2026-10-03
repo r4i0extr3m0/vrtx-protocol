@@ -29,9 +29,10 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
   const { colors } = useTheme();
   const { user } = useAuth();
   const pathname = usePathname();
+  const normalizedPathname = pathname.replace("/(tabs)", "") || "/";
   const { width } = useWindowDimensions();
   const compact = width < 980;
-  const showBack = pathname !== "/" && pathname !== "/(tabs)";
+  const showBack = normalizedPathname !== "/";
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -51,7 +52,7 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
         <View style={styles.navList}>
           {!compact ? <Text style={[styles.navLabel, { color: colors.muted }]}>Navegação</Text> : null}
           {navItems.map((item) => {
-            const isActive = item.route === "/(tabs)" ? pathname === "/" || pathname === "/(tabs)" : pathname === item.route || pathname.startsWith(`${item.route}/`);
+            const isActive = item.route === "/(tabs)" ? normalizedPathname === "/" : normalizedPathname === item.route || normalizedPathname.startsWith(`${item.route}/`);
             return (
             <Pressable
               key={item.label}
@@ -87,7 +88,7 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
 }
 
 export const styles = StyleSheet.create({
-  shell: { flex: 1, minHeight: "100vh" as any, flexDirection: "row", position: "relative" },
+  shell: { flex: 1, minHeight: "100vh" as any, flexDirection: "row", position: "relative", overflow: "hidden" },
   ambientGlow: { position: "absolute", width: 720, height: 420, top: -180, right: -140, borderRadius: 360, backgroundColor: "rgba(140,200,255,0.07)" },
   sidebar: { width: 244, minHeight: "100vh" as any, borderRightWidth: 1, paddingHorizontal: 18, paddingTop: 28, paddingBottom: 20, zIndex: 3 },
   sidebarCompact: { width: 72, paddingHorizontal: 10, alignItems: "center" },

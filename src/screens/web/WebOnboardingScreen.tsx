@@ -24,16 +24,16 @@ export function WebOnboardingScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <View pointerEvents="none" style={styles.grid} />
       <View pointerEvents="none" style={[styles.glow, { backgroundColor: colors.primary + "18" }]} />
-      <View style={styles.nav}><WebBrand /><View style={styles.navRight}><Text style={[styles.navMeta, { color: colors.muted }]}>A COACHING SYSTEM FOR REAL LIFE</Text><Pressable onPress={goForward}><Text style={[styles.skip, { color: colors.foregroundMuted }]}>{isAuthenticated && !user?.onboardingCompleted ? "Abrir configuração" : "Pular introdução"}</Text></Pressable></View></View>
-      <View style={[styles.content, width < 900 && styles.contentNarrow]}>
+      <View style={[styles.nav, width < 720 && styles.navMobile]}><WebBrand /><View style={styles.navRight}><Text style={[styles.navMeta, { color: colors.muted }]}>A COACHING SYSTEM FOR REAL LIFE</Text><Pressable onPress={goForward}><Text style={[styles.skip, { color: colors.foregroundMuted }]}>{isAuthenticated && !user?.onboardingCompleted ? "Abrir configuração" : "Pular introdução"}</Text></Pressable></View></View>
+      <View style={[styles.content, width < 900 && styles.contentNarrow, width < 720 && styles.contentMobile]}>
         <View style={styles.copyColumn}>
           <Text style={[styles.kicker, { color: colors.primary }]}>{slide.kicker}</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>{slide.title}</Text>
+          <Text style={[styles.title, width < 720 && styles.titleMobile, { color: colors.foreground }]}>{slide.title}</Text>
           <Text style={[styles.copy, { color: colors.foregroundMuted }]}>{slide.copy}</Text>
           <View style={styles.controls}><Pressable onPress={goNext} style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary }, pressed && { opacity: 0.78 }]}><Text style={styles.primaryText}>{active === slides.length - 1 ? "Entrar no VRTX" : "Continuar"}</Text><AppIcon name="ChevronRight" size={17} color="#06111D" /></Pressable><Pressable onPress={goForward} style={styles.textButton}><Text style={[styles.textButtonText, { color: colors.foregroundMuted }]}>Já tenho acesso</Text></Pressable></View>
           <View style={styles.progressRow}>{slides.map((item, index) => <Pressable key={item.stat} onPress={() => setActive(index)} style={[styles.progressTrack, { backgroundColor: colors.border }]}><View style={[styles.progressFill, { backgroundColor: colors.primary, width: index <= active ? "100%" : "0%" }]} /></Pressable>)}</View>
         </View>
-        <View style={[styles.featurePanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.featurePanel, width < 720 && styles.featurePanelMobile, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.panelTop}><View style={[styles.iconBox, { backgroundColor: colors.primary + "1A", borderColor: colors.primary + "55" }]}><AppIcon name={slide.icon} size={26} color={colors.primary} /></View><Text style={[styles.panelIndex, { color: colors.muted }]}>{slide.stat}</Text></View>
           <View style={styles.panelVisual}><View style={[styles.ring, { borderColor: colors.primary + "55" }]}><View style={[styles.ringInner, { backgroundColor: colors.primary }]}><AppIcon name={slide.icon} size={34} color="#06111D" /></View></View><View style={[styles.line, styles.lineOne, { backgroundColor: colors.primary + "55" }]} /><View style={[styles.line, styles.lineTwo, { backgroundColor: colors.border }]} /><Text style={[styles.visualLabel, { color: colors.muted }]}>{slide.meta}</Text></View>
           <View style={[styles.panelFooter, { borderTopColor: colors.border }]}><Text style={[styles.panelEyebrow, { color: colors.muted }]}>VRTX PROTOCOL</Text><Text style={[styles.panelTitle, { color: colors.foreground }]}>Menos ruído. Mais prática.</Text></View>
@@ -49,13 +49,16 @@ const styles = StyleSheet.create({
   glow: { position: "absolute", width: 620, height: 620, borderRadius: 400, right: -220, top: -170, opacity: 0.85 },
   nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", zIndex: 1 },
   navRight: { flexDirection: "row", alignItems: "center", gap: 34 },
+  navMobile: { alignItems: "flex-start" },
   navMeta: { fontFamily: typography.family.mono, fontSize: 10, letterSpacing: 1.5 },
   skip: { fontSize: 12, fontWeight: "800" },
   content: { flex: 1, maxWidth: 1200 as any, width: "100%" as any, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 90, zIndex: 1 },
   contentNarrow: { gap: 30 },
+  contentMobile: { flexDirection: "column", alignItems: "stretch", justifyContent: "center", gap: 28, paddingVertical: 28 },
   copyColumn: { flex: 1, maxWidth: 570 as any, gap: 20 },
   kicker: { fontFamily: typography.family.mono, fontSize: 11, fontWeight: "800", letterSpacing: 2 },
   title: { fontSize: 58, lineHeight: 63, fontWeight: "900", letterSpacing: -2.4 },
+  titleMobile: { fontSize: 35, lineHeight: 40, letterSpacing: -1.2 },
   copy: { fontSize: 17, lineHeight: 28, maxWidth: 500 as any },
   controls: { flexDirection: "row", alignItems: "center", gap: 24, marginTop: 14 },
   primary: { minHeight: 52, borderRadius: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 10 },
@@ -66,6 +69,7 @@ const styles = StyleSheet.create({
   progressTrack: { width: 50, height: 3, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: "100%" as any, borderRadius: 4 },
   featurePanel: { width: 390, height: 490, borderRadius: 28, borderWidth: 1, padding: 24, justifyContent: "space-between", shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 30, shadowOffset: { width: 0, height: 18 }, elevation: 10 },
+  featurePanelMobile: { width: "100%" as any, height: 260, maxHeight: 260, padding: 18 },
   panelTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   iconBox: { width: 52, height: 52, borderRadius: 16, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   panelIndex: { fontFamily: typography.family.mono, fontSize: 12, letterSpacing: 1.5 },
