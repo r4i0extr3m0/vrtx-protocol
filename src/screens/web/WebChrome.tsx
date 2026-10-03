@@ -1,6 +1,6 @@
 import { PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { AppIcon } from "@/src/components/AppIcon";
 import { useAuth, useTheme } from "@/src/hooks";
 import { typography } from "@/src/theme";
@@ -9,10 +9,7 @@ export function WebBrand({ compact = false }: { compact?: boolean }) {
   const { colors } = useTheme();
   return (
     <View style={styles.brandRow}>
-      <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
-        <View style={styles.brandMarkLine} />
-        <View style={styles.brandMarkLine} />
-      </View>
+      <View style={[styles.brandMark, { backgroundColor: colors.primary }]}><Text style={styles.brandMarkV}>V</Text></View>
       {!compact ? <Text style={[styles.brandName, { color: colors.foreground }]}>VRTX</Text> : null}
     </View>
   );
@@ -24,11 +21,13 @@ const navItems = [
   { label: "Nutrição", icon: "Apple", route: "/diet" },
   { label: "Progresso", icon: "BarChart", route: "/statistics" },
   { label: "Histórico", icon: "Clock", route: "/history" },
+  { label: "Alunos", icon: "Users", route: "/students", coachOnly: true },
 ];
 
 export function WebShell({ children, eyebrow = "Painel de controle", title = "Seu ritmo, com clareza.", backRoute, backLabel = "Voltar" }: PropsWithChildren<{ eyebrow?: string; title?: string; backRoute?: string; backLabel?: string }>) {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const pathname = usePathname();
   const { width } = useWindowDimensions();
   const compact = width < 980;
   return (
@@ -42,16 +41,18 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
         </View> : null}
         <View style={styles.navList}>
           {!compact ? <Text style={[styles.navLabel, { color: colors.muted }]}>Navegação</Text> : null}
-          {navItems.map((item, index) => (
+          {navItems.filter((item) => !item.coachOnly || user?.role === "coach").map((item) => {
+            const isActive = item.route === "/(tabs)" ? pathname === "/" || pathname === "/(tabs)" : pathname === item.route || pathname.startsWith(`${item.route}/`);
+            return (
             <Pressable
               key={item.label}
               onPress={() => router.push(item.route as never)}
-              style={({ pressed }) => [styles.navItem, compact && styles.navItemCompact, index === 0 && { backgroundColor: colors.primary + "18" }, pressed && { opacity: 0.72 }]}
+              style={({ pressed }) => [styles.navItem, compact && styles.navItemCompact, isActive && { backgroundColor: colors.primary + "18" }, pressed && { opacity: 0.72 }]}
             >
-              <AppIcon name={item.icon} size={18} color={index === 0 ? colors.primary : colors.muted} />
-              {!compact ? <Text style={[styles.navText, { color: index === 0 ? colors.foreground : colors.foregroundMuted }]}>{item.label}</Text> : null}
+              <AppIcon name={item.icon} size={18} color={isActive ? colors.primary : colors.muted} />
+              {!compact ? <Text style={[styles.navText, { color: isActive ? colors.foreground : colors.foregroundMuted }]}>{item.label}</Text> : null}
             </Pressable>
-          ))}
+          );})}
         </View>
         {!compact ? <View style={[styles.sideBottom, { borderTopColor: colors.border }]}>
           <Pressable onPress={() => router.push("/ai-coach" as never)} style={styles.aiLink}>
@@ -82,8 +83,8 @@ export const styles = StyleSheet.create({
   sidebar: { width: 244, minHeight: "100vh" as any, borderRightWidth: 1, paddingHorizontal: 18, paddingTop: 28, paddingBottom: 20, zIndex: 3 },
   sidebarCompact: { width: 72, paddingHorizontal: 10, alignItems: "center" },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  brandMark: { width: 28, height: 28, borderRadius: 8, justifyContent: "center", gap: 3, paddingHorizontal: 7 },
-  brandMarkLine: { height: 3, backgroundColor: "#08111F", borderRadius: 3 },
+  brandMark: { width: 28, height: 28, borderRadius: 8, justifyContent: "center", alignItems: "center" },
+  brandMarkV: { color: "#08111F", fontSize: 17, fontWeight: "900", letterSpacing: -2 },
   brandName: { fontSize: 23, fontWeight: "900", letterSpacing: 5 },
   sideIntro: { paddingVertical: 36, gap: 10 },
   sideLabel: { fontSize: 10, fontFamily: typography.family.mono, letterSpacing: 2, fontWeight: "800" },
