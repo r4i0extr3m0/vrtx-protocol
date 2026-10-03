@@ -1,5 +1,6 @@
 import { PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import Animated, { FadeInUp } from "react-native-reanimated";
 import { router, usePathname } from "expo-router";
 import { AppIcon } from "@/src/components/AppIcon";
 import { useAuth, useTheme } from "@/src/hooks";
@@ -71,7 +72,7 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
           <View style={styles.topHeading}>{backRoute ? <Pressable onPress={() => router.push(backRoute as never)} style={[styles.backLink, { borderColor: colors.border }]}><AppIcon name="ArrowLeft" size={15} color={colors.muted} /><Text style={[styles.backLinkText, { color: colors.foregroundMuted }]}>{backLabel}</Text></Pressable> : null}<View><Text style={[styles.topEyebrow, { color: colors.muted }]}>{eyebrow}</Text><Text style={[styles.topTitle, { color: colors.foreground }]}>{title}</Text></View></View>
           <View style={styles.topActions}>{!compact ? <View style={[styles.livePill, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.foregroundMuted }]}>Dados locais sincronizados</Text></View> : null}<Pressable onPress={() => router.push("/settings" as never)} style={[styles.settings, { backgroundColor: colors.surface, borderColor: colors.border }]}><AppIcon name="Settings" size={18} color={colors.muted} /></Pressable></View>
         </View>
-        <View style={styles.content}>{children}</View>
+        <Animated.View key={pathname} entering={FadeInUp.duration(320)} style={styles.content}>{children}</Animated.View>
       </View>
     </View>
   );
