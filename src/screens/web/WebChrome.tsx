@@ -26,7 +26,7 @@ const navItems = [
   { label: "Histórico", icon: "Clock", route: "/history" },
 ];
 
-export function WebShell({ children, eyebrow = "Painel de controle", title = "Seu ritmo, com clareza." }: PropsWithChildren<{ eyebrow?: string; title?: string }>) {
+export function WebShell({ children, eyebrow = "Painel de controle", title = "Seu ritmo, com clareza.", backRoute, backLabel = "Voltar" }: PropsWithChildren<{ eyebrow?: string; title?: string; backRoute?: string; backLabel?: string }>) {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
@@ -67,7 +67,7 @@ export function WebShell({ children, eyebrow = "Painel de controle", title = "Se
       </View>
       <View style={styles.main}>
         <View style={[styles.topbar, compact && styles.topbarCompact, { borderBottomColor: colors.border }]}>
-          <View><Text style={[styles.topEyebrow, { color: colors.muted }]}>{eyebrow}</Text><Text style={[styles.topTitle, { color: colors.foreground }]}>{title}</Text></View>
+          <View style={styles.topHeading}>{backRoute ? <Pressable onPress={() => router.push(backRoute as never)} style={[styles.backLink, { borderColor: colors.border }]}><AppIcon name="ArrowLeft" size={15} color={colors.muted} /><Text style={[styles.backLinkText, { color: colors.foregroundMuted }]}>{backLabel}</Text></Pressable> : null}<View><Text style={[styles.topEyebrow, { color: colors.muted }]}>{eyebrow}</Text><Text style={[styles.topTitle, { color: colors.foreground }]}>{title}</Text></View></View>
           <View style={styles.topActions}>{!compact ? <View style={[styles.livePill, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.foregroundMuted }]}>Dados locais sincronizados</Text></View> : null}<Pressable onPress={() => router.push("/settings" as never)} style={[styles.settings, { backgroundColor: colors.surface, borderColor: colors.border }]}><AppIcon name="Settings" size={18} color={colors.muted} /></Pressable></View>
         </View>
         <View style={styles.content}>{children}</View>
@@ -106,6 +106,9 @@ export const styles = StyleSheet.create({
   main: { flex: 1, minWidth: 0 },
   topbar: { minHeight: 104, paddingHorizontal: 48, paddingVertical: 22, borderBottomWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 24 },
   topbarCompact: { paddingHorizontal: 20, paddingVertical: 16, minHeight: 84 },
+  topHeading: { flexDirection: "row", alignItems: "center", gap: 16, minWidth: 0 },
+  backLink: { minHeight: 36, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 },
+  backLinkText: { fontSize: 11, fontWeight: "800" },
   topEyebrow: { fontFamily: typography.family.mono, fontSize: 10, letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 8 },
   topTitle: { fontSize: 25, fontWeight: "900", letterSpacing: -0.7 },
   topActions: { flexDirection: "row", alignItems: "center", gap: 10 },

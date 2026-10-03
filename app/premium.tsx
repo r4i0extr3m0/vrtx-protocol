@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import { PremiumScreen } from "@/src/screens";
-import { WebSectionScreen } from "@/src/screens/web/WebSectionScreen";
+import { WebSubscriptionScreen } from "@/src/screens/web/WebSubscriptionScreen";
 
 export default function Premium() {
-  return Platform.OS === "web" ? <WebSectionScreen variant="premium" /> : <PremiumScreen />;
+  return Platform.OS === "web" ? <WebSubscriptionScreen /> : <PremiumScreen />;
 }
