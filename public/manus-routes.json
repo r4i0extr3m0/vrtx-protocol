@@ -101,6 +101,26 @@
       "title": "Alunos"
     },
     {
+      "path": "/coach/client/:clientId",
+      "title": "Workspace do aluno"
+    },
+    {
+      "path": "/coach/adherence/:clientId",
+      "title": "Aderência do aluno"
+    },
+    {
+      "path": "/coach/measurements/:clientId",
+      "title": "Medidas do aluno"
+    },
+    {
+      "path": "/coach/nutrition/:clientId",
+      "title": "Nutrição do aluno"
+    },
+    {
+      "path": "/prescribe/:clientId",
+      "title": "Prescrever treino"
+    },
+    {
       "path": "/templates",
       "title": "Modelos"
     },
