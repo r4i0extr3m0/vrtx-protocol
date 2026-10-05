@@ -278,6 +278,7 @@ function AuthScreenNative() {
                       autoCapitalize="none"
                       autoCorrect={false}
                       returnKeyType="next"
+                      testID="login-email-input"
                       placeholder="voce@exemplo.com"
                       placeholderTextColor={colors.muted}
                       style={[
@@ -302,6 +303,7 @@ function AuthScreenNative() {
                       onSubmitEditing={() => {
                         void (mode === "login" ? handleLogin() : handleSignUp());
                       }}
+                      testID="login-password-input"
                       placeholder="••••••••"
                       placeholderTextColor={colors.muted}
                       style={[
@@ -350,6 +352,7 @@ function AuthScreenNative() {
                     <Pressable
                       onPress={mode === "login" ? handleLogin : handleSignUp}
                       disabled={submitting || (mode === "signup" && !acceptedTerms)}
+                      testID={mode === "login" ? "login-submit-button" : "signup-submit-button"}
                       accessibilityLabel={mode === "login" ? "Entrar" : "Criar conta"}
                       style={[
                         styles.primaryButton,

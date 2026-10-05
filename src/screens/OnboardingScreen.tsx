@@ -251,7 +251,7 @@ function OnboardingScreenNative() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={handleNext} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+        <Pressable testID={activeIndex === SLIDES.length - 1 ? "onboarding-finish-button" : "onboarding-next-button"} accessibilityLabel={activeIndex === SLIDES.length - 1 ? "Entrar no app" : "Continuar"} onPress={handleNext} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
           <Text style={styles.primaryButtonText}>
             {activeIndex === SLIDES.length - 1 ? "Entrar no app" : "Continuar"}
           </Text>

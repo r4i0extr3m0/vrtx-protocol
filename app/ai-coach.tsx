@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import { AICoachScreen } from "@/src/screens";
-import { WebSectionScreen } from "@/src/screens/web/WebSectionScreen";
+import { WebAICoachScreen } from "@/src/screens/web/WebAICoachScreen";
 
 export default function AICoach() {
-  return Platform.OS === "web" ? <WebSectionScreen variant="ai" /> : <AICoachScreen />;
+  return Platform.OS === "web" ? <WebAICoachScreen /> : <AICoachScreen />;
 }
