@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions, Platform } from "react-native";
+import { WebOnboardingScreen } from "@/src/screens/web/WebOnboardingScreen";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
@@ -66,6 +67,11 @@ const SLIDES: SlideDefinition[] = [
 const FEATURE_ICONS: IconName[] = ["Dumbbell", "BarChart2", "Zap"];
 
 export function OnboardingScreen() {
+  if (Platform.OS === "web") return <WebOnboardingScreen />;
+  return <OnboardingScreenNative />;
+}
+
+function OnboardingScreenNative() {
   const { width } = useWindowDimensions();
   const { colors } = useTheme();
   const { isAuthenticated, user } = useAuth();
@@ -245,7 +251,7 @@ export function OnboardingScreen() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={handleNext} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+        <Pressable testID={activeIndex === SLIDES.length - 1 ? "onboarding-finish-button" : "onboarding-next-button"} accessibilityLabel={activeIndex === SLIDES.length - 1 ? "Entrar no app" : "Continuar"} onPress={handleNext} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
           <Text style={styles.primaryButtonText}>
             {activeIndex === SLIDES.length - 1 ? "Entrar no app" : "Continuar"}
           </Text>

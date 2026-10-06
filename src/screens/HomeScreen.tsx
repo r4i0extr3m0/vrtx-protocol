@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { WebHomeScreen } from "@/src/screens/web/WebHomeScreen";
 import { router } from "expo-router";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
@@ -54,6 +55,11 @@ function getLastWorkoutLabel(workoutDate: string | null): string {
 }
 
 export function HomeScreen() {
+  if (Platform.OS === "web") return <WebHomeScreen />;
+  return <HomeScreenNative />;
+}
+
+function HomeScreenNative() {
   const { colors } = useTheme();
   const { workouts, activeWorkoutId, createWorkout, createFromTemplate } = useWorkout();
   const { meals } = useDietStore();

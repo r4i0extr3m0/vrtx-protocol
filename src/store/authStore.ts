@@ -42,7 +42,8 @@ interface AuthStoreState {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; message?: string }>;
   enableBiometrics: (enabled: boolean) => void;
-  resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
+  resetPassword: (email: string, redirectTo?: string) => Promise<{ success: boolean; message?: string }>;
+  updatePassword: (password: string) => Promise<{ success: boolean; message?: string }>;
   deleteAccount: (password: string, reason?: string) => Promise<{ success: boolean; message?: string }>;
 }
 
@@ -550,15 +551,26 @@ export const useAuthStore = create<AuthStoreState>()(
           set({ user: { ...user, biometricsEnabled: enabled } });
         }
       },
-      resetPassword: async (email: string) => {
+      resetPassword: async (email: string, redirectTo?: string) => {
         try {
           if (!hasSupabaseEnv()) return { success: false, message: "Supabase não configurado." };
           const client = getSupabaseClient();
-          const { error } = await client.auth.resetPasswordForEmail(email);
+          const { error } = await client.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
           if (error) return { success: false, message: error.message };
           return { success: true };
         } catch {
           return { success: false, message: "Erro ao solicitar recuperação." };
+        }
+      },
+      updatePassword: async (password: string) => {
+        try {
+          if (!hasSupabaseEnv()) return { success: false, message: "Supabase não configurado." };
+          const client = getSupabaseClient();
+          const { error } = await client.auth.updateUser({ password });
+          if (error) return { success: false, message: error.message };
+          return { success: true };
+        } catch {
+          return { success: false, message: "Erro ao atualizar a senha." };
         }
       },
       deleteAccount: async (password: string, reason?: string) => {

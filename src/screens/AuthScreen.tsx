@@ -21,8 +21,14 @@ import { useAuth, useTheme } from "@/src/hooks";
 import { hasSupabaseEnv } from "@/src/constants/env";
 import { LEGAL_VERSION } from "@/src/legal/legalTexts";
 import { radius, spacing, typography } from "@/src/theme";
+import { WebAuthScreen } from "@/src/screens/web/WebAuthScreen";
 
 export function AuthScreen() {
+  if (Platform.OS === "web") return <WebAuthScreen />;
+  return <AuthScreenNative />;
+}
+
+function AuthScreenNative() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { signIn, signUp, status, isAuthenticated, setGuestMode } = useAuth();
@@ -272,6 +278,7 @@ export function AuthScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                       returnKeyType="next"
+                      testID="login-email-input"
                       placeholder="voce@exemplo.com"
                       placeholderTextColor={colors.muted}
                       style={[
@@ -296,6 +303,7 @@ export function AuthScreen() {
                       onSubmitEditing={() => {
                         void (mode === "login" ? handleLogin() : handleSignUp());
                       }}
+                      testID="login-password-input"
                       placeholder="••••••••"
                       placeholderTextColor={colors.muted}
                       style={[
@@ -344,6 +352,7 @@ export function AuthScreen() {
                     <Pressable
                       onPress={mode === "login" ? handleLogin : handleSignUp}
                       disabled={submitting || (mode === "signup" && !acceptedTerms)}
+                      testID={mode === "login" ? "login-submit-button" : "signup-submit-button"}
                       accessibilityLabel={mode === "login" ? "Entrar" : "Criar conta"}
                       style={[
                         styles.primaryButton,
